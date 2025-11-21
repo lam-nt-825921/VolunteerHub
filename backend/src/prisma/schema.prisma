@@ -1,19 +1,14 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
+// src/prisma/schema.prisma
 generator client {
   provider = "prisma-client"
-  output   = "../generated/prisma"
+  output   = "../generated/prisma"   // ← quan trọng: generate đúng chỗ
 }
 
 datasource db {
   provider = "sqlite"
 }
 
-
+// ==================== ENUMS ====================
 enum Role {
   VOLUNTEER
   EVENT_MANAGER
@@ -21,8 +16,8 @@ enum Role {
 }
 
 enum EventStatus {
-  PENDING    // chờ duyệt (admin)
-  APPROVED   // đã duyệt → mở kênh trao đổi
+  PENDING
+  APPROVED
   REJECTED
   CANCELLED
   COMPLETED
@@ -32,130 +27,115 @@ enum RegistrationStatus {
   PENDING
   APPROVED
   REJECTED
-  CANCELLED
-  ATTENDED   // quản lý đánh dấu hoàn thành
+  ATTENDED   // đánh dấu đã tham gia thực tế
 }
 
-// 1. Người dùng
+enum PostType {
+  ANNOUNCEMENT   // thông báo từ quản lý
+  DISCUSSION     // bài trao đổi bình thường
+}
+
+// ==================== MODELS ====================
+
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  password      String
-  fullName      String?
-  avatar        String?
-  phone         String?
-  role          Role     @default(VOLUNTEER)
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  email       String   @unique
+  password    String
+  fullName    String
+  avatar      String?  // Cloudinary URL
+  phone       String?
+  role        Role     @default(VOLUNTEER)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Quan hệ
-  createdEvents   Event[]       @relation("EventCreator")
-  registrations   Registration[]
-  posts           Post[]
-  comments        Comment[]
-  likes           Like[]
+  createdEvents    Event[]       @relation("EventCreator")
+  registrations    Registration[]
+  posts            Post[]
+  comments         Comment[]
+  likes            Like[]
 
   @@map("users")
 }
 
-// 2. Sự kiện
 model Event {
-  id            String         @id @default(uuid())
-  title         String
-  description   String?
-  location      String
-  eventDate     DateTime
-  thumbnail     String?
-  status        EventStatus    @default(PENDING)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id               Int       @id @default(autoincrement())
+  title            String
+  description      String
+  location         String
+  eventDate        DateTime
+  maxParticipants  Int?
+  thumbnail        String?   // Cloudinary URL
+  status           EventStatus @default(PENDING)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  // Người tạo (quản lý sự kiện)
-  creatorId     String
-  creator       User           @relation("EventCreator", fields: [creatorId], references: [id])
+  creatorId        Int
+  creator          User      @relation("EventCreator", fields: [creatorId], references: [id])
 
-  // Các đăng ký tham gia
-  registrations Registration[]
-
-  // Kênh trao đổi (posts)
-  posts         Post[]
+  registrations    Registration[]
+  posts            Post[]
 
   @@map("events")
 }
 
-// 3. Đăng ký tham gia sự kiện
 model Registration {
-  id            String              @id @default(uuid())
-  eventId       String
-  userId        String
-  status        RegistrationStatus  @default(PENDING)
-  registeredAt  DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  id           Int               @id @default(autoincrement())
+  status       RegistrationStatus @default(PENDING)
+  registeredAt DateTime          @default(now())
+  attendedAt   DateTime?
 
-  event         Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       Int
+  eventId      Int
+  user         User              @relation(fields: [userId], references: [id])
+  event        Event             @relation(fields: [eventId], references: [id])
 
-  @@unique([eventId, userId]) // 1 người chỉ đăng ký 1 lần
+  @@unique([userId, eventId])  // chống đăng ký trùng
   @@map("registrations")
 }
 
-// 4. Bài viết trên kênh trao đổi của sự kiện
 model Post {
-  id            String    @id @default(uuid())
-  eventId       String
-  authorId      String
-  content       String
-  image         String?   // ảnh đính kèm
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id         Int       @id @default(autoincrement())
+  content    String
+  images     String?  @default("[]")
+  type       PostType  @default(DISCUSSION)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  event         Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  author        User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId   Int
+  eventId    Int
+  author     User      @relation(fields: [authorId], references: [id])
+  event      Event     @relation(fields: [eventId], references: [id])
 
-  comments      Comment[]
-  likes         Like[]    @relation("PostLikes")
+  comments   Comment[]
+  likes      Like[]
 
   @@map("posts")
 }
 
-// 5. Bình luận
 model Comment {
-  id            String    @id @default(uuid())
-  postId        String
-  authorId      String
-  content       String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
 
-  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author        User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  likes         Like[]    @relation("CommentLikes")
-
-  // Để hỗ trợ reply comment (nếu muốn mở rộng sau)
-  parentId      String?
-  parent        Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
-  replies       Comment[] @relation("CommentReplies")
+  authorId  Int
+  postId    Int
+  author    User     @relation(fields: [authorId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id])
 
   @@map("comments")
 }
 
-// 6. Like (có thể like Post hoặc Comment)
 model Like {
-  id            String    @id @default(uuid())
-  userId        String
-  postId        String?
-  commentId     String?
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
 
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post          Post?     @relation("PostLikes", fields: [postId], references: [id], onDelete: Cascade)
-  comment       Comment?  @relation("CommentLikes", fields: [commentId], references: [id], onDelete: Cascade)
+  userId    Int
+  postId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id])
 
-  createdAt     DateTime  @default(now())
-
-  // Đảm bảo 1 người chỉ like 1 lần
   @@unique([userId, postId])
-  @@unique([userId, commentId])
   @@map("likes")
 }
