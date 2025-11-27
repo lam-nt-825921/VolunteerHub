@@ -1,0 +1,67 @@
+prisma/                       # file liên quan đến Prisma (migration, seed)
+    [seed.ts]                 # script seed dữ liệu
+
+src/                          # mã nguồn chính (NestJS)
+    [main.ts]                # entrypoint ứng dụng (bootstrap Nest app)
+    [app.module.ts]             # module gốc, import tất cả module con
+
+    generated/                 # Prisma client và types được sinh tự động
+        prisma/
+            client.ts
+            browser.ts
+            models.ts
+
+    prisma/                    # service và schema Prisma
+        [prisma.service.ts]     # PrismaClient wrapper để inject vào Nest
+        [schema.prisma]         # schema Prisma (models, datasource, generators)
+
+    common/                    # mã dùng chung cho app
+        decorators/
+            [roles.decorator.ts] # decorator `@Roles(...)`
+        guards/
+            [roles.guard.ts]     # guard kiểm tra role
+        enums/
+            [role.enum.ts]      # enum role (e.g., ADMIN, USER)
+
+    auth/                      # xác thực
+        [auth.controller.ts]     # route auth (login, refresh...)
+        [auth.service.ts]        # logic auth (validate user, tokens)
+        [jwt.strategy.ts]      # passport jwt strategy
+        [local.strategy.ts]     # passport local strategy (username/password)
+
+    users/                     # quản lý người dùng
+        [users.controller.ts]
+        [users.module.ts]
+        [users.service.ts]
+
+    admin/                     # endpoints admin
+        [admin.module.ts]
+        [admin.controller.ts]
+
+    events/                    # quản lý sự kiện
+        [events.module.ts]
+        [events.controller.ts]
+        [events.service.ts]
+
+    registrations/             # đăng ký tham gia sự kiện
+        [registrations.module.ts]
+        [registrations.controller.ts]
+        [registrations.service.ts]
+
+    posts/                     # bài viết, sockets
+        [posts.module.ts]
+        [posts.controller.ts]
+        [posts.service.ts]
+        [posts.gateway.ts]      # WebSocket gateway cho posts
+
+    notifications/             # thông báo
+        [notifications.module.ts]
+        [notifications.controller.ts]
+        [notifications.service.ts]
+
+    dashboard/                 # dữ liệu/tổng quan dashboard
+        [dashboard.module.ts]
+        [dashboard.controller.ts]
+        [dashboard.service.ts]
+
+node_modules/                 # thư viện cài đặt
