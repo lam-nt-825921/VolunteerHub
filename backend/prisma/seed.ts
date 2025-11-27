@@ -1,7 +1,7 @@
 // prisma/seed.ts
 import 'dotenv/config'; // Load .env (nếu cần)
 import * as bcrypt from 'bcrypt';
-import { PrismaClient } from '../src/generated/prisma/client.ts';
+import { PrismaClient } from '../src/generated/prisma/client';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import { faker } from '@faker-js/faker';
 
