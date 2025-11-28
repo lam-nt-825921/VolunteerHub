@@ -13,6 +13,7 @@ enum Role {
   VOLUNTEER
   EVENT_MANAGER
   ADMIN
+  GUEST
 }
 
 enum EventStatus {
@@ -21,6 +22,11 @@ enum EventStatus {
   REJECTED
   CANCELLED
   COMPLETED
+}
+
+enum EventVisibility {
+  PUBLIC 
+  INTERNAL
 }
 
 enum RegistrationStatus {
@@ -72,6 +78,7 @@ model Event {
   status           EventStatus @default(PENDING)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+  visibility       EventVisibility  @default(PUBLIC)
 
   creatorId        Int
   creator          User      @relation("EventCreator", fields: [creatorId], references: [id])
