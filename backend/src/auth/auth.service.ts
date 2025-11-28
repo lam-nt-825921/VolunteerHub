@@ -94,28 +94,51 @@ export class AuthService {
   }
 
   // ==================== REFRESH TOKEN ====================
-  async refreshToken(refreshToken: string) {
-    try {
-      const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
-      });
-
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-      });
-
-      if (!user || user.refreshToken !== refreshToken) {
-        throw new UnauthorizedException('Refresh token không hợp lệ');
-      }
-
-      const tokens = await this.generateTokens(user.id, user.role);
-      await this.updateRefreshToken(user.id, tokens.refreshToken);
-
-      return tokens;
-    } catch (error) {
-      throw new UnauthorizedException('Refresh token đã hết hạn hoặc không hợp lệ');
-    }
+ async refreshToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+  if (!refreshToken) {
+    throw new UnauthorizedException('Refresh token không được cung cấp');
   }
+
+  // 1. Verify refresh token
+  let payload: JwtPayload;
+  try {
+    payload = this.jwtService.verify<JwtPayload>(refreshToken, {
+      secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+    });
+  } catch (error) {
+    throw new UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn');
+  }
+
+  // 2. Lấy user + kiểm tra refresh token trong DB (plain text)
+  const user = await this.prisma.user.findUnique({
+    where: { id: payload.sub },
+    select: { id: true, email: true, role: true, isActive: true, refreshToken: true },
+  });
+
+  if (!user || !user.isActive) {
+    throw new UnauthorizedException('Tài khoản không tồn tại hoặc đã bị khóa');
+  }
+
+  if (user.refreshToken !== refreshToken) {
+    // Có thể bị đánh cắp → xóa luôn để vô hiệu hóa các token khác
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken: null },
+    });
+    throw new UnauthorizedException('Refresh token không hợp lệ');
+  }
+
+  // 3. Tạo token mới + rotation
+  const tokens = await this.generateTokens(user.id, user.role);
+
+  // 4. Lưu refresh token mới vào DB (plain text)
+  await this.prisma.user.update({
+    where: { id: user.id },
+    data: { refreshToken: tokens.refreshToken },
+  });
+
+  return tokens;
+}
 
   // ==================== LOGOUT ====================
   async logout(userId: number) {
@@ -158,6 +181,15 @@ export class AuthService {
     });
 
     if (!user || !user.isActive) throw new UnauthorizedException();
+    return user;
+  }
+
+  async getProfile(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, role: true, fullName: true, isActive: true },
+    });
+    if (!user) throw new UnauthorizedException();
     return user;
   }
 }

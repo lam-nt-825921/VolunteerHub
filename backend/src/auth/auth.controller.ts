@@ -1,6 +1,5 @@
 // src/auth/auth.controller.ts
 import {
-  UnauthorizedException,
   Controller,
   Post,
   Body,
@@ -9,6 +8,7 @@ import {
   Req,
   Res,
   Get,
+  Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -16,6 +16,9 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { GetCurrentUserId } from '../common/decorators/get-user-id.decorator';
+import { plainToInstance } from 'class-transformer';
+import { AuthResponseDto, UserProfileDto } from './dto/auth-response.dto';
+
 
 @Controller('auth')
 export class AuthController {
@@ -32,35 +35,49 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const logger = new Logger('AuthController');
+    logger.log('Login attempt');
     const tokens = await this.authService.login(dto);
     
-    // Lưu refreshToken vào httpOnly cookie (bảo mật cao nhất)
+    // Lưu refreshToken vào httpOnly cookie
     res.cookie('refresh_token', tokens.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
     });
 
-    return {
+    return plainToInstance(AuthResponseDto, {
       accessToken: tokens.accessToken,
-      user: tokens.user,
-    };
+      expiresIn: 15 * 60, // 15 phút
+      user: plainToInstance(UserProfileDto, tokens.user),
+    });
   }
 
-  @Public()
-  @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  async refresh(@Req() req: Request) {
-    const refreshToken = req.cookies['refresh_token'];
-    if (!refreshToken) throw new UnauthorizedException('Không tìm thấy refresh token');
+@Post('refresh')
+@HttpCode(HttpStatus.OK)
+async refreshTokenWithCookie(
+  @Req() req: Request,
+  @Res({ passthrough: true }) res: Response,
+) {
+  const oldRefreshToken = req.cookies?.refresh_token;
 
-    const tokens = await this.authService.refreshToken(refreshToken);
-    
-    return {
-      accessToken: tokens.accessToken,
-    };
-  }
+  const tokens = await this.authService.refreshToken(oldRefreshToken);
+
+  // Set lại cookie mới
+  res.cookie('refresh_token', tokens.refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/auth/refresh',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
+  });
+
+  return {
+    accessToken: tokens.accessToken,
+    expiresIn: 15 * 60, // 15 phút
+  };
+}
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
@@ -70,13 +87,10 @@ export class AuthController {
     return { message: 'Đăng xuất thành công' };
   }
 
-//   @Get('me')
-//   async getProfile(@GetCurrentUserId() userId: number) {
-//     return this.authService.getProfile(userId);
-//   }
-// trong src/auth/auth.controller.ts
-    @Get('test-login-route')
-    test() {
-    return { message: 'Auth route đang hoạt động ngon lành!' };
-}
+  @Get('me')
+  async getProfile(@GetCurrentUserId() userId: number) {
+    const user = await this.authService.getProfile(userId);
+    return plainToInstance(UserProfileDto, user);
+  }
+
 }
