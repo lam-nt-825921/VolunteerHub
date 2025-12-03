@@ -13,7 +13,6 @@ enum Role {
   VOLUNTEER
   EVENT_MANAGER
   ADMIN
-  GUEST
 }
 
 enum EventStatus {

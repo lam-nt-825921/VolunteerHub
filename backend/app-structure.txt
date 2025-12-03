@@ -20,8 +20,6 @@ src/                          # mã nguồn chính (NestJS)
             [roles.decorator.ts] # decorator `@Roles(...)`
         guards/
             [roles.guard.ts]     # guard kiểm tra role
-        enums/
-            [role.enum.ts]      # enum role (e.g., ADMIN, USER) 
 
     auth/                      # xác thực
         [auth.controller.ts]     # route auth (login, refresh...)

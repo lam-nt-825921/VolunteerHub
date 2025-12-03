@@ -1,81 +1,76 @@
+// src/events/events.controller.ts
 import {
-  Body,
   Controller,
   Get,
-  Param,
-  ParseIntPipe,
-  Patch,
   Post,
+  Patch,
+  Body,
+  Param,
   Query,
-  Req,
-  UnauthorizedException,
+  ParseIntPipe,
 } from '@nestjs/common';
-import { Request } from 'express';
-import { AllowGuest } from '../common/decorators/allow-guest.decorator';
-import { EventsService, EventActor } from './events.service';
+import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
-import { FilterEventsDto } from './dto/filter-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { UpdateEventStatusDto } from './dto/update-status.dto';
+import { FilterEventsDto } from './dto/filter-event.dto';
 
-type RequestWithUser = Request & { user?: EventActor };
+import { Roles } from '../common/decorators/roles.decorator';
+import { Public } from '../common/decorators/public.decorator';
+import { GetUser } from '../common/decorators/get-user.decorator';
+import { Role } from '../generated/prisma/enums';
 
 @Controller('events')
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
-  @AllowGuest()
+  // PUBLIC: Ai cũng xem được (guest + user)
   @Get('public')
-  getPublicEvents(@Query() filterDto: FilterEventsDto) {
-    return this.eventsService.getPublicEvents(filterDto);
+  @Public()
+  getPublicEvents(@Query() filter: FilterEventsDto) {
+    return this.eventsService.getPublicEvents(filter);
   }
 
-  @Get()
-  findAll(@Req() req: RequestWithUser, @Query() filterDto: FilterEventsDto) {
-    const actor = this.getActor(req);
-    return this.eventsService.findAll(filterDto, actor);
-  }
-
-  @AllowGuest()
+  // PUBLIC: Xem chi tiết sự kiện (guest thấy ít hơn, user thấy đầy đủ)
   @Get(':id')
-  findOne(
-    @Req() req: RequestWithUser,
-    @Param('id', ParseIntPipe) id: number,
-  ) {
-    return this.eventsService.findOne(id, req.user);
+  @Public()
+  findOne(@Param('id', ParseIntPipe) id: number, @GetUser() user: any) {
+    return this.eventsService.findOne(id, user);
   }
 
+  // Yêu cầu đăng nhập + role phù hợp
+  @Get()
+  @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
+  findAll(@Query() filter: FilterEventsDto, @GetUser() user: any) {
+    return this.eventsService.findAll(filter, user);
+  }
+
+  // Tạo sự kiện - chỉ EVENT_MANAGER & ADMIN
   @Post()
-  create(@Req() req: RequestWithUser, @Body() dto: CreateEventDto) {
-    const actor = this.getActor(req);
-    return this.eventsService.create(dto, actor);
+  @Roles(Role.EVENT_MANAGER, Role.ADMIN)
+  create(@Body() dto: CreateEventDto, @GetUser() user: any) {
+    return this.eventsService.create(dto, user);
   }
 
+  // Sửa sự kiện - chỉ người tạo hoặc Admin
   @Patch(':id')
+  @Roles(Role.EVENT_MANAGER, Role.ADMIN)
   update(
-    @Req() req: RequestWithUser,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateEventDto,
+    @GetUser() user: any,
   ) {
-    const actor = this.getActor(req);
-    return this.eventsService.update(id, dto, actor);
+    return this.eventsService.update(id, dto, user);
   }
 
+  // Duyệt / thay đổi trạng thái sự kiện
   @Patch(':id/status')
+  @Roles(Role.EVENT_MANAGER, Role.ADMIN)
   updateStatus(
-    @Req() req: RequestWithUser,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateEventStatusDto,
+    @GetUser() user: any,
   ) {
-    const actor = this.getActor(req);
-    return this.eventsService.updateStatus(id, dto, actor);
-  }
-
-  private getActor(req: RequestWithUser): EventActor {
-    if (!req.user) {
-      throw new UnauthorizedException('Bạn cần đăng nhập để tiếp tục');
-    }
-    return req.user;
+    return this.eventsService.updateStatus(id, dto, user);
   }
 }
-

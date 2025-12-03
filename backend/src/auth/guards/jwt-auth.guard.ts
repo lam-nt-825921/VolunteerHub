@@ -1,3 +1,4 @@
+// src/auth/guards/jwt-auth.guard.ts
 import {
   Logger,
   ExecutionContext,
@@ -6,12 +7,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
-import { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
-import {
-  ALLOW_GUEST_KEY,
-} from '../../common/decorators/allow-guest.decorator';
-import { Role } from '../../generated/prisma/enums';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -21,7 +17,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   canActivate(context: ExecutionContext) {
     const logger = new Logger('JwtAuthGuard');
-    logger.log('Checking if route is public');
+    
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -39,26 +35,15 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     err: any,
     user: any,
     info: any,
-    context: ExecutionContext,
   ) {
-    const allowGuest = this.reflector.getAllAndOverride<boolean>(
-      ALLOW_GUEST_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+   
+        
 
     if (user) {
       return user;
     }
 
-    const request = context.switchToHttp().getRequest<Request>();
-    const hasAuthHeader = Boolean(request.headers?.authorization);
-
-    if (allowGuest && !hasAuthHeader) {
-      const guest = { id: null, role: Role.GUEST };
-      request.user = guest;
-      return guest;
-    }
-
+    
     if (err || info) {
       throw err || new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn');
     }
@@ -66,4 +51,3 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return user;
   }
 }
-// src/auth/guards/jwt-auth.guard.ts
