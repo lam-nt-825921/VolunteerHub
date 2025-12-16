@@ -7,6 +7,7 @@ export class FilterNotificationsDto {
   @ApiProperty({
     example: false,
     description: 'Lọc theo trạng thái đã đọc/chưa đọc',
+    type: 'boolean',
     required: false,
   })
   @IsOptional()
@@ -17,6 +18,7 @@ export class FilterNotificationsDto {
   @ApiProperty({
     example: 1,
     description: 'Số trang',
+    type: 'integer',
     default: 1,
     minimum: 1,
   })
@@ -28,6 +30,7 @@ export class FilterNotificationsDto {
   @ApiProperty({
     example: 20,
     description: 'Số lượng kết quả mỗi trang',
+    type: 'integer',
     default: 20,
     minimum: 1,
   })

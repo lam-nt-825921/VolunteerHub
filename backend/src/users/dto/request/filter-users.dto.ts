@@ -27,6 +27,7 @@ export class FilterUsersDto {
   @ApiProperty({
     example: true,
     description: 'Lọc theo trạng thái kích hoạt',
+    type: 'boolean',
     required: false,
   })
   @IsOptional()
@@ -37,6 +38,7 @@ export class FilterUsersDto {
   @ApiProperty({
     example: 1,
     description: 'Số trang',
+    type: 'integer',
     default: 1,
     minimum: 1,
   })
@@ -48,6 +50,7 @@ export class FilterUsersDto {
   @ApiProperty({
     example: 20,
     description: 'Số lượng kết quả mỗi trang',
+    type: 'integer',
     default: 20,
     minimum: 1,
   })

@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { RegistrationsModule } from './registrations/registrations.module';
 import { PostsModule } from './posts/posts.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     RegistrationsModule,
     PostsModule,
     NotificationsModule,
+    DashboardModule,
 
   ],
   controllers: [HealthController],

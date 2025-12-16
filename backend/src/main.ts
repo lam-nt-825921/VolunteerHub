@@ -59,6 +59,7 @@ async function bootstrap() {
     .addTag('registrations', 'Event registration endpoints')
     .addTag('posts', 'Post and comment endpoints')
     .addTag('notifications', 'Notification endpoints')
+    .addTag('dashboard', 'Dashboard and statistics endpoints')
     .addServer('http://localhost:3000', 'Local development server')
     .build();
 

@@ -62,9 +62,11 @@ export class FilterEventsDto {
   @ApiProperty({
     example: 1,
     description: 'Lọc theo ID danh mục',
+    type: 'integer',
     required: false,
   })
   @IsOptional()
+  @Transform(({ value }) => (value ? Number(value) : undefined))
   @IsInt()
   @Min(1)
   categoryId?: number;
@@ -72,6 +74,7 @@ export class FilterEventsDto {
   @ApiProperty({
     example: 1,
     description: 'Số trang',
+    type: 'integer',
     default: 1,
     minimum: 1,
   })
@@ -83,6 +86,7 @@ export class FilterEventsDto {
   @ApiProperty({
     example: 10,
     description: 'Số lượng kết quả mỗi trang',
+    type: 'integer',
     default: 10,
     minimum: 1,
   })

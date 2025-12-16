@@ -18,6 +18,7 @@ export class FilterPostsDto {
   @ApiProperty({
     example: true,
     description: 'Chỉ lấy bài đăng đã ghim',
+    type: 'boolean',
     required: false,
   })
   @IsOptional()
@@ -28,6 +29,7 @@ export class FilterPostsDto {
   @ApiProperty({
     example: 1,
     description: 'Số trang',
+    type: 'integer',
     default: 1,
     minimum: 1,
   })
@@ -39,6 +41,7 @@ export class FilterPostsDto {
   @ApiProperty({
     example: 20,
     description: 'Số lượng kết quả mỗi trang',
+    type: 'integer',
     default: 20,
     minimum: 1,
   })
