@@ -47,7 +47,7 @@ async function bootstrap() {
   logger.log(`🚀 API Server đang chạy tại: http://localhost:${port}`);
   logger.log(`🌐 Frontend truy cập từ: http://localhost:5000`);
   logger.log(`📍 Base URL: http://localhost:${port}`);
-  logger.log(`🔐 Login: http://localhost:${port}/auth/login`);
+  logger.log(`🔐 Login: http://localhost:${port}/login`);
 }
 
 bootstrap();

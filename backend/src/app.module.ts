@@ -7,6 +7,7 @@ import { HealthController } from './health.controller';
 import { APP_GUARD } from '@nestjs/core/constants';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { EventsModule } from './events/events.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { EventsModule } from './events/events.module';
     PrismaModule,
     AuthModule,
     EventsModule,
+    UsersModule,
 
   ],
   controllers: [HealthController],

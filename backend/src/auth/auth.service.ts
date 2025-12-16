@@ -184,12 +184,5 @@ export class AuthService {
     return user;
   }
 
-  async getProfile(userId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, email: true, role: true, fullName: true, isActive: true },
-    });
-    if (!user) throw new UnauthorizedException();
-    return user;
-  }
+
 }

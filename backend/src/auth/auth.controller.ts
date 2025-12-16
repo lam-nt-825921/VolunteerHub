@@ -20,7 +20,7 @@ import { plainToInstance } from 'class-transformer';
 import { AuthResponseDto, UserProfileDto } from './dto/auth-response.dto';
 
 
-@Controller('auth')
+@Controller('')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -87,10 +87,6 @@ async refreshTokenWithCookie(
     return { message: 'Đăng xuất thành công' };
   }
 
-  @Get('me')
-  async getProfile(@GetCurrentUserId() userId: number) {
-    const user = await this.authService.getProfile(userId);
-    return plainToInstance(UserProfileDto, user);
-  }
+
 
 }
