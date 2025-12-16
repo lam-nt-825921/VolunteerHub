@@ -1,0 +1,106 @@
+<div class="event-registrations">
+  <div class="registrations-header">
+    <h3>Danh sách đăng ký</h3>
+    @if (canManage) {
+      <button class="btn btn-secondary" (click)="exportToCSV()">
+        <mat-icon>download</mat-icon>
+        Export CSV
+      </button>
+    }
+  </div>
+
+  <!-- Pending Registrations -->
+  @if (pendingRegistrations.length > 0 && canManage) {
+    <div class="registration-section">
+      <h4>Chờ duyệt ({{ pendingRegistrations.length }})</h4>
+      <div class="registrations-list">
+        @for (reg of pendingRegistrations; track reg.id) {
+          <div class="registration-card">
+            <div class="registration-info">
+              <p><strong>{{ getUserName(reg.userId) }}</strong></p>
+              <p class="registration-date">Đăng ký: {{ formatDate(reg.registeredAt) }}</p>
+            </div>
+            <div class="registration-actions">
+              <button class="btn btn-success" (click)="approveRegistration(reg.id)">
+                <mat-icon>check</mat-icon>
+                Duyệt
+              </button>
+              <button class="btn btn-danger" (click)="rejectRegistration(reg.id)">
+                <mat-icon>close</mat-icon>
+                Từ chối
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Approved Registrations -->
+  @if (approvedRegistrations.length > 0) {
+    <div class="registration-section">
+      <h4>Đã duyệt ({{ approvedRegistrations.length }})</h4>
+      <div class="registrations-list">
+        @for (reg of approvedRegistrations; track reg.id) {
+          <div class="registration-card">
+            <div class="registration-info">
+              <p><strong>{{ getUserName(reg.userId) }}</strong></p>
+              <p class="registration-date">Đăng ký: {{ formatDate(reg.registeredAt) }}</p>
+              @if (reg.approvedAt) {
+                <p class="registration-date">Duyệt: {{ formatDate(reg.approvedAt) }}</p>
+              }
+            </div>
+            @if (canManage && reg.status === 'approved') {
+              <div class="registration-actions">
+                <button class="btn btn-primary" (click)="openCompleteForm(reg.id)">
+                  <mat-icon>check_circle</mat-icon>
+                  Đánh dấu hoàn thành
+                </button>
+              </div>
+            }
+            @if (showCompleteForm() === reg.id) {
+              <div class="complete-form">
+                <label>Số giờ tình nguyện:</label>
+                <input type="number" [(ngModel)]="volunteerHours" min="0" step="0.5" />
+                <div class="form-actions">
+                  <button class="btn btn-primary" (click)="markComplete(reg.id)">Xác nhận</button>
+                  <button class="btn btn-secondary" (click)="closeCompleteForm()">Hủy</button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Completed Registrations -->
+  @if (completedRegistrations.length > 0) {
+    <div class="registration-section">
+      <h4>Đã hoàn thành ({{ completedRegistrations.length }})</h4>
+      <div class="registrations-list">
+        @for (reg of completedRegistrations; track reg.id) {
+          <div class="registration-card">
+            <div class="registration-info">
+              <p><strong>{{ getUserName(reg.userId) }}</strong></p>
+              <p class="registration-date">Đăng ký: {{ formatDate(reg.registeredAt) }}</p>
+              @if (reg.completedAt) {
+                <p class="registration-date">Hoàn thành: {{ formatDate(reg.completedAt) }}</p>
+              }
+              @if (reg.volunteerHours) {
+                <p class="volunteer-hours">Giờ tình nguyện: {{ reg.volunteerHours }}h</p>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  @if (registrations.length === 0) {
+    <div class="empty-state">
+      <mat-icon>people_outline</mat-icon>
+      <p>Chưa có đăng ký nào</p>
+    </div>
+  }
+</div>

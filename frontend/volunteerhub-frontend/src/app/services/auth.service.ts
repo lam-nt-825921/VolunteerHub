@@ -66,7 +66,11 @@ export class AuthService {
 
     if (account) {
       const user: User = {
-        id: Date.now(),
+        id: account.email === 'admin@test.com' ? 999 : 
+            account.email === 'manager1@test.com' ? 1 :
+            account.email === 'manager2@test.com' ? 2 :
+            account.email === 'volunteer1@test.com' ? 101 :
+            account.email === 'volunteer2@test.com' ? 102 : Date.now(),
         email: account.email,
         name: account.name,
         role: account.role,
@@ -144,6 +148,56 @@ export class AuthService {
 
   isGuest(): boolean {
     return !this.isAuthenticated();
+  }
+
+  getAllUsers(): User[] {
+    // In a real app, this would fetch from an API
+    // For now, return mock users from MOCK_ACCOUNTS
+    const allAccounts = [
+      ...MOCK_ACCOUNTS.volunteer,
+      ...MOCK_ACCOUNTS.manager,
+      ...MOCK_ACCOUNTS.admin
+    ];
+
+    return allAccounts.map((acc, index) => ({
+      id: acc.email === 'admin@test.com' ? 999 :
+          acc.email === 'manager1@test.com' ? 1 :
+          acc.email === 'manager2@test.com' ? 2 :
+          acc.email === 'volunteer1@test.com' ? 101 :
+          acc.email === 'volunteer2@test.com' ? 102 : 1000 + index,
+      email: acc.email,
+      name: acc.name,
+      role: acc.role,
+    }));
+  }
+
+  toggleUserActive(userId: number): { success: boolean; message: string } {
+    // In a real app, this would be an API call
+    // For now, just return success
+    const user = this.getAllUsers().find(u => u.id === userId);
+    if (!user) {
+      return { success: false, message: 'Không tìm thấy người dùng!' };
+    }
+    return { success: true, message: 'Đã cập nhật trạng thái người dùng!' };
+  }
+
+  changeUserRole(userId: number, newRole: 'volunteer' | 'manager' | 'admin'): { success: boolean; message: string } {
+    // In a real app, this would be an API call
+    const user = this.getAllUsers().find(u => u.id === userId);
+    if (!user) {
+      return { success: false, message: 'Không tìm thấy người dùng!' };
+    }
+    // Update the user's role in mock data
+    const allAccounts = [
+      ...MOCK_ACCOUNTS.volunteer,
+      ...MOCK_ACCOUNTS.manager,
+      ...MOCK_ACCOUNTS.admin
+    ];
+    const account = allAccounts.find(acc => acc.email === user.email);
+    if (account) {
+      account.role = newRole;
+    }
+    return { success: true, message: `Đã thay đổi vai trò thành ${newRole}!` };
   }
 }
 

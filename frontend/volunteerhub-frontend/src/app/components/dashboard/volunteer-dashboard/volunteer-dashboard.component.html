@@ -1,0 +1,255 @@
+<app-navbar></app-navbar>
+
+<div class="volunteer-dashboard">
+  <div class="dashboard-header">
+    <div class="header-content">
+      <h1>Dashboard Tình nguyện viên</h1>
+      <p>Chào mừng, {{ authService.user()?.name }}!</p>
+    </div>
+  </div>
+
+  <div class="dashboard-content">
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-primary);">
+          <mat-icon>event</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ upcomingEvents.length }}</h3>
+          <p>Sự kiện sắp tới</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-secondary);">
+          <mat-icon>check_circle</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ joinedEvents.length }}</h3>
+          <p>Đã tham gia</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-accent-1);">
+          <mat-icon>schedule</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ totalHours }}</h3>
+          <p>Giờ tình nguyện</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-accent-3);">
+          <mat-icon>emoji_events</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ badges }}</h3>
+          <p>Huy chương</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upcoming Events -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Sự kiện sắp tới</h2>
+        <button class="btn-link" (click)="viewAllEvents()">Xem tất cả</button>
+      </div>
+
+      @if (upcomingEvents.length > 0) {
+        <div class="events-grid">
+          @for (event of upcomingEvents.slice(0, 3); track event.id) {
+            <div class="event-card" (click)="viewEventDetail(event.id)">
+              <div class="event-header">
+                <span class="event-category">{{ event.category }}</span>
+                <span class="event-status approved">Đã duyệt</span>
+              </div>
+              <h3 class="event-title">{{ event.title }}</h3>
+              <p class="event-description">{{ event.description }}</p>
+              <div class="event-details">
+                <div class="event-detail-item">
+                  <mat-icon>calendar_today</mat-icon>
+                  <span>{{ formatDate(event.startDate) }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>location_on</mat-icon>
+                  <span>{{ event.location }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>people</mat-icon>
+                  <span>{{ event.currentParticipants }}/{{ event.maxParticipants }} người</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <mat-icon>event_busy</mat-icon>
+          <p>Bạn chưa có sự kiện sắp tới</p>
+          <button class="btn btn-primary" (click)="viewAllEvents()">Xem sự kiện</button>
+        </div>
+      }
+    </div>
+
+    <!-- New Events -->
+    @if (newEvents.length > 0) {
+      <div class="section">
+        <div class="section-header">
+          <h2>Sự kiện mới công bố</h2>
+        </div>
+        <div class="events-grid">
+          @for (event of newEvents; track event.id) {
+            <div class="event-card" (click)="viewEventDetail(event.id)">
+              <div class="event-header">
+                <span class="event-category">{{ event.category }}</span>
+                <span class="event-badge new">Mới</span>
+              </div>
+              <h3 class="event-title">{{ event.title }}</h3>
+              <p class="event-description">{{ event.description }}</p>
+              <div class="event-details">
+                <div class="event-detail-item">
+                  <mat-icon>calendar_today</mat-icon>
+                  <span>{{ formatDate(event.startDate) }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>location_on</mat-icon>
+                  <span>{{ event.location }}</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Events with New Posts -->
+    @if (eventsWithNewPosts.length > 0) {
+      <div class="section">
+        <div class="section-header">
+          <h2>Sự kiện có tin bài mới</h2>
+        </div>
+        <div class="events-grid">
+          @for (event of eventsWithNewPosts; track event.id) {
+            <div class="event-card" (click)="viewEventDetail(event.id)">
+              <div class="event-header">
+                <span class="event-category">{{ event.category }}</span>
+                <span class="event-badge new-post">
+                  <mat-icon>forum</mat-icon>
+                  Có tin mới
+                </span>
+              </div>
+              <h3 class="event-title">{{ event.title }}</h3>
+              <p class="event-description">{{ event.description }}</p>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Trending Events -->
+    @if (trendingEvents.length > 0) {
+      <div class="section">
+        <div class="section-header">
+          <h2>Sự kiện thu hút</h2>
+        </div>
+        <div class="events-grid">
+          @for (event of trendingEvents; track event.id) {
+            <div class="event-card" (click)="viewEventDetail(event.id)">
+              <div class="event-header">
+                <span class="event-category">{{ event.category }}</span>
+                <span class="event-badge trending">
+                  <mat-icon>trending_up</mat-icon>
+                  Đang hot
+                </span>
+              </div>
+              <h3 class="event-title">{{ event.title }}</h3>
+              <p class="event-description">{{ event.description }}</p>
+              <div class="event-details">
+                <div class="event-detail-item">
+                  <mat-icon>people</mat-icon>
+                  <span>{{ event.currentParticipants }}/{{ event.maxParticipants }} người</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Joined Events -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Sự kiện đã tham gia</h2>
+      </div>
+
+      @if (joinedEvents.length > 0) {
+        <div class="events-grid">
+          @for (event of joinedEvents.slice(0, 3); track event.id) {
+            <div class="event-card" (click)="viewEventDetail(event.id)">
+              <div class="event-header">
+                <span class="event-category">{{ event.category }}</span>
+                <span class="event-status completed">Hoàn thành</span>
+              </div>
+              <h3 class="event-title">{{ event.title }}</h3>
+              <p class="event-description">{{ event.description }}</p>
+              <div class="event-details">
+                <div class="event-detail-item">
+                  <mat-icon>calendar_today</mat-icon>
+                  <span>{{ formatDate(event.startDate) }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>location_on</mat-icon>
+                  <span>{{ event.location }}</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <mat-icon>history</mat-icon>
+          <p>Bạn chưa tham gia sự kiện nào</p>
+        </div>
+      }
+    </div>
+
+    <!-- History Section -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Lịch sử tham gia</h2>
+      </div>
+      @if (joinedEvents.length > 0) {
+        <div class="history-list">
+          @for (event of joinedEvents; track event.id) {
+            <div class="history-item">
+              <div class="history-icon">
+                <mat-icon>event</mat-icon>
+              </div>
+              <div class="history-content">
+                <h4 (click)="viewEventDetail(event.id)">{{ event.title }}</h4>
+                <p>{{ formatDate(event.startDate) }} - {{ event.location }}</p>
+                @if (event.status === 'completed') {
+                  <span class="status-badge completed">Đã hoàn thành</span>
+                } @else {
+                  <span class="status-badge approved">Đã tham gia</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <mat-icon>history</mat-icon>
+          <p>Chưa có lịch sử tham gia</p>
+        </div>
+      }
+    </div>
+  </div>
+</div>
+
+<app-footer></app-footer>
+

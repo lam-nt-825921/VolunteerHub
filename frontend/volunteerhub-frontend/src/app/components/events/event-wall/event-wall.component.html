@@ -1,0 +1,174 @@
+<div class="event-wall">
+  <div class="wall-header">
+    <h2>Kênh trao đổi</h2>
+    <p>Chia sẻ và tương tác với cộng đồng</p>
+  </div>
+
+  <!-- Create Post Form -->
+  <div class="create-post-card">
+    <div class="post-input">
+      <textarea
+        [(ngModel)]="newPostContent"
+        placeholder="Viết gì đó..."
+        rows="3"
+        class="post-textarea"
+      ></textarea>
+      @if (previewUrl) {
+        <div class="image-preview">
+          <img [src]="previewUrl" alt="Preview">
+          <button class="remove-image" (click)="removeImage()" type="button">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      }
+      <div class="post-actions">
+        <label class="file-upload-btn">
+          <mat-icon>image</mat-icon>
+          <span>Thêm ảnh</span>
+          <input
+            type="file"
+            accept="image/*"
+            (change)="onFileSelected($event)"
+            style="display: none;"
+          />
+        </label>
+        <button
+          class="btn-post"
+          (click)="createPost()"
+          [disabled]="!newPostContent().trim()"
+          type="button"
+        >
+          Đăng
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Posts List -->
+  <div class="posts-list">
+    @for (post of posts; track post.id) {
+      <div class="post-card" [class.pinned]="post.isPinned">
+        @if (post.isPinned) {
+          <div class="pinned-badge">
+            <mat-icon>push_pin</mat-icon>
+            <span>Đã ghim</span>
+          </div>
+        }
+        
+        <div class="post-header">
+          <div class="post-author">
+            <div class="author-avatar">{{ post.userName.charAt(0) }}</div>
+            <div class="author-info">
+              <strong>{{ post.userName }}</strong>
+              <span class="post-time">{{ formatDate(post.createdAt) }}</span>
+            </div>
+          </div>
+          <div class="post-actions-menu">
+            @if (canManage) {
+              <button
+                class="icon-btn"
+                (click)="pinPost(post)"
+                [title]="post.isPinned ? 'Bỏ ghim' : 'Ghim bài'"
+                type="button"
+              >
+                <mat-icon>{{ post.isPinned ? 'push_pin' : 'push_pin' }}</mat-icon>
+              </button>
+              <button
+                class="icon-btn"
+                (click)="deletePost(post)"
+                title="Xóa bài"
+                type="button"
+              >
+                <mat-icon>delete</mat-icon>
+              </button>
+            } @else if (post.userId === authService.user()?.id) {
+              <button
+                class="icon-btn"
+                (click)="deletePost(post)"
+                title="Xóa bài"
+                type="button"
+              >
+                <mat-icon>delete</mat-icon>
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="post-content">
+          <p>{{ post.content }}</p>
+          @if (post.imageUrl) {
+            <img [src]="post.imageUrl" alt="Post image" class="post-image">
+          }
+        </div>
+
+        <div class="post-stats">
+          <button
+            class="like-btn"
+            [class.liked]="isLiked(post)"
+            (click)="toggleLike(post)"
+            type="button"
+          >
+            <mat-icon>{{ isLiked(post) ? 'favorite' : 'favorite_border' }}</mat-icon>
+            <span>{{ post.likes }}</span>
+          </button>
+          <span class="comment-count">{{ post.comments.length }} bình luận</span>
+        </div>
+
+        <!-- Comments Section -->
+        <div class="comments-section">
+          @for (comment of post.comments; track comment.id) {
+            <div class="comment-item">
+              <div class="comment-author-avatar">{{ comment.userName.charAt(0) }}</div>
+              <div class="comment-content">
+                <div class="comment-header">
+                  <strong>{{ comment.userName }}</strong>
+                  <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
+                </div>
+                <p>{{ comment.content }}</p>
+              </div>
+              @if (canManage || comment.userId === authService.user()?.id) {
+                <button
+                  class="delete-comment-btn"
+                  (click)="deleteComment(comment, post)"
+                  title="Xóa bình luận"
+                  type="button"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              }
+            </div>
+          }
+
+          <!-- Add Comment Form -->
+          <div class="add-comment">
+            <div class="comment-author-avatar">{{ authService.user()?.name?.charAt(0) || 'U' }}</div>
+            <div class="comment-input-wrapper">
+              <input
+                type="text"
+                [value]="getCommentContent(post.id)"
+                (input)="setCommentContent(post.id, $any($event.target).value)"
+                (keyup.enter)="addComment(post.id)"
+                placeholder="Viết bình luận..."
+                class="comment-input"
+              />
+              <button
+                class="comment-submit-btn"
+                (click)="addComment(post.id)"
+                [disabled]="!getCommentContent(post.id).trim()"
+                type="button"
+              >
+                <mat-icon>send</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    } @empty {
+      <div class="empty-wall">
+        <mat-icon>forum</mat-icon>
+        <p>Chưa có bài viết nào. Hãy là người đầu tiên chia sẻ!</p>
+      </div>
+    }
+  </div>
+</div>
+

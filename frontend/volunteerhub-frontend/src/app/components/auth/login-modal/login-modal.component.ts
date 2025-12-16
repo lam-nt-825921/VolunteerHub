@@ -2,6 +2,7 @@ import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { Router } from '@angular/router';
 import { AuthService, LoginCredentials } from '../../../services/auth.service';
 
 @Component({
@@ -23,7 +24,10 @@ export class LoginModalComponent {
   errorMessage = '';
   isLoading = false;
 
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private router: Router
+  ) {}
 
   onLogin() {
     this.errorMessage = '';
@@ -34,6 +38,8 @@ export class LoginModalComponent {
     if (result.success) {
       this.loginSuccess.emit();
       this.close.emit();
+      // Redirect to dashboard
+      this.router.navigate(['/dashboard']);
     } else {
       this.errorMessage = result.message;
     }

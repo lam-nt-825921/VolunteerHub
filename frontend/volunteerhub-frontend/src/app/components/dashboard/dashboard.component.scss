@@ -1,0 +1,19 @@
+.dashboard-container {
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+
+  p {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+  }
+}
+

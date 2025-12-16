@@ -1,13 +1,15 @@
 import { Component, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../services/auth.service';
 import { LoginModalComponent } from '../auth/login-modal/login-modal.component';
+import { NotificationBellComponent } from '../notifications/notification-bell/notification-bell.component';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, MatIconModule, LoginModalComponent],
+  imports: [CommonModule, RouterModule, MatIconModule, LoginModalComponent, NotificationBellComponent],
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.scss'
 })

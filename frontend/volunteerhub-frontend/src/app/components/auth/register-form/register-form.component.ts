@@ -2,6 +2,7 @@ import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { Router } from '@angular/router';
 import { AuthService, RegisterData } from '../../../services/auth.service';
 
 @Component({
@@ -26,7 +27,10 @@ export class RegisterFormComponent {
   successMessage = '';
   isLoading = false;
 
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private router: Router
+  ) {}
 
   onRegister() {
     this.errorMessage = '';
@@ -52,6 +56,8 @@ export class RegisterFormComponent {
       this.successMessage = result.message;
       setTimeout(() => {
         this.registerSuccess.emit();
+        // Redirect to dashboard
+        this.router.navigate(['/dashboard']);
       }, 1500);
     } else {
       this.errorMessage = result.message;

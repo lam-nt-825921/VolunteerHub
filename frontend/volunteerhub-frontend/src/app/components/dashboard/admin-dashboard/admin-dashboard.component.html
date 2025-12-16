@@ -1,0 +1,235 @@
+<app-navbar></app-navbar>
+
+<div class="admin-dashboard">
+  <div class="dashboard-header">
+    <div class="header-content">
+      <h1>Dashboard Quản trị viên</h1>
+      <p>Chào mừng, {{ authService.user()?.name }}!</p>
+    </div>
+  </div>
+
+  <div class="dashboard-content">
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-primary);">
+          <mat-icon>event</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ totalEvents }}</h3>
+          <p>Tổng sự kiện</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-accent-1);">
+          <mat-icon>schedule</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ pendingEvents.length }}</h3>
+          <p>Chờ duyệt</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-accent-2);">
+          <mat-icon>check_circle</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ approvedEvents.length }}</h3>
+          <p>Đã duyệt</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-accent-3);">
+          <mat-icon>people</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ totalUsers }}</h3>
+          <p>Tổng người dùng</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Events -->
+    @if (pendingEvents.length > 0) {
+      <div class="section">
+        <div class="section-header">
+          <h2>Sự kiện chờ duyệt</h2>
+        </div>
+        <div class="events-grid">
+          @for (event of pendingEvents; track event.id) {
+            <div class="event-card">
+              <div class="event-header">
+                <span class="event-category">{{ event.category }}</span>
+                <span class="event-status pending">Chờ duyệt</span>
+              </div>
+              <h3 class="event-title" (click)="viewEventDetail(event.id)">{{ event.title }}</h3>
+              <p class="event-description">{{ event.description }}</p>
+              <div class="event-details">
+                <div class="event-detail-item">
+                  <mat-icon>calendar_today</mat-icon>
+                  <span>{{ formatDate(event.startDate) }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>location_on</mat-icon>
+                  <span>{{ event.location }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>person</mat-icon>
+                  <span>{{ event.managerName }}</span>
+                </div>
+              </div>
+              <div class="event-actions">
+                <button class="btn btn-success" (click)="approveEvent(event)">
+                  <mat-icon>check</mat-icon>
+                  Duyệt
+                </button>
+                <button class="btn btn-danger" (click)="rejectEvent(event)">
+                  <mat-icon>close</mat-icon>
+                  Từ chối
+                </button>
+                <button class="btn btn-icon" (click)="deleteEvent(event)" title="Xóa">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button
+        class="tab-btn"
+        [class.active]="!showUsersTab()"
+        (click)="showUsersTab.set(false)"
+      >
+        Sự kiện
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="showUsersTab()"
+        (click)="toggleUsersTab()"
+      >
+        Người dùng
+      </button>
+    </div>
+
+    <!-- Events Tab -->
+    @if (!showUsersTab()) {
+      <div class="section">
+        <div class="section-header">
+          <h2>Tất cả sự kiện</h2>
+          <div class="header-actions">
+            <button class="btn btn-secondary" (click)="exportEvents()">
+              <mat-icon>download</mat-icon>
+              Export CSV
+            </button>
+            <a routerLink="/events" class="btn-link">Xem tất cả</a>
+          </div>
+        </div>
+
+      @if (allEvents.length > 0) {
+        <div class="events-grid">
+          @for (event of allEvents.slice(0, 6); track event.id) {
+            <div class="event-card" (click)="viewEventDetail(event.id)">
+              <div class="event-header">
+                <span class="event-category">{{ event.category }}</span>
+                <span class="event-status" [class]="event.status">
+                  @if (event.status === 'pending') {
+                    Chờ duyệt
+                  } @else if (event.status === 'approved') {
+                    Đã duyệt
+                  } @else if (event.status === 'rejected') {
+                    Từ chối
+                  } @else {
+                    Hoàn thành
+                  }
+                </span>
+              </div>
+              <h3 class="event-title">{{ event.title }}</h3>
+              <p class="event-description">{{ event.description }}</p>
+              <div class="event-details">
+                <div class="event-detail-item">
+                  <mat-icon>calendar_today</mat-icon>
+                  <span>{{ formatDate(event.startDate) }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>location_on</mat-icon>
+                  <span>{{ event.location }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>person</mat-icon>
+                  <span>{{ event.managerName }}</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <mat-icon>event_busy</mat-icon>
+          <p>Chưa có sự kiện nào</p>
+        </div>
+      }
+      </div>
+    }
+
+    <!-- Users Tab -->
+    @if (showUsersTab()) {
+      <div class="section">
+        <div class="section-header">
+          <h2>Quản lý người dùng</h2>
+        </div>
+        <div class="users-table">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tên</th>
+                <th>Email</th>
+                <th>Vai trò</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (user of allUsers; track user.id) {
+                <tr>
+                  <td>{{ user.id }}</td>
+                  <td>{{ user.name }}</td>
+                  <td>{{ user.email }}</td>
+                  <td>
+                    <select
+                      [value]="user.role"
+                      (change)="changeUserRole(user, $any($event.target).value)"
+                      class="role-select"
+                    >
+                      <option value="volunteer">Tình nguyện viên</option>
+                      <option value="manager">Quản lý</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </td>
+                  <td>
+                    <button
+                      class="btn btn-icon"
+                      (click)="toggleUserActive(user)"
+                      title="Khóa/Mở khóa"
+                    >
+                      <mat-icon>lock</mat-icon>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<app-footer></app-footer>
+

@@ -1,0 +1,101 @@
+<div class="event-form">
+  <h2>{{ event ? 'Sửa sự kiện' : 'Tạo sự kiện mới' }}</h2>
+
+  <form (ngSubmit)="onSubmit()">
+    <div class="form-group">
+      <label for="title">Tiêu đề sự kiện *</label>
+      <input
+        type="text"
+        id="title"
+        [(ngModel)]="formData.title"
+        name="title"
+        required
+        placeholder="Nhập tiêu đề sự kiện"
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="description">Mô tả *</label>
+      <textarea
+        id="description"
+        [(ngModel)]="formData.description"
+        name="description"
+        required
+        rows="4"
+        placeholder="Nhập mô tả chi tiết về sự kiện"
+      ></textarea>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="startDate">Ngày bắt đầu *</label>
+        <input
+          type="datetime-local"
+          id="startDate"
+          [(ngModel)]="formData.startDate"
+          name="startDate"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="endDate">Ngày kết thúc *</label>
+        <input
+          type="datetime-local"
+          id="endDate"
+          [(ngModel)]="formData.endDate"
+          name="endDate"
+          required
+        />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="location">Địa điểm *</label>
+      <input
+        type="text"
+        id="location"
+        [(ngModel)]="formData.location"
+        name="location"
+        required
+        placeholder="Nhập địa điểm tổ chức"
+      />
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="category">Danh mục *</label>
+        <select
+          id="category"
+          [(ngModel)]="formData.category"
+          name="category"
+          required
+        >
+          <option value="">Chọn danh mục</option>
+          @for (cat of categories; track cat) {
+            <option [value]="cat">{{ cat }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="maxParticipants">Số người tham gia tối đa *</label>
+        <input
+          type="number"
+          id="maxParticipants"
+          [(ngModel)]="formData.maxParticipants"
+          name="maxParticipants"
+          required
+          min="1"
+          placeholder="50"
+        />
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" (click)="onCancel()">Hủy</button>
+      <button type="submit" class="btn btn-primary">{{ event ? 'Cập nhật' : 'Tạo sự kiện' }}</button>
+    </div>
+  </form>
+</div>
+

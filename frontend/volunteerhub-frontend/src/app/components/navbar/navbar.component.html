@@ -17,16 +17,19 @@
 
     <!-- Desktop Navigation -->
     <ul class="navbar-menu desktop-menu">
-      <li><a href="#home" class="nav-link">Trang chủ</a></li>
-      <li><a href="#about" class="nav-link">Giới thiệu</a></li>
-      <li><a href="#volunteer" class="nav-link">Tình nguyện</a></li>
-      <li><a href="#organizations" class="nav-link">Tổ chức</a></li>
-      <li><a href="#contact" class="nav-link">Liên hệ</a></li>
+      <li><a routerLink="/" class="nav-link">Trang chủ</a></li>
+      <li><a routerLink="/events" class="nav-link">Sự kiện</a></li>
+      @if (authService.isAuthenticated()) {
+        <li>
+          <a routerLink="/dashboard" class="nav-link">Dashboard</a>
+        </li>
+      }
     </ul>
 
     <!-- Theme Toggle, Login/User Menu & Mobile Menu Button -->
     <div class="navbar-actions">
       @if (authService.isAuthenticated()) {
+        <app-notification-bell></app-notification-bell>
         <div class="user-menu">
           <span class="user-name">{{ authService.user()?.name }}</span>
           <button class="btn-logout" (click)="logout()" title="Đăng xuất">
@@ -71,11 +74,13 @@
   <!-- Mobile Navigation -->
   <div class="mobile-menu" [class.open]="isMenuOpen()">
     <ul class="navbar-menu mobile-menu-list">
-      <li><a href="#home" class="nav-link" (click)="closeMenu()">Trang chủ</a></li>
-      <li><a href="#about" class="nav-link" (click)="closeMenu()">Giới thiệu</a></li>
-      <li><a href="#volunteer" class="nav-link" (click)="closeMenu()">Tình nguyện</a></li>
-      <li><a href="#organizations" class="nav-link" (click)="closeMenu()">Tổ chức</a></li>
-      <li><a href="#contact" class="nav-link" (click)="closeMenu()">Liên hệ</a></li>
+      <li><a routerLink="/" class="nav-link" (click)="closeMenu()">Trang chủ</a></li>
+      <li><a routerLink="/events" class="nav-link" (click)="closeMenu()">Sự kiện</a></li>
+      @if (authService.isAuthenticated()) {
+        <li>
+          <a routerLink="/dashboard" class="nav-link" (click)="closeMenu()">Dashboard</a>
+        </li>
+      }
     </ul>
   </div>
 </nav>

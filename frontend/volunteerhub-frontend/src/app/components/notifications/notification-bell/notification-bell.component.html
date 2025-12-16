@@ -1,0 +1,64 @@
+<div class="notification-bell-container">
+  <button
+    class="notification-button"
+    (click)="toggleDropdown()"
+    [attr.aria-label]="'Thông báo' + (unreadCount() > 0 ? ' (' + unreadCount() + ' chưa đọc)' : '')"
+    [title]="'Thông báo' + (unreadCount() > 0 ? ' (' + unreadCount() + ' chưa đọc)' : '')"
+  >
+    <mat-icon>notifications</mat-icon>
+    @if (unreadCount() > 0) {
+      <span class="badge">{{ unreadCount() }}</span>
+    }
+  </button>
+
+  @if (showDropdown()) {
+    <div class="notification-dropdown-overlay" (click)="closeDropdown()"></div>
+    <div class="notification-dropdown" (click)="$event.stopPropagation()">
+      <div class="dropdown-header">
+        <h3>Thông báo</h3>
+        @if (unreadCount() > 0) {
+          <button class="btn-link" (click)="markAllAsRead()">Đánh dấu tất cả đã đọc</button>
+        }
+      </div>
+
+      <div class="notifications-list">
+        @if (notifications.length === 0) {
+          <div class="empty-notifications">
+            <mat-icon>notifications_none</mat-icon>
+            <p>Không có thông báo nào</p>
+          </div>
+        } @else {
+          @for (notification of notifications; track notification.id) {
+            <div
+              class="notification-item"
+              [class.unread]="!notification.read"
+              (click)="handleNotificationClick(notification)"
+            >
+              <div class="notification-icon">
+                @if (notification.type === 'registration_approved' || notification.type === 'event_approved') {
+                  <mat-icon>check_circle</mat-icon>
+                } @else if (notification.type === 'registration_rejected' || notification.type === 'event_rejected') {
+                  <mat-icon>cancel</mat-icon>
+                } @else if (notification.type === 'event_completed') {
+                  <mat-icon>emoji_events</mat-icon>
+                } @else if (notification.type === 'new_post' || notification.type === 'new_comment') {
+                  <mat-icon>chat_bubble</mat-icon>
+                } @else {
+                  <mat-icon>info</mat-icon>
+                }
+              </div>
+              <div class="notification-content">
+                <p class="notification-title">{{ notification.title }}</p>
+                <p class="notification-message">{{ notification.message }}</p>
+                <span class="notification-time">{{ formatDate(notification.createdAt) }}</span>
+              </div>
+              @if (!notification.read) {
+                <div class="unread-indicator"></div>
+              }
+            </div>
+          }
+        }
+      </div>
+    </div>
+  }
+</div>

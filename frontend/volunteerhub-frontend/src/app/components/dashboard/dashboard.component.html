@@ -1,0 +1,14 @@
+<div class="dashboard-container">
+  @if (userRole === 'volunteer') {
+    <app-volunteer-dashboard></app-volunteer-dashboard>
+  } @else if (userRole === 'manager') {
+    <app-manager-dashboard></app-manager-dashboard>
+  } @else if (userRole === 'admin') {
+    <app-admin-dashboard></app-admin-dashboard>
+  } @else {
+    <div class="error-message">
+      <p>Bạn không có quyền truy cập dashboard.</p>
+    </div>
+  }
+</div>
+
