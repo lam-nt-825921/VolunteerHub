@@ -15,143 +15,226 @@ const ExtendedPrismaClient = PrismaClient; // class đã được generate
 const prisma = new ExtendedPrismaClient({ adapter }); // ← ĐÚNG CÚ PHÁP
 
 
-async function main() {
-  console.log('Bắt đầu tạo dữ liệu mẫu KHỦNG...');
+// Định nghĩa Bitmask quyền hạn (để seed cho chuẩn)
+const PERMISSIONS = {
+  VIEW: 1,
+  POST: 2,
+  COMMENT: 4,
+  REACT: 8,
+  MODERATE: 128, // Quyền quản lý (xóa bài, kick member...)
+};
+// Mặc định cho member thường: Xem + Đăng bài + Comment + Like
+const DEFAULT_MEMBER_MASK = PERMISSIONS.VIEW | PERMISSIONS.POST | PERMISSIONS.COMMENT | PERMISSIONS.REACT;
 
-  // 1. Xóa dữ liệu cũ (nếu muốn khởi động sạch)
+async function main() {
+  console.log('🌱 Bắt đầu tạo dữ liệu mẫu (Seeding)...');
+
+  // ==================== 1. CLEANUP (XÓA DỮ LIỆU CŨ) ====================
+  // Xóa theo thứ tự ngược lại của quan hệ (Con trước -> Cha sau)
+  await prisma.notification.deleteMany();
   await prisma.like.deleteMany();
-  await prisma.comment.deleteMany();
+  await prisma.comment.deleteMany(); // Tự động xóa reply nhờ Cascade
   await prisma.post.deleteMany();
   await prisma.registration.deleteMany();
   await prisma.event.deleteMany();
+  await prisma.category.deleteMany();
   await prisma.user.deleteMany();
+  
+  console.log('🧹 Đã dọn dẹp database cũ.');
 
-  // 2. Tạo Admin + Manager cố định
-  const admin = await prisma.user.create({
+  // ==================== 2. TẠO CATEGORY (MỚI) ====================
+  const categoryNames = [
+    { name: 'Môi trường', slug: 'moi-truong' },
+    { name: 'Giáo dục', slug: 'giao-duc' },
+    { name: 'Y tế & Sức khỏe', slug: 'y-te' },
+    { name: 'Cứu trợ thiên tai', slug: 'cuu-tro' },
+    { name: 'Hỗ trợ người già', slug: 'nguoi-gia' },
+  ];
+
+  // Lưu lại list categories để dùng cho việc tạo Event sau này
+  const categories = [];
+  for (const cat of categoryNames) {
+    const c = await prisma.category.create({ data: cat });
+    categories.push(c);
+  }
+  console.log(`✅ Đã tạo ${categories.length} danh mục.`);
+
+  // ==================== 3. TẠO USERS ====================
+  const passwordHash = await bcrypt.hash('123456', 10);
+
+  // 3.1 Admin
+  await prisma.user.create({
     data: {
       email: 'admin@volunteerhub.com',
-      password: await bcrypt.hash('admin123', 10),
+      password: passwordHash,
       fullName: 'Super Admin',
       role: 'ADMIN',
-      phone: '0905123456',
+      avatar: 'https://i.pravatar.cc/150?u=admin',
+      reputationScore: 999,
     },
   });
 
+  // 3.2 Manager
   const manager = await prisma.user.create({
     data: {
       email: 'manager@volunteerhub.com',
-      password: await bcrypt.hash('manager123', 10),
-      fullName: 'Quản Lý Sự Kiện',
+      password: passwordHash,
+      fullName: 'Trưởng Ban Tổ Chức',
       role: 'EVENT_MANAGER',
       phone: '0912345678',
+      avatar: 'https://i.pravatar.cc/150?u=manager',
+      reputationScore: 500,
     },
   });
 
-  // 3. Tạo 50 tình nguyện viên ngẫu nhiên
+  // 3.3 Volunteers (50 người)
   const volunteers = [];
   for (let i = 0; i < 50; i++) {
     const user = await prisma.user.create({
       data: {
-        email: faker.internet.email(),
-        password: await bcrypt.hash('123456', 10),
+        email: faker.internet.email().toLowerCase(),
+        password: passwordHash,
         fullName: faker.person.fullName(),
-        phone: '0' + faker.string.numeric(9),
+        phone: faker.phone.number(),
         role: 'VOLUNTEER',
         avatar: faker.image.avatar(),
+        reputationScore: faker.number.int({ min: 0, max: 200 }),
+        isActive: true,
       },
     });
     volunteers.push(user);
   }
+  console.log(`✅ Đã tạo 1 Admin, 1 Manager và ${volunteers.length} Volunteers.`);
 
-  // 4. Tạo 20 sự kiện (hỗn hợp trạng thái)
+  // ==================== 4. TẠO EVENTS ====================
   const events = [];
-  const statuses: any[] = ['APPROVED', 'PENDING', 'COMPLETED', 'CANCELLED'];
+  const eventStatuses: any[] = ['APPROVED', 'PENDING', 'COMPLETED', 'CANCELLED'];
+  const visibilities: any[] = ['PUBLIC', 'INTERNAL', 'PUBLIC', 'PUBLIC']; // Ưu tiên Public nhiều hơn
+
   for (let i = 0; i < 20; i++) {
+    // Logic thời gian: StartTime trong tương lai gần, Duration 2-8 tiếng
+    const startTime = faker.date.soon({ days: 60 });
+    const duration = faker.number.float({ min: 2, max: 8, multipleOf: 0.5 }); // VD: 4.5 giờ
+    const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000);
+
     const event = await prisma.event.create({
       data: {
         title: faker.helpers.arrayElement([
-          'Dọn rác bãi biển', 'Trồng cây xanh', 'Hiến máu nhân đạo', 'Dạy học cho trẻ em nghèo',
-          'Phát quà từ thiện', 'Làm sạch công viên', 'Hỗ trợ người già', 'Thu gom rác nhựa'
-        ]) + ` ${i + 1}`,
-        description: faker.lorem.paragraphs(2),
+          'Chiến dịch Mùa Hè Xanh', 'Dọn rác bãi biển Mỹ Khê', 'Hiến máu nhân đạo đợt 1', 
+          'Dạy học cho trẻ em vùng cao', 'Phát cháo từ thiện', 'Trồng 1000 cây xanh'
+        ]) + ` #${i + 1}`,
+        description: faker.lorem.paragraphs(3), // HTML content giả
         location: faker.location.streetAddress({ useFullAddress: true }) + ', Đà Nẵng',
-        eventDate: faker.date.soon({ days: 60 }),
-        maxParticipants: faker.number.int({ min: 30, max: 200 }),
-        status: faker.helpers.arrayElement(statuses),
-        thumbnail: 'https://res.cloudinary.com/demo/image/upload/v1737350000/sample_event.jpg',
+        coverImage: `https://picsum.photos/seed/${i}/800/400`, // Ảnh bìa random đẹp
+        
+        startTime: startTime,
+        endTime: endTime,
+        duration: duration,
+        
+        status: faker.helpers.arrayElement(eventStatuses),
+        visibility: faker.helpers.arrayElement(visibilities),
+        viewCount: faker.number.int({ min: 50, max: 5000 }),
+        
+        // Link ngẫu nhiên tới Manager hoặc 5 Volunteer đầu tiên
         creatorId: faker.helpers.arrayElement([manager.id, ...volunteers.slice(0, 5).map(v => v.id)]),
+        // Link ngẫu nhiên tới Category
+        categoryId: faker.helpers.arrayElement(categories).id,
       },
     });
     events.push(event);
   }
+  console.log(`✅ Đã tạo ${events.length} sự kiện.`);
 
-  // 5. Tạo đăng ký ngẫu nhiên (300+ bản ghi)
+  // ==================== 5. TẠO REGISTRATIONS (ĐĂNG KÝ) ====================
   for (const event of events) {
-    const numRegs = faker.number.int({ min: 10, max: 80 });
-    const shuffled = [...volunteers].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, numRegs);
+    // Random 10-40 người tham gia mỗi sự kiện
+    const numRegs = faker.number.int({ min: 10, max: 40 });
+    const shuffledUsers = [...volunteers].sort(() => 0.5 - Math.random());
+    const selectedUsers = shuffledUsers.slice(0, numRegs);
 
     await prisma.registration.createMany({
-      data: selected.map(user => ({
+      data: selectedUsers.map(user => ({
         userId: user.id,
         eventId: event.id,
-        status: event.status === 'APPROVED' || event.status === 'COMPLETED'
-          ? faker.helpers.arrayElement(['APPROVED', 'ATTENDED'])
+        // Nếu event đã xong -> status ATTENDED, chưa xong -> APPROVED
+        status: ['COMPLETED', 'APPROVED'].includes(event.status) 
+          ? faker.helpers.arrayElement(['APPROVED', 'ATTENDED']) 
           : 'PENDING',
+        permissions: DEFAULT_MEMBER_MASK, // Gán quyền cơ bản
+        registeredAt: faker.date.recent({ days: 10 }),
       })),
     });
   }
+  console.log('✅ Đã tạo các bản ghi đăng ký tham gia.');
 
-  // 6. Tạo post + comment + like cho các sự kiện APPROVED/COMPLETED
+  // ==================== 6. TẠO POSTS & COMMENTS & LIKES ====================
+  // Chỉ tạo cho các sự kiện đang chạy hoặc đã xong
   const activeEvents = events.filter(e => ['APPROVED', 'COMPLETED'].includes(e.status));
+
   for (const event of activeEvents) {
-    const numPosts = faker.number.int({ min: 3, max: 12 });
+    const numPosts = faker.number.int({ min: 2, max: 8 });
+
     for (let i = 0; i < numPosts; i++) {
       const author = faker.helpers.arrayElement(volunteers);
+      
+      // Tạo Post
       const post = await prisma.post.create({
         data: {
-          content: faker.lorem.sentences(faker.number.int({ min: 1, max: 4 })),
-          images: JSON.stringify(
-            faker.helpers.arrayElements([
-              'https://res.cloudinary.com/demo/image/upload/v1737350001/beach1.jpg',
-              'https://res.cloudinary.com/demo/image/upload/v1737350002/tree.jpg',
-              'https://res.cloudinary.com/demo/image/upload/v1737350003/blood.jpg',
-            ], faker.number.int({ min: 0, max: 3 }))
-          ),
+          content: faker.lorem.paragraph(),
+          images: JSON.stringify([faker.image.urlPicsumPhotos()]), // Format mảng JSON string
           type: faker.helpers.arrayElement(['ANNOUNCEMENT', 'DISCUSSION']),
+          isPinned: Math.random() < 0.1, // 10% cơ hội được ghim
           authorId: author.id,
           eventId: event.id,
+          createdAt: faker.date.recent({ days: 5 }),
         },
       });
 
-      // Comment
-      const numComments = faker.number.int({ min: 0, max: 8 });
+      // Tạo Comment gốc (Level 1)
+      const numComments = faker.number.int({ min: 0, max: 5 });
       for (let j = 0; j < numComments; j++) {
-        await prisma.comment.create({
+        const commentAuthor = faker.helpers.arrayElement(volunteers);
+        const parentComment = await prisma.comment.create({
           data: {
             content: faker.lorem.sentence(),
-            authorId: faker.helpers.arrayElement(volunteers).id,
+            authorId: commentAuthor.id,
             postId: post.id,
+            parentId: null, // Comment gốc
           },
         });
+
+        // Tạo Reply (Level 2) - 30% cơ hội có reply
+        if (Math.random() > 0.7) {
+            await prisma.comment.create({
+                data: {
+                    content: 'Mình cũng nghĩ vậy! @' + commentAuthor.fullName,
+                    authorId: faker.helpers.arrayElement(volunteers).id,
+                    postId: post.id,
+                    parentId: parentComment.id, // Link vào comment cha
+                }
+            })
+        }
       }
 
-      // Like
-      const numLikes = faker.number.int({ min: 5, max: 40 });
+      // Tạo Like
+      const numLikes = faker.number.int({ min: 0, max: 20 });
       const likers = faker.helpers.arrayElements(volunteers, numLikes);
-      await prisma.like.createMany({
-        data: likers.map(u => ({ userId: u.id, postId: post.id })),
-      });
+      if (likers.length > 0) {
+        await prisma.like.createMany({
+            data: likers.map(u => ({ userId: u.id, postId: post.id })),
+        });
+      }
     }
   }
 
-  console.log('HOÀN TẤT TẠO DỮ LIỆU MẪU KHỦNG!');
-  console.log(`- ${volunteers.length + 2} người dùng`);
-  console.log(`- ${events.length} sự kiện`);
-  console.log(`- Hàng trăm đăng ký, post, comment, like`);
-  console.log('Mở Prisma Studio để chiêm ngưỡng ngay!');
+  console.log('🎉🎉🎉 SEEDING HOÀN TẤT! Dữ liệu đã sẵn sàng để test.');
 }
 
 main()
-  .catch(e => { console.error(e); process.exit(1); })
-  .finally(async () => await prisma.$disconnect());
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
