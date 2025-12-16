@@ -5,7 +5,7 @@ import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { UpdateProfileDto } from './dto/request/update-profile.dto';
 import { UserProfileDto } from './dto/response/users-profile.response';
 import { plainToInstance } from 'class-transformer';
-import { Role } from 'src/generated/prisma/enums';
+import { Role } from '../generated/prisma/enums';
 
 
 @Injectable()

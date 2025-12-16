@@ -1,6 +1,6 @@
 // src/registrations/dto/response/registration-response.dto.ts
 import { Expose, Type } from 'class-transformer';
-import { RegistrationStatus } from '../../../../generated/prisma/enums';
+import { RegistrationStatus } from '../../../generated/prisma/enums';
 
 /**
  * DTO cho thông tin user trong registration (nested)

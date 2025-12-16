@@ -8,6 +8,9 @@ import { APP_GUARD } from '@nestjs/core/constants';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { EventsModule } from './events/events.module';
 import { UsersModule } from './users/users.module';
+import { RegistrationsModule } from './registrations/registrations.module';
+import { PostsModule } from './posts/posts.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -20,6 +23,9 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     EventsModule,
     UsersModule,
+    RegistrationsModule,
+    PostsModule,
+    NotificationsModule,
 
   ],
   controllers: [HealthController],

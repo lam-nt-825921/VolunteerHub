@@ -13,6 +13,8 @@ import { FilterEventsDto } from './dto/filter-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { UpdateEventStatusDto } from './dto/update-status.dto';
 import { generateInviteCode } from '../common/utils/invite-code.util';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/types/notification-type.enum';
 
 const logger = new Logger('EventsService');
 
@@ -23,7 +25,10 @@ interface Actor {
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   private readonly defaultSelect = {
     id: true,
@@ -231,7 +236,7 @@ export class EventsService {
   async updateStatus(id: number, dto: UpdateEventStatusDto, actor: Actor) {
     const event = await this.prisma.event.findUnique({
       where: { id },
-      select: { creatorId: true, status: true, endTime: true },
+      select: { id: true, title: true, creatorId: true, status: true, endTime: true },
     });
 
     if (!event) throw new NotFoundException('Sự kiện không tồn tại');
@@ -283,14 +288,58 @@ export class EventsService {
     }
 
     if (!allowed) {
-      throw new ForbiddenException('Bạn không được phép chuyển trạng thái sự kiện theo cách này');
+      throw new ForbiddenException(
+        'Bạn không được phép chuyển trạng thái sự kiện theo cách này',
+      );
     }
 
-    return this.prisma.event.update({
+    const updated = await this.prisma.event.update({
       where: { id },
       data: { status: targetStatus },
       select: this.defaultSelect,
     });
+
+    // Gửi notification cho creator khi trạng thái thay đổi (trừ khi chính creator tự thao tác)
+    if (event.creatorId && event.creatorId !== actor.id) {
+      let title = '';
+      let message = '';
+      let type: NotificationType | null = null;
+
+      switch (targetStatus) {
+        case EventStatus.APPROVED:
+          title = 'Sự kiện đã được duyệt';
+          message = `Sự kiện "${event.title}" đã được ADMIN duyệt.`;
+          type = NotificationType.EVENT_APPROVED;
+          break;
+        case EventStatus.REJECTED:
+          title = 'Sự kiện bị từ chối';
+          message = `Sự kiện "${event.title}" đã bị ADMIN từ chối.`;
+          type = NotificationType.EVENT_REJECTED;
+          break;
+        case EventStatus.CANCELLED:
+          title = 'Sự kiện đã bị hủy';
+          message = `Sự kiện "${event.title}" đã bị hủy.`;
+          type = NotificationType.EVENT_CANCELLED;
+          break;
+        case EventStatus.COMPLETED:
+          title = 'Sự kiện đã hoàn thành';
+          message = `Sự kiện "${event.title}" đã được đánh dấu là hoàn thành.`;
+          type = NotificationType.EVENT_COMPLETED;
+          break;
+      }
+
+      if (type) {
+        await this.notificationsService.createNotification(
+          event.creatorId,
+          title,
+          message,
+          type,
+          { eventId: event.id, newStatus: targetStatus },
+        );
+      }
+    }
+
+    return updated;
   }
 
   // Helper methods

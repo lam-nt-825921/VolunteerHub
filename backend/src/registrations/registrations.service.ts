@@ -17,6 +17,8 @@ import {
   RegistrationResponseDto,
   UserSummaryDto,
 } from './dto/response/registration-response.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/types/notification-type.enum';
 
 interface Actor {
   id: number;
@@ -25,7 +27,10 @@ interface Actor {
 
 @Injectable()
 export class RegistrationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   /**
    * Đăng ký tham gia sự kiện (PUBLIC / INTERNAL)
@@ -35,6 +40,7 @@ export class RegistrationsService {
       where: { id: eventId },
       select: {
         id: true,
+        title: true,
         visibility: true,
         status: true,
         startTime: true,
@@ -122,6 +128,15 @@ export class RegistrationsService {
       },
     });
 
+    // Thông báo cho user (chính actor) là đã đăng ký/được duyệt
+    await this.notificationsService.createNotification(
+      actor.id,
+      'Tham gia sự kiện thành công',
+      `Bạn đã tham gia sự kiện "${event.title}".`,
+      NotificationType.REGISTRATION_APPROVED,
+      { eventId: event.id, registrationId: registration.id },
+    );
+
     return plainToInstance(RegistrationResponseDto, registration, {
       excludeExtraneousValues: true,
     });
@@ -144,6 +159,7 @@ export class RegistrationsService {
       where: { id: eventId },
       select: {
         id: true,
+        title: true,
         visibility: true,
         status: true,
         startTime: true,
@@ -233,6 +249,15 @@ export class RegistrationsService {
       },
     });
 
+    // Thông báo cho user (actor) khi join bằng mã mời
+    await this.notificationsService.createNotification(
+      actor.id,
+      'Tham gia sự kiện bằng mã mời',
+      `Bạn đã tham gia sự kiện "${event.title}" bằng mã mời hợp lệ.`,
+      NotificationType.REGISTRATION_APPROVED,
+      { eventId: event.id, registrationId: registration.id },
+    );
+
     return plainToInstance(RegistrationResponseDto, registration, {
       excludeExtraneousValues: true,
     });
@@ -298,7 +323,7 @@ export class RegistrationsService {
   ) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
-      select: { id: true, creatorId: true },
+      select: { id: true, title: true, creatorId: true },
     });
 
     if (!event) {
@@ -316,6 +341,11 @@ export class RegistrationsService {
 
     const registration = await this.prisma.registration.findFirst({
       where: { id: registrationId, eventId: event.id },
+      select: {
+        id: true,
+        status: true,
+        userId: true,
+      },
     });
 
     if (!registration) {
@@ -344,6 +374,39 @@ export class RegistrationsService {
       },
     });
 
+    // Gửi notification cho user được duyệt / từ chối / kick
+    let title = '';
+    let message = '';
+    let type: NotificationType | null = null;
+
+    switch (status) {
+      case RegistrationStatus.APPROVED:
+        title = 'Đăng ký tham gia sự kiện đã được duyệt';
+        message = `Bạn đã được duyệt tham gia sự kiện "${event.title}".`;
+        type = NotificationType.REGISTRATION_APPROVED;
+        break;
+      case RegistrationStatus.REJECTED:
+        title = 'Đăng ký tham gia sự kiện bị từ chối';
+        message = `Đăng ký tham gia sự kiện "${event.title}" của bạn đã bị từ chối.`;
+        type = NotificationType.REGISTRATION_REJECTED;
+        break;
+      case RegistrationStatus.KICKED:
+        title = 'Bạn đã bị xóa khỏi sự kiện';
+        message = `Bạn đã bị xóa khỏi sự kiện "${event.title}".`;
+        type = NotificationType.REGISTRATION_KICKED;
+        break;
+    }
+
+    if (type) {
+      await this.notificationsService.createNotification(
+        registration.userId,
+        title,
+        message,
+        type,
+        { eventId: event.id, registrationId: updated.id, status },
+      );
+    }
+
     return plainToInstance(RegistrationResponseDto, updated, {
       excludeExtraneousValues: true,
     });
@@ -359,7 +422,7 @@ export class RegistrationsService {
   ) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
-      select: { id: true, creatorId: true },
+      select: { id: true, title: true, creatorId: true },
     });
 
     if (!event) {
@@ -377,6 +440,11 @@ export class RegistrationsService {
 
     const registration = await this.prisma.registration.findFirst({
       where: { id: registrationId, eventId: event.id },
+      select: {
+        id: true,
+        status: true,
+        userId: true,
+      },
     });
 
     if (!registration) {
@@ -412,6 +480,15 @@ export class RegistrationsService {
         },
       },
     });
+
+    // Thông báo cho user khi được check-in (đã tham gia sự kiện)
+    await this.notificationsService.createNotification(
+      registration.userId,
+      'Điểm danh sự kiện',
+      `Bạn đã được điểm danh tham gia sự kiện "${event.title}".`,
+      NotificationType.REGISTRATION_APPROVED,
+      { eventId: event.id, registrationId: updated.id, status: updated.status },
+    );
 
     return plainToInstance(RegistrationResponseDto, updated, {
       excludeExtraneousValues: true,
