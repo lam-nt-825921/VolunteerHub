@@ -12,12 +12,12 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/request/register.dto';
+import { LoginDto } from './dto/request/login.dto';
 import { Public } from '../common/decorators/public.decorator';
-import { GetCurrentUserId } from '../common/decorators/get-user-id.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { plainToInstance } from 'class-transformer';
-import { AuthResponseDto, UserProfileDto } from './dto/auth-response.dto';
+import { AuthResponseDto, UserProfileDto } from './dto/response/auth-response.dto';
 
 
 @Controller('')
@@ -28,7 +28,9 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+    
+    const response = await this.authService.register(dto);
+    return plainToInstance(UserProfileDto, response);
   }
 
   @Public()
@@ -81,12 +83,10 @@ async refreshTokenWithCookie(
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@GetCurrentUserId() userId: number, @Res({ passthrough: true }) res: Response) {
+  async logout(@CurrentUser('id') userId: number, @Res({ passthrough: true }) res: Response) {
     await this.authService.logout(userId);
     res.clearCookie('refresh_token');
     return { message: 'Đăng xuất thành công' };
   }
-
-
 
 }

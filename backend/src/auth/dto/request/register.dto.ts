@@ -1,6 +1,10 @@
+// src/auth/dto/request/register.dto.ts
 import { IsEmail, IsString, MinLength, IsOptional, IsEnum } from 'class-validator';
-import { Role } from '../../generated/prisma/enums';
+import { Role } from '../../../generated/prisma/enums';
 
+/**
+ * DTO để đăng ký người dùng mới
+ */
 export class RegisterDto {
   @IsEmail({}, { message: 'Email không hợp lệ' })
   email: string;
@@ -13,9 +17,5 @@ export class RegisterDto {
   @IsOptional()
   fullName?: string;
 
-  // Chỉ admin mới được tạo event_manager hoặc admin
-  // Thông thường người dùng tự đăng ký → mặc định là volunteer
-  @IsOptional()
-  @IsEnum(Role, { message: 'Role không hợp lệ' })
-  role?: Role;
+
 }

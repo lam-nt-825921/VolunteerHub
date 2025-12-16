@@ -9,6 +9,10 @@ import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
 
+/**
+ * Guard JWT: Bảo vệ các route yêu cầu đăng nhập
+ * Bỏ qua các route được đánh dấu @Public()
+ */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
   constructor(private reflector: Reflector) {
@@ -16,14 +20,13 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   }
 
   canActivate(context: ExecutionContext) {
-    const logger = new Logger('JwtAuthGuard');
-    
+    // Kiểm tra xem route có được đánh dấu là public không
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
-    logger.log(`Is route public? ${isPublic}`);
+    // Nếu là public, cho phép truy cập luôn
     if (isPublic) {
       return true;
     }

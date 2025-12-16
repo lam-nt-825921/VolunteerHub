@@ -1,8 +1,10 @@
-// src/users/dto/users-profile.response.dto.ts
+// src/auth/dto/auth-response.dto.ts
 import { Exclude, Expose } from 'class-transformer';
-import { Role } from '../../generated/prisma/enums';
+import { Role } from '../../../generated/prisma/enums';
 
 export class UserProfileDto {
+  @Expose()
+  id: number;
 
   @Expose()
   email: string;
@@ -24,16 +26,10 @@ export class UserProfileDto {
 
   // Các field nhạy cảm sẽ tự động bị exclude
   @Exclude()
-  id: number;
- 
-  @Exclude()
   password?: string;
 
   @Exclude()
   refreshToken?: string;
-
-  @Exclude()
-  refreshTokenExpiresAt?: Date;
 
 }
 

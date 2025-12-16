@@ -17,7 +17,7 @@ import { FilterEventsDto } from './dto/filter-event.dto';
 
 import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
-import { GetUser } from '../common/decorators/get-user.decorator';
+import {CurrentUser } from '../common/decorators/current-user.decorator';
 import { Role } from '../generated/prisma/enums';
 
 @Controller('events')
@@ -34,21 +34,21 @@ export class EventsController {
   // PUBLIC: Xem chi tiết sự kiện (guest thấy ít hơn, user thấy đầy đủ)
   @Get(':id')
   @Public()
-  findOne(@Param('id', ParseIntPipe) id: number, @GetUser() user: any) {
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
     return this.eventsService.findOne(id, user);
   }
 
   // Yêu cầu đăng nhập + role phù hợp
   @Get()
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
-  findAll(@Query() filter: FilterEventsDto, @GetUser() user: any) {
+  findAll(@Query() filter: FilterEventsDto, @CurrentUser() user: any) {
     return this.eventsService.findAll(filter, user);
   }
 
   // Tạo sự kiện - chỉ EVENT_MANAGER & ADMIN
   @Post()
   @Roles(Role.EVENT_MANAGER, Role.ADMIN)
-  create(@Body() dto: CreateEventDto, @GetUser() user: any) {
+  create(@Body() dto: CreateEventDto, @CurrentUser() user: any) {
     return this.eventsService.create(dto, user);
   }
 
@@ -58,7 +58,7 @@ export class EventsController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateEventDto,
-    @GetUser() user: any,
+    @CurrentUser() user: any,
   ) {
     return this.eventsService.update(id, dto, user);
   }
@@ -69,7 +69,7 @@ export class EventsController {
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateEventStatusDto,
-    @GetUser() user: any,
+    @CurrentUser() user: any,
   ) {
     return this.eventsService.updateStatus(id, dto, user);
   }

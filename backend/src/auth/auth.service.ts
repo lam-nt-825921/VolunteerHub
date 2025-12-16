@@ -9,8 +9,8 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/request/register.dto';
+import { LoginDto } from './dto/request/login.dto';
 import { Role } from '../generated/prisma/enums';
 
 interface JwtPayload {
@@ -44,21 +44,11 @@ export class AuthService {
         email: dto.email.toLowerCase(),
         password: hashedPassword,
         fullName: dto.fullName?.trim() || dto.email.split('@')[0],
-        role: dto.role || Role.VOLUNTEER,
+        role: Role.VOLUNTEER,
       },
     });
 
-    const tokens = await this.generateTokens(user.id, user.role);
-    await this.updateRefreshToken(user.id, tokens.refreshToken);
-
-    return {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      user: {
-        id: user,
-        password: undefined, // không trả password
-      },
-    };
+    return user;
   }
 
   // ==================== ĐĂNG NHẬP ====================
@@ -84,12 +74,7 @@ export class AuthService {
     return {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-      },
+      user: user,
     };
   }
 

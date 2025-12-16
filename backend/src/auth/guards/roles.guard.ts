@@ -9,6 +9,10 @@ import { Role } from '../../generated/prisma/enums';
 
 export const ROLES_KEY = 'roles';
 
+/**
+ * Guard Role: Bảo vệ các route yêu cầu vai trò cụ thể sau khi đã đăng nhập
+ * Kiểm tra vai trò của user đã xác thực (từ JwtAuthGuard)
+ */
 @Injectable()
 export class RoleGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
@@ -19,9 +23,9 @@ export class RoleGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    // Nếu không định nghĩa @Roles() → cho qua (public)
+    // Nếu không định nghĩa @Roles() → tức là role GUEST, không cho truy cập
     if (!requiredRoles || requiredRoles.length === 0) {
-      return true;
+      return false;
     }
 
     const request = context.switchToHttp().getRequest();

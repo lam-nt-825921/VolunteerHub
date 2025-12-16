@@ -11,7 +11,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetCurrentUserId } from '../common/decorators/get-user-id.decorator';
-import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateProfileDto } from './dto/request/update-profile.dto';
 import { UsersService } from './users.service';
 
 @Controller('users')
