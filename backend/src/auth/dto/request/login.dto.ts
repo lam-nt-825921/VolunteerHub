@@ -7,14 +7,14 @@ import { ApiProperty } from '@nestjs/swagger';
  */
 export class LoginDto {
   @ApiProperty({
-    example: 'user@example.com',
+    example: 'admin@volunteerhub.com',
     description: 'Email đăng nhập',
   })
   @IsEmail({}, { message: 'Email không hợp lệ' })
   email: string;
 
   @ApiProperty({
-    example: 'password123',
+    example: '123456',
     description: 'Mật khẩu',
     minLength: 6,
   })
