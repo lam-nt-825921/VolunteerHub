@@ -1,29 +1,38 @@
-// src/posts/dto/request/filter-posts.dto.ts
-import { IsOptional, IsInt, Min, IsEnum, IsBoolean } from 'class-validator';
+// src/users/dto/request/filter-users.dto.ts
+import { IsOptional, IsInt, Min, IsEnum, IsString, IsBoolean } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { PostType } from '../../../generated/prisma/enums';
+import { Role } from '../../../generated/prisma/enums';
 
-export class FilterPostsDto {
+export class FilterUsersDto {
   @ApiProperty({
-    example: PostType.DISCUSSION,
-    description: 'Lọc theo loại bài đăng',
-    enum: PostType,
+    example: 'nguyen',
+    description: 'Tìm kiếm theo email hoặc fullName',
     required: false,
   })
   @IsOptional()
-  @IsEnum(PostType)
-  type?: PostType;
+  @IsString()
+  keyword?: string;
+
+  @ApiProperty({
+    example: Role.VOLUNTEER,
+    description: 'Lọc theo vai trò',
+    enum: Role,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(Role)
+  role?: Role;
 
   @ApiProperty({
     example: true,
-    description: 'Chỉ lấy bài đăng đã ghim',
+    description: 'Lọc theo trạng thái kích hoạt',
     required: false,
   })
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
-  isPinned?: boolean;
+  isActive?: boolean;
 
   @ApiProperty({
     example: 1,

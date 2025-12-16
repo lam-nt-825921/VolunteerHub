@@ -1,5 +1,6 @@
 // src/users/dto/update-profile.dto.ts
 import { IsOptional, IsString, IsPhoneNumber } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 
 /**
@@ -19,18 +20,38 @@ import { IsOptional, IsString, IsPhoneNumber } from 'class-validator';
    refreshTokenExpiresAt: Date | null (ẩn, không sửa)
  */
 export class UpdateProfileDto {
+  @ApiProperty({
+    example: 'Nguyễn Văn B',
+    description: 'Họ và tên mới',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   fullName?: string;
 
+  @ApiProperty({
+    example: 'https://res.cloudinary.com/example/avatar.jpg',
+    description: 'URL ảnh đại diện',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   avatar?: string;
 
+  @ApiProperty({
+    example: 'newPassword123',
+    description: 'Mật khẩu mới',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   password?: string;
 
+  @ApiProperty({
+    example: '0901234567',
+    description: 'Số điện thoại',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   phone?: string;

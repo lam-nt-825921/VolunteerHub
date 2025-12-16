@@ -11,6 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/request/create-post.dto';
 import { UpdatePostDto } from './dto/request/update-post.dto';
@@ -30,6 +31,7 @@ interface Actor {
   role: Role;
 }
 
+@ApiTags('posts')
 @Controller()
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}

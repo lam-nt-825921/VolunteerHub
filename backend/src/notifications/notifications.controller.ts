@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { FilterNotificationsDto } from './dto/request/filter-notifications.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -21,9 +22,11 @@ interface Actor {
   role: Role;
 }
 
+@ApiTags('notifications')
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
 @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
+@ApiBearerAuth('JWT-auth')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 

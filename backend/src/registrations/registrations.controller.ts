@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { RegistrationsService } from './registrations.service';
 import { JoinByInviteCodeDto } from './dto/join-by-invite.dto';
 import { UpdateRegistrationStatusDto } from './dto/request/update-registration-status.dto';
@@ -23,7 +24,9 @@ interface Actor {
   role: Role;
 }
 
+@ApiTags('registrations')
 @Controller('registrations')
+@ApiBearerAuth('JWT-auth')
 export class RegistrationsController {
   constructor(private readonly registrationsService: RegistrationsService) {}
 

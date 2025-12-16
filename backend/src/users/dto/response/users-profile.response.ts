@@ -3,6 +3,8 @@ import { Exclude, Expose } from 'class-transformer';
 import { Role } from '../../../generated/prisma/enums';
 
 export class UserProfileDto {
+  @Expose()
+  id: number;
 
   @Expose()
   email: string;
@@ -20,12 +22,18 @@ export class UserProfileDto {
   createdAt?: Date;
 
   @Expose()
-  avatarUrl?: string | null;
+  updatedAt?: Date;
+
+  @Expose()
+  avatar?: string | null;
+
+  @Expose()
+  phone?: string | null;
+
+  @Expose()
+  reputationScore?: number;
 
   // Các field nhạy cảm sẽ tự động bị exclude
-  @Exclude()
-  id: number;
- 
   @Exclude()
   password?: string;
 
@@ -34,7 +42,6 @@ export class UserProfileDto {
 
   @Exclude()
   refreshTokenExpiresAt?: Date;
-
 }
 
 

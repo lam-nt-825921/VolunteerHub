@@ -11,6 +11,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/request/register.dto';
 import { LoginDto } from './dto/request/login.dto';
@@ -20,6 +21,7 @@ import { plainToInstance } from 'class-transformer';
 import { AuthResponseDto, UserProfileDto } from './dto/response/auth-response.dto';
 
 
+@ApiTags('auth')
 @Controller('')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -27,6 +29,10 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Đăng ký tài khoản mới' })
+  @ApiBody({ type: RegisterDto })
+  @ApiResponse({ status: 201, description: 'Đăng ký thành công', type: UserProfileDto })
+  @ApiResponse({ status: 409, description: 'Email đã tồn tại' })
   async register(@Body() dto: RegisterDto) {
     
     const response = await this.authService.register(dto);
@@ -36,6 +42,10 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Đăng nhập' })
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({ status: 200, description: 'Đăng nhập thành công', type: AuthResponseDto })
+  @ApiResponse({ status: 401, description: 'Email hoặc mật khẩu không đúng' })
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const logger = new Logger('AuthController');
     logger.log('Login attempt');
@@ -56,9 +66,12 @@ export class AuthController {
     });
   }
 
-@Post('refresh')
-@HttpCode(HttpStatus.OK)
-async refreshTokenWithCookie(
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Làm mới access token' })
+  @ApiResponse({ status: 200, description: 'Token được làm mới thành công' })
+  @ApiResponse({ status: 401, description: 'Refresh token không hợp lệ' })
+  async refreshTokenWithCookie(
   @Req() req: Request,
   @Res({ passthrough: true }) res: Response,
 ) {
@@ -83,6 +96,8 @@ async refreshTokenWithCookie(
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Đăng xuất' })
+  @ApiResponse({ status: 200, description: 'Đăng xuất thành công' })
   async logout(@CurrentUser('id') userId: number, @Res({ passthrough: true }) res: Response) {
     await this.authService.logout(userId);
     res.clearCookie('refresh_token');
