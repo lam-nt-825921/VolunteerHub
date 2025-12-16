@@ -1,6 +1,15 @@
 // src/events/dto/create-event.dto.ts
-import { IsString, MinLength, MaxLength, IsDateString, IsOptional, IsInt, Min, IsEnum, IsUrl } from 'class-validator';
-import { EventStatus } from '../../generated/prisma/enums';
+import {
+  IsString,
+  MinLength,
+  MaxLength,
+  IsDateString,
+  IsOptional,
+  IsInt,
+  Min,
+  IsEnum,
+  IsUrl,
+} from 'class-validator';
 import { EventVisibility } from '../../generated/prisma/enums';
 
 export class CreateEventDto {
@@ -11,7 +20,7 @@ export class CreateEventDto {
 
   @IsString()
   @MinLength(20)
-  @MaxLength(2000)
+  @MaxLength(5000)
   description: string;
 
   @IsString()
@@ -19,27 +28,21 @@ export class CreateEventDto {
   location: string;
 
   @IsDateString()
-  eventDate: string;
+  startTime: string;
+
+  @IsDateString()
+  endTime: string;
+
+  @IsOptional()
+  @IsUrl()
+  coverImage?: string;
+
+  @IsOptional()
+  @IsEnum(EventVisibility)
+  visibility?: EventVisibility = EventVisibility.PUBLIC;
 
   @IsOptional()
   @IsInt()
   @Min(1)
-  maxParticipants?: number;
-
-  @IsOptional()
-  @IsUrl()
-  thumbnail?: string;
-
-  @IsOptional()
-  @IsEnum(EventStatus)
-  status?: EventStatus;
-
-  @IsEnum(EventVisibility)
-  @IsOptional()
-  visibility?: EventVisibility = EventVisibility.PUBLIC;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  publicSummary?: string;
+  categoryId?: number;
 }

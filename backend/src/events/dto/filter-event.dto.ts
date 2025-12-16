@@ -1,5 +1,12 @@
 // src/events/dto/filter-events.dto.ts
-import { IsEnum, IsInt, IsOptional, IsString, Min, IsDateString } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+  IsDateString,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { EventStatus, EventVisibility } from '../../generated/prisma/enums';
 
@@ -23,6 +30,11 @@ export class FilterEventsDto {
   @IsOptional()
   @IsEnum(EventVisibility)
   visibility?: EventVisibility;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  categoryId?: number;
 
   @Transform(({ value }) => Number(value) || 1)
   @IsInt()

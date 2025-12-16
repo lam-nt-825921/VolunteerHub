@@ -4,7 +4,6 @@ import { CreateEventDto } from './create-event.dto';
 import { IsEnum, IsOptional } from 'class-validator';
 import { EventStatus, EventVisibility } from '../../generated/prisma/enums';
 
-
 export class UpdateEventDto extends PartialType(CreateEventDto) {
   @IsOptional()
   @IsEnum(EventStatus)

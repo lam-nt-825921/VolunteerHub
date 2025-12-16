@@ -73,4 +73,14 @@ export class EventsController {
   ) {
     return this.eventsService.updateStatus(id, dto, user);
   }
+
+  // Lấy mã mời cho sự kiện PRIVATE (chỉ creator hoặc ADMIN)
+  @Get(':id/invite-code')
+  @Roles(Role.EVENT_MANAGER, Role.ADMIN)
+  getInviteCode(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ) {
+    return this.eventsService.getInviteCode(id, user);
+  }
 }
