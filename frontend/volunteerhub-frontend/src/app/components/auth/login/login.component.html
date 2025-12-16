@@ -1,0 +1,79 @@
+<app-navbar></app-navbar>
+
+<main class="login-page">
+  <section class="login-section">
+    <div class="section-container">
+      <div class="login-container">
+        <div class="login-form-card">
+          <div class="form-header">
+            <h2>Đăng nhập</h2>
+            <p>Đăng nhập vào tài khoản của bạn</p>
+          </div>
+
+          <form (ngSubmit)="onLogin()" class="login-form">
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input
+                type="email"
+                id="email"
+                [(ngModel)]="credentials.email"
+                name="email"
+                required
+                placeholder="Nhập email của bạn"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="password">Mật khẩu</label>
+              <input
+                type="password"
+                id="password"
+                [(ngModel)]="credentials.password"
+                name="password"
+                required
+                placeholder="Nhập mật khẩu"
+              />
+            </div>
+
+            @if (errorMessage) {
+              <div class="error-message">
+                <mat-icon>error</mat-icon>
+                <span>{{ errorMessage }}</span>
+              </div>
+            }
+
+            <button type="submit" class="btn btn-primary" [disabled]="isLoading">
+              @if (isLoading) {
+                <span>Đang đăng nhập...</span>
+              } @else {
+                <span>Đăng nhập</span>
+              }
+            </button>
+          </form>
+
+          <div class="form-footer">
+            <p>Chưa có tài khoản? <a routerLink="/signup" class="link">Đăng ký ngay</a></p>
+          </div>
+
+          <div class="mock-accounts">
+            <p class="mock-title">Tài khoản thử nghiệm:</p>
+            <div class="mock-list">
+              <div class="mock-item">
+                <strong>Volunteer:</strong> volunteer1&#64;test.com / 123456
+              </div>
+              <div class="mock-item">
+                <strong>Manager:</strong> manager1&#64;test.com / 123456
+              </div>
+              <div class="mock-item">
+                <strong>Admin:</strong> admin&#64;test.com / 123456
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<app-footer></app-footer>
+

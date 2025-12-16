@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -15,17 +15,32 @@ import { AuthService, RegisterData } from '../../../services/auth.service';
 export class RegisterFormComponent {
   @Output() registerSuccess = new EventEmitter<void>();
   @Output() switchToLogin = new EventEmitter<void>();
+  @Output() goBack = new EventEmitter<void>();
+
+  private _initialData: { name: string; email: string } | null = null;
 
   registerData: RegisterData = {
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'volunteer'
+    role: 'volunteer' // Always volunteer, no selection
   };
   errorMessage = '';
   successMessage = '';
   isLoading = false;
+
+  @Input() set initialData(data: { name: string; email: string } | null) {
+    this._initialData = data;
+    if (data) {
+      this.registerData.name = data.name;
+      this.registerData.email = data.email;
+    }
+  }
+
+  get initialData(): { name: string; email: string } | null {
+    return this._initialData;
+  }
 
   constructor(
     private authService: AuthService,
@@ -38,7 +53,7 @@ export class RegisterFormComponent {
     this.isLoading = true;
 
     // Validation
-    if (!this.registerData.name || !this.registerData.email || !this.registerData.password) {
+    if (!this.registerData.name || !this.registerData.email || !this.registerData.password || !this.registerData.confirmPassword) {
       this.errorMessage = 'Vui lòng điền đầy đủ thông tin!';
       this.isLoading = false;
       return;
@@ -46,6 +61,12 @@ export class RegisterFormComponent {
 
     if (this.registerData.password.length < 6) {
       this.errorMessage = 'Mật khẩu phải có ít nhất 6 ký tự!';
+      this.isLoading = false;
+      return;
+    }
+
+    if (this.registerData.password !== this.registerData.confirmPassword) {
+      this.errorMessage = 'Mật khẩu xác nhận không khớp!';
       this.isLoading = false;
       return;
     }

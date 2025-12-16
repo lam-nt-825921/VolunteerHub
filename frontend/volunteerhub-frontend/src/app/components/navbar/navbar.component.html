@@ -30,14 +30,14 @@
     <div class="navbar-actions">
       @if (authService.isAuthenticated()) {
         <app-notification-bell></app-notification-bell>
-        <div class="user-menu">
+        <div class="user-menu desktop-only">
           <span class="user-name">{{ authService.user()?.name }}</span>
           <button class="btn-logout" (click)="logout()" title="Đăng xuất">
             <mat-icon>logout</mat-icon>
           </button>
         </div>
       } @else {
-        <button class="btn-login" (click)="openLoginModal()">
+        <button class="btn-login desktop-only" (click)="openLoginModal()">
           <mat-icon>login</mat-icon>
           <span class="login-text">Đăng nhập</span>
         </button>
@@ -79,6 +79,22 @@
       @if (authService.isAuthenticated()) {
         <li>
           <a routerLink="/dashboard" class="nav-link" (click)="closeMenu()">Dashboard</a>
+        </li>
+        <li class="mobile-user-info">
+          <span class="user-name">{{ authService.user()?.name }}</span>
+        </li>
+        <li>
+          <button class="btn-logout mobile-logout" (click)="logout(); closeMenu()">
+            <mat-icon>logout</mat-icon>
+            <span>Đăng xuất</span>
+          </button>
+        </li>
+      } @else {
+        <li>
+          <button class="btn-login mobile-login" (click)="openLoginModal(); closeMenu()">
+            <mat-icon>login</mat-icon>
+            <span>Đăng nhập</span>
+          </button>
         </li>
       }
     </ul>

@@ -6,34 +6,22 @@
     <div class="hero-container">
       <div class="hero-content">
         <h1 class="hero-title">
-          Kết nối. Tình nguyện. <span class="gradient-text">Tạo sự khác biệt.</span>
+          <span class="hero-title-line1">Kết nối. Tình nguyện.</span>
+          <span class="gradient-text">Tạo sự khác biệt.</span>
         </h1>
         <p class="hero-description">
           Tham gia cùng hàng nghìn tình nguyện viên và tổ chức đang làm việc cùng nhau để tạo ra những thay đổi tích cực trong cộng đồng của chúng ta.
         </p>
         <div class="hero-actions">
-          <a routerLink="/events" class="btn btn-primary">Bắt đầu tình nguyện</a>
-          <a href="#organizations" class="btn btn-secondary">Dành cho tổ chức</a>
+          <a routerLink="/signup" class="btn btn-primary">Tham gia tình nguyện</a>
         </div>
       </div>
       <div class="hero-visual">
-        <div class="hero-cards">
-          <div class="hero-card card-1">
-            <div class="card-icon" style="background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));"></div>
-            <h3>Tìm cơ hội</h3>
-            <p>Khám phá các cơ hội tình nguyện phù hợp với sở thích của bạn</p>
-          </div>
-          <div class="hero-card card-2">
-            <div class="card-icon" style="background: linear-gradient(135deg, var(--color-accent-1), var(--color-accent-2));"></div>
-            <h3>Kết nối</h3>
-            <p>Xây dựng những kết nối ý nghĩa với những người cùng chí hướng</p>
-          </div>
-          <div class="hero-card card-3">
-            <div class="card-icon" style="background: linear-gradient(135deg, var(--color-accent-2), var(--color-accent-3));"></div>
-            <h3>Tác động</h3>
-            <p>Tạo ra sự khác biệt thực sự trong cộng đồng của bạn</p>
-          </div>
-        </div>
+        <img 
+          src="/landing_page/hero_image.jpg" 
+          alt="Tình nguyện viên VolunteerHub" 
+          class="hero-image"
+        />
       </div>
     </div>
   </section>
@@ -84,25 +72,90 @@
         <h3>Sẵn sàng tạo sự khác biệt?</h3>
         <p>Tham gia cùng hàng nghìn tình nguyện viên đang tạo tác động ngay hôm nay</p>
         @if (!authService.isAuthenticated()) {
-          <button (click)="openRegisterForm()" class="btn btn-primary">Đăng ký ngay</button>
+          <a routerLink="/signup" class="btn btn-primary">Đăng ký ngay</a>
         } @else {
-          <a href="#contact" class="btn btn-primary">Xem sự kiện</a>
+          <a routerLink="/events" class="btn btn-primary">Xem sự kiện</a>
         }
       </div>
     </div>
   </section>
 
+
   <!-- Register Section -->
-  @if (showRegisterForm()) {
-    <section id="register" class="register-section">
-      <div class="section-container">
-        <app-register-form
-          (registerSuccess)="onRegisterSuccess()"
-          (switchToLogin)="switchToLogin()"
-        ></app-register-form>
+  <section id="register" class="register-section">
+    <div class="section-container">
+      <div class="register-layout">
+        <!-- Left Panel: Steps -->
+        <div class="register-steps">
+          <div class="steps-header">
+            <span class="steps-label">3 Bước Đơn Giản</span>
+            <h2 class="steps-title">Bắt Đầu Hành Trình<br>Tình Nguyện Của Bạn</h2>
+          </div>
+          <div class="steps-list">
+            <div class="step-item">
+              <div class="step-number">1</div>
+              <div class="step-content">
+                <h3>Đăng Ký Tài Khoản</h3>
+                <p>Tạo tài khoản của bạn chỉ trong vài phút với thông tin cơ bản</p>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-number">2</div>
+              <div class="step-content">
+                <h3>Khám Phá Sự Kiện</h3>
+                <p>Duyệt qua các cơ hội tình nguyện phù hợp với sở thích và kỹ năng của bạn</p>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-number">3</div>
+              <div class="step-content">
+                <h3>Tham Gia & Tạo Tác Động</h3>
+                <p>Đăng ký tham gia sự kiện và bắt đầu tạo ra sự khác biệt trong cộng đồng</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Panel: Initial Info Form -->
+        <div class="register-form-wrapper">
+          <div class="register-form-container">
+            <div class="form-header">
+              <h2>Bắt đầu đăng ký</h2>
+              <p>Nhập thông tin cơ bản của bạn</p>
+            </div>
+            <form (ngSubmit)="onInitialInfoSubmit({ name: initialName(), email: initialEmail() })" class="register-form">
+              <div class="form-group">
+                <label for="initial-name">Họ và tên *</label>
+                <input
+                  type="text"
+                  id="initial-name"
+                  [(ngModel)]="initialName"
+                  name="initialName"
+                  required
+                  placeholder="Nhập họ và tên của bạn"
+                />
+              </div>
+              <div class="form-group">
+                <label for="initial-email">Email *</label>
+                <input
+                  type="email"
+                  id="initial-email"
+                  [(ngModel)]="initialEmail"
+                  name="initialEmail"
+                  required
+                  placeholder="Nhập email của bạn"
+                />
+              </div>
+              <button type="submit" class="btn btn-primary">Tiếp tục</button>
+            </form>
+            <div class="form-footer">
+              <p>Đã có tài khoản? <a (click)="openLoginModal()" class="link">Đăng nhập ngay</a></p>
+            </div>
+          </div>
+        </div>
       </div>
-    </section>
-  }
+    </div>
+  </section>
 
   <!-- Organizations Section -->
   <section id="organizations" class="organizations-section">
@@ -140,7 +193,6 @@
 @if (showLoginModal()) {
   <app-login-modal
     (close)="closeLoginModal()"
-    (switchToRegister)="switchToRegister()"
     (loginSuccess)="onLoginSuccess()"
   ></app-login-modal>
 }

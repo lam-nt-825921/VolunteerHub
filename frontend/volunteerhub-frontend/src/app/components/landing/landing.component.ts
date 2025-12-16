@@ -1,11 +1,11 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { FooterComponent } from '../footer/footer.component';
 import { LoginModalComponent } from '../auth/login-modal/login-modal.component';
-import { RegisterFormComponent } from '../auth/register-form/register-form.component';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -14,28 +14,24 @@ import { AuthService } from '../../services/auth.service';
   imports: [
     CommonModule,
     RouterModule,
+    FormsModule,
     MatIconModule,
     NavbarComponent,
     FooterComponent,
-    LoginModalComponent,
-    RegisterFormComponent
+    LoginModalComponent
   ],
   templateUrl: './landing.component.html',
   styleUrl: './landing.component.scss'
 })
 export class LandingComponent {
-  showRegisterForm = signal(false);
   showLoginModal = signal(false);
+  initialName = signal('');
+  initialEmail = signal('');
 
-  constructor(public authService: AuthService) {}
-
-  openRegisterForm() {
-    this.showRegisterForm.set(true);
-  }
-
-  closeRegisterForm() {
-    this.showRegisterForm.set(false);
-  }
+  constructor(
+    public authService: AuthService,
+    private router: Router
+  ) {}
 
   openLoginModal() {
     this.showLoginModal.set(true);
@@ -45,18 +41,17 @@ export class LandingComponent {
     this.showLoginModal.set(false);
   }
 
-  switchToLogin() {
-    this.showRegisterForm.set(false);
-    this.showLoginModal.set(true);
-  }
-
-  switchToRegister() {
-    this.showLoginModal.set(false);
-    this.showRegisterForm.set(true);
-  }
-
-  onRegisterSuccess() {
-    this.closeRegisterForm();
+  onInitialInfoSubmit(data: { name: string; email: string }) {
+    if (!data.name || !data.email) {
+      return;
+    }
+    // Redirect to signup page with the data as query parameters
+    this.router.navigate(['/signup'], {
+      queryParams: {
+        name: data.name,
+        email: data.email
+      }
+    });
   }
 
   onLoginSuccess() {

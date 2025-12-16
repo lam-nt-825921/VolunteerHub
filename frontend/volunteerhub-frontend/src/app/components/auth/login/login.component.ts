@@ -1,23 +1,27 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
-import { Router } from '@angular/router';
+import { NavbarComponent } from '../../navbar/navbar.component';
+import { FooterComponent } from '../../footer/footer.component';
 import { AuthService, LoginCredentials } from '../../../services/auth.service';
 
 @Component({
-  selector: 'app-login-modal',
+  selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, MatIconModule],
-  templateUrl: './login-modal.component.html',
-  styleUrl: './login-modal.component.scss'
+  imports: [
+    CommonModule,
+    RouterModule,
+    FormsModule,
+    MatIconModule,
+    NavbarComponent,
+    FooterComponent
+  ],
+  templateUrl: './login.component.html',
+  styleUrl: './login.component.scss'
 })
-export class LoginModalComponent {
-  @Output() close = new EventEmitter<void>();
-  @Output() switchToRegister = new EventEmitter<void>();
-  @Output() loginSuccess = new EventEmitter<void>();
-
+export class LoginComponent {
   credentials: LoginCredentials = {
     email: '',
     password: ''
@@ -37,8 +41,6 @@ export class LoginModalComponent {
     const result = this.authService.login(this.credentials);
     
     if (result.success) {
-      this.loginSuccess.emit();
-      this.close.emit();
       // Redirect to dashboard
       this.router.navigate(['/dashboard']);
     } else {
@@ -46,14 +48,6 @@ export class LoginModalComponent {
     }
     
     this.isLoading = false;
-  }
-
-  onClose() {
-    this.close.emit();
-  }
-
-  onSwitchToRegister() {
-    this.switchToRegister.emit();
   }
 }
 
