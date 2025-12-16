@@ -1,0 +1,148 @@
+<app-navbar></app-navbar>
+
+<main class="landing-page">
+  <!-- Hero Section -->
+  <section id="home" class="hero-section">
+    <div class="hero-container">
+      <div class="hero-content">
+        <h1 class="hero-title">
+          Kết nối. Tình nguyện. <span class="gradient-text">Tạo sự khác biệt.</span>
+        </h1>
+        <p class="hero-description">
+          Tham gia cùng hàng nghìn tình nguyện viên và tổ chức đang làm việc cùng nhau để tạo ra những thay đổi tích cực trong cộng đồng của chúng ta.
+        </p>
+        <div class="hero-actions">
+          <a href="#volunteer" class="btn btn-primary">Bắt đầu tình nguyện</a>
+          <a href="#organizations" class="btn btn-secondary">Dành cho tổ chức</a>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="hero-cards">
+          <div class="hero-card card-1">
+            <div class="card-icon" style="background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));"></div>
+            <h3>Tìm cơ hội</h3>
+            <p>Khám phá các cơ hội tình nguyện phù hợp với sở thích của bạn</p>
+          </div>
+          <div class="hero-card card-2">
+            <div class="card-icon" style="background: linear-gradient(135deg, var(--color-accent-1), var(--color-accent-2));"></div>
+            <h3>Kết nối</h3>
+            <p>Xây dựng những kết nối ý nghĩa với những người cùng chí hướng</p>
+          </div>
+          <div class="hero-card card-3">
+            <div class="card-icon" style="background: linear-gradient(135deg, var(--color-accent-2), var(--color-accent-3));"></div>
+            <h3>Tác động</h3>
+            <p>Tạo ra sự khác biệt thực sự trong cộng đồng của bạn</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- About Section -->
+  <section id="about" class="about-section">
+    <div class="section-container">
+      <h2 class="section-title">Về VolunteerHub</h2>
+      <p class="section-description">
+        VolunteerHub là một nền tảng kết nối những tình nguyện viên nhiệt huyết với các tổ chức đang tạo ra sự khác biệt. 
+        Chúng tôi tin rằng mỗi người đều có điều gì đó để cống hiến, và cùng nhau chúng ta có thể tạo ra những thay đổi tích cực lâu dài.
+      </p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon" style="background-color: var(--color-primary);">
+            <mat-icon>groups</mat-icon>
+          </div>
+          <h3>Cộng đồng</h3>
+          <p>Tham gia một cộng đồng sôi động gồm các tình nguyện viên và tổ chức</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background-color: var(--color-secondary);">
+            <mat-icon>verified</mat-icon>
+          </div>
+          <h3>Đã xác minh</h3>
+          <p>Tất cả các tổ chức đều đã được xác minh và cam kết tạo ra sự khác biệt</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background-color: var(--color-accent-1);">
+            <mat-icon>trending_up</mat-icon>
+          </div>
+          <h3>Tác động</h3>
+          <p>Theo dõi tác động của bạn và xem sự khác biệt bạn đang tạo ra</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Volunteer Section -->
+  <section id="volunteer" class="volunteer-section">
+    <div class="section-container">
+      <h2 class="section-title">Bắt đầu hành trình tình nguyện của bạn</h2>
+      <p class="section-description">
+        Dù bạn đang tìm cách đóng góp, học hỏi kỹ năng mới, hay gặp gỡ những người mới, 
+        luôn có cơ hội đang chờ đợi bạn.
+      </p>
+      <div class="cta-box">
+        <h3>Sẵn sàng tạo sự khác biệt?</h3>
+        <p>Tham gia cùng hàng nghìn tình nguyện viên đang tạo tác động ngay hôm nay</p>
+        @if (!authService.isAuthenticated()) {
+          <button (click)="openRegisterForm()" class="btn btn-primary">Đăng ký ngay</button>
+        } @else {
+          <a href="#contact" class="btn btn-primary">Xem sự kiện</a>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Register Section -->
+  @if (showRegisterForm()) {
+    <section id="register" class="register-section">
+      <div class="section-container">
+        <app-register-form
+          (registerSuccess)="onRegisterSuccess()"
+          (switchToLogin)="switchToLogin()"
+        ></app-register-form>
+      </div>
+    </section>
+  }
+
+  <!-- Organizations Section -->
+  <section id="organizations" class="organizations-section">
+    <div class="section-container">
+      <h2 class="section-title">Dành cho tổ chức</h2>
+      <p class="section-description">
+        Kết nối với những tình nguyện viên nhiệt huyết và mở rộng tác động của bạn. 
+        VolunteerHub giúp bạn tìm đúng người cho sứ mệnh của mình.
+      </p>
+      <a href="#contact" class="btn btn-secondary">Tìm hiểu thêm</a>
+    </div>
+  </section>
+
+  <!-- Contact Section -->
+  <section id="contact" class="contact-section">
+    <div class="section-container">
+      <h2 class="section-title">Liên hệ</h2>
+      <p class="section-description">
+        Có câu hỏi? Chúng tôi rất muốn nghe từ bạn.
+      </p>
+      <div class="contact-info">
+        <div class="contact-item">
+          <div class="contact-icon" style="background-color: var(--color-accent-2);">
+            <mat-icon>email</mat-icon>
+          </div>
+          <p>contact&#64;volunteerhub.com</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<app-footer></app-footer>
+
+@if (showLoginModal()) {
+  <app-login-modal
+    (close)="closeLoginModal()"
+    (switchToRegister)="switchToRegister()"
+    (loginSuccess)="onLoginSuccess()"
+  ></app-login-modal>
+}
+
+
