@@ -1,0 +1,223 @@
+// 1. Cấu hình Generator & Datasource
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite" 
+}
+
+// ==================== ENUMS ====================
+
+// Vai trò hệ thống (Global Role)
+enum Role {
+  VOLUNTEER       // Người dùng thường
+  EVENT_MANAGER   // Quản lý sự kiện (được tạo event)
+  ADMIN           // Quản trị viên hệ thống
+}
+
+// Trạng thái sự kiện
+enum EventStatus {
+  PENDING     // Đang chờ Admin duyệt
+  APPROVED    // Đã duyệt (Sắp diễn ra)
+  REJECTED    // Bị từ chối
+  CANCELLED   // Bị hủy
+  COMPLETED   // Đã kết thúc
+}
+
+// Phạm vi hiển thị sự kiện
+enum EventVisibility {
+  PUBLIC      // Ai cũng thấy (kể cả chưa login)
+  INTERNAL    // Chỉ user đã login mới thấy
+  PRIVATE     // Chỉ người được mời/có link mới thấy
+}
+
+// Trạng thái đăng ký tham gia
+enum RegistrationStatus {
+  PENDING     // Đang chờ duyệt (với Private Event)
+  APPROVED    // Đã tham gia
+  REJECTED    // Bị từ chối
+  ATTENDED    // Đã điểm danh (Check-in thành công)
+  LEFT        // Tự rời khỏi sự kiện
+  KICKED      // Bị đuổi
+}
+
+// Loại bài đăng
+enum PostType {
+  ANNOUNCEMENT   // Thông báo (thường ghim lên đầu)
+  DISCUSSION     // Thảo luận bình thường
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id              Int       @id @default(autoincrement())
+  email           String    @unique
+  password        String
+  fullName        String
+  avatar          String?   // URL từ Cloudinary
+  phone           String?
+  role            Role      @default(VOLUNTEER)
+  
+  // Gamification & Stats
+  reputationScore Int       @default(0)   // Điểm uy tín
+  isActive        Boolean   @default(true) // Khóa tài khoản mềm
+  
+  // Auth & Security
+  refreshToken          String?   
+  refreshTokenExpiresAt DateTime?
+  fcmToken              String?   // Token để bắn thông báo (Firebase)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Quan hệ
+  eventsCreated   Event[]        @relation("EventCreator")
+  registrations   Registration[]
+  posts           Post[]
+  comments        Comment[]
+  likes           Like[]
+  notifications   Notification[]
+
+  @@map("users")
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // Ví dụ: "Môi trường", "Giáo dục", "Y tế"
+  slug        String   @unique // slug cho URL: "moi-truong"
+  events      Event[]
+  
+  @@map("categories")
+}
+
+model Event {
+  id          Int             @id @default(autoincrement())
+  title       String
+  description String          // Hỗ trợ HTML/Markdown
+  location    String
+  coverImage  String?         // Ảnh bìa sự kiện (Cloudinary)
+  
+  startTime   DateTime
+  endTime     DateTime
+  
+  // Logic hiển thị & Phân quyền
+  status      EventStatus     @default(PENDING)
+  visibility  EventVisibility @default(PUBLIC)
+  
+  // Ranking & Gamification
+  viewCount   Int             @default(0)    // Số lượt xem
+  duration    Float           @default(0)    // Tổng giờ ghi nhận cho tình nguyện viên (VD: 4.5 giờ)
+  
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  // Quan hệ
+  creatorId   Int
+  creator     User            @relation("EventCreator", fields: [creatorId], references: [id])
+  
+  categoryId  Int?
+  category    Category?       @relation(fields: [categoryId], references: [id])
+
+  registrations Registration[]
+  posts         Post[]
+
+  // Indexes để tối ưu Query (Ranking, Filtering)
+  @@index([startTime])               // Sort theo thời gian
+  @@index([status, visibility])      // Lọc sự kiện hiển thị
+  @@index([creatorId])               // Lấy sự kiện của 1 người
+  @@map("events")
+}
+
+model Registration {
+  id          Int                @id @default(autoincrement())
+  status      RegistrationStatus @default(PENDING)
+  
+  // BITMASK PERMISSION: Lưu tổng quyền dưới dạng số nguyên (VD: 5 = 1 + 4)
+  // 1: View, 2: Post, 4: Comment, 8: DeleteOthers...
+  permissions Int                @default(0) 
+
+  registeredAt DateTime           @default(now())
+  attendedAt   DateTime?          // Thời điểm check-in thực tế
+
+  userId      Int
+  eventId     Int
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event       Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])    // Một người chỉ tham gia 1 lần
+  @@index([eventId, status])     // Tối ưu đếm số người tham gia
+  @@map("registrations")
+}
+
+model Post {
+  id          Int       @id @default(autoincrement())
+  content     String
+  images      String?   @default("[]") // Lưu JSON mảng URL ảnh: ["url1", "url2"]
+  type        PostType  @default(DISCUSSION)
+  
+  isPinned    Boolean   @default(false) // Ghim bài (cho thông báo quan trọng)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  authorId    Int
+  eventId     Int
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  comments    Comment[]
+  likes       Like[]
+
+  @@index([eventId, createdAt]) // Tối ưu load feed bài đăng
+  @@map("posts")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  authorId  Int
+  postId    Int
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // Hỗ trợ Reply (Bình luận lồng nhau)
+  parentId  Int?     // Nếu null = Comment gốc
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+
+  @@index([postId, parentId]) // Tối ưu load comment gốc
+  @@map("comments")
+}
+
+model Like {
+  userId    Int
+  postId    Int
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId]) // Composite Key: Một người chỉ like 1 lần
+  @@map("likes")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String
+  message   String
+  type      String   // VD: "SYSTEM", "EVENT_INVITE", "NEW_POST"
+  data      String?  // JSON lưu metadata (VD: { eventId: 1 })
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, isRead]) // Tối ưu lấy thông báo chưa đọc
+  @@map("notifications")
+}
