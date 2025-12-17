@@ -63,7 +63,7 @@ export class NavbarComponent {
     this.closeLoginModal();
   }
 
-  logout() {
-    this.authService.logout();
+  async logout() {
+    await this.authService.logout();
   }
 }

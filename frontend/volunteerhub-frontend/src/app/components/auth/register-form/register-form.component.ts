@@ -47,7 +47,7 @@ export class RegisterFormComponent {
     private router: Router
   ) {}
 
-  onRegister() {
+  async onRegister() {
     this.errorMessage = '';
     this.successMessage = '';
     this.isLoading = true;
@@ -71,20 +71,24 @@ export class RegisterFormComponent {
       return;
     }
 
-    const result = this.authService.register(this.registerData);
-    
-    if (result.success) {
-      this.successMessage = result.message;
-      setTimeout(() => {
-        this.registerSuccess.emit();
-        // Redirect to dashboard
-        this.router.navigate(['/dashboard']);
-      }, 1500);
-    } else {
-      this.errorMessage = result.message;
+    try {
+      const result = await this.authService.register(this.registerData);
+      
+      if (result.success) {
+        this.successMessage = result.message;
+        setTimeout(() => {
+          this.registerSuccess.emit();
+          // Redirect to dashboard
+          this.router.navigate(['/dashboard']);
+        }, 1500);
+      } else {
+        this.errorMessage = result.message;
+      }
+    } catch (error: any) {
+      this.errorMessage = error?.message || 'Đăng ký thất bại. Vui lòng thử lại!';
+    } finally {
+      this.isLoading = false;
     }
-    
-    this.isLoading = false;
   }
 
   onSwitchToLogin() {

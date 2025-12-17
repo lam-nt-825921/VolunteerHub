@@ -178,6 +178,17 @@
   border-radius: 0.5rem;
   border: 1px solid var(--border-color);
 
+  .user-profile-link {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: color 0.3s ease;
+
+    &:hover {
+      color: var(--color-primary);
+    }
+  }
+
   .user-name {
     color: var(--text-primary);
     font-weight: 500;
@@ -341,6 +352,18 @@
 
   .mobile-user-info {
     padding: 1rem 0;
+
+    .user-profile-link-mobile {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      cursor: pointer;
+      transition: color 0.3s ease;
+
+      &:hover {
+        color: var(--color-primary);
+      }
+    }
     border-bottom: 1px solid var(--border-color);
 
     .user-name {

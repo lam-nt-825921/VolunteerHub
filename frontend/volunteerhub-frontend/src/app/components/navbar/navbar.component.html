@@ -31,7 +31,9 @@
       @if (authService.isAuthenticated()) {
         <app-notification-bell></app-notification-bell>
         <div class="user-menu desktop-only">
-          <span class="user-name">{{ authService.user()?.name }}</span>
+          <a routerLink="/profile" class="user-profile-link" title="Hồ sơ">
+            <span class="user-name">{{ authService.user()?.name }}</span>
+          </a>
           <button class="btn-logout" (click)="logout()" title="Đăng xuất">
             <mat-icon>logout</mat-icon>
           </button>
@@ -81,7 +83,9 @@
           <a routerLink="/dashboard" class="nav-link" (click)="closeMenu()">Dashboard</a>
         </li>
         <li class="mobile-user-info">
-          <span class="user-name">{{ authService.user()?.name }}</span>
+          <a routerLink="/profile" class="user-profile-link-mobile" (click)="closeMenu()">
+            <span class="user-name">{{ authService.user()?.name }}</span>
+          </a>
         </li>
         <li>
           <button class="btn-logout mobile-logout" (click)="logout(); closeMenu()">

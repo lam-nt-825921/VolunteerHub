@@ -51,7 +51,7 @@ export class SignupComponent implements OnInit {
     });
   }
 
-  onRegister() {
+  async onRegister() {
     this.errorMessage = '';
     this.successMessage = '';
     this.isLoading = true;
@@ -81,18 +81,22 @@ export class SignupComponent implements OnInit {
       return;
     }
 
-    const result = this.authService.register(this.registerData);
-    
-    if (result.success) {
-      this.successMessage = result.message;
-      setTimeout(() => {
-        this.router.navigate(['/dashboard']);
-      }, 1500);
-    } else {
-      this.errorMessage = result.message;
+    try {
+      const result = await this.authService.register(this.registerData);
+      
+      if (result.success) {
+        this.successMessage = result.message;
+        setTimeout(() => {
+          this.router.navigate(['/dashboard']);
+        }, 1500);
+      } else {
+        this.errorMessage = result.message;
+      }
+    } catch (error: any) {
+      this.errorMessage = error?.message || 'Đăng ký thất bại. Vui lòng thử lại!';
+    } finally {
+      this.isLoading = false;
     }
-    
-    this.isLoading = false;
   }
 
   switchToLogin() {

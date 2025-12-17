@@ -38,6 +38,19 @@ export const routes: Routes = [
     loadComponent: () => import('./components/events/event-detail/event-detail.component').then(m => m.EventDetailComponent)
   },
   {
+    path: 'profile',
+    loadComponent: () => import('./components/profile/profile.component').then(m => m.ProfileComponent),
+    canActivate: [() => {
+      const authService = inject(AuthService);
+      const router = inject(Router);
+      if (!authService.isAuthenticated()) {
+        router.navigate(['/']);
+        return false;
+      }
+      return true;
+    }]
+  },
+  {
     path: '**',
     redirectTo: ''
   }

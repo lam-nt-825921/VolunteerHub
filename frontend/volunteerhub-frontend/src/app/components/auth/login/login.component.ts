@@ -34,20 +34,24 @@ export class LoginComponent {
     private router: Router
   ) {}
 
-  onLogin() {
+  async onLogin() {
     this.errorMessage = '';
     this.isLoading = true;
 
-    const result = this.authService.login(this.credentials);
-    
-    if (result.success) {
-      // Redirect to dashboard
-      this.router.navigate(['/dashboard']);
-    } else {
-      this.errorMessage = result.message;
+    try {
+      const result = await this.authService.login(this.credentials);
+      
+      if (result.success) {
+        // Redirect to dashboard
+        this.router.navigate(['/dashboard']);
+      } else {
+        this.errorMessage = result.message;
+      }
+    } catch (error: any) {
+      this.errorMessage = error?.message || 'Đăng nhập thất bại. Vui lòng thử lại!';
+    } finally {
+      this.isLoading = false;
     }
-    
-    this.isLoading = false;
   }
 }
 
