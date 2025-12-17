@@ -13,6 +13,13 @@ export const API_CONFIG = {
     },
     users: {
       profile: '/users/profile',
+    },
+    admin: {
+      users: '/admin/users',
+    },
+    events: {
+      base: '/events',
+      status: '/events/:id/status',
     }
   }
 };

@@ -87,7 +87,8 @@ export class SignupComponent implements OnInit {
       if (result.success) {
         this.successMessage = result.message;
         setTimeout(() => {
-          this.router.navigate(['/dashboard']);
+          // Redirect to login page since registration doesn't auto-login
+          this.router.navigate(['/login']);
         }, 1500);
       } else {
         this.errorMessage = result.message;

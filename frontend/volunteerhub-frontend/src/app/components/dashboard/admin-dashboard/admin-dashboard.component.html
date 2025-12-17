@@ -184,47 +184,185 @@
         <div class="section-header">
           <h2>Quản lý người dùng</h2>
         </div>
+
+        <!-- Filters and Search -->
+        <div class="users-filters">
+          <div class="filter-group">
+            <div class="search-box">
+              <mat-icon>search</mat-icon>
+              <input
+                type="text"
+                placeholder="Tìm kiếm theo tên hoặc email..."
+                [value]="userSearchKeyword()"
+                (input)="userSearchKeyword.set($any($event.target).value); onSearchChange()"
+                class="search-input"
+              />
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <select
+              [value]="userRoleFilter()"
+              (change)="userRoleFilter.set($any($event.target).value); onRoleFilterChange()"
+              class="filter-select"
+            >
+              <option value="">Tất cả vai trò</option>
+              <option value="VOLUNTEER">Tình nguyện viên</option>
+              <option value="EVENT_MANAGER">Quản lý</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <select
+              [value]="userStatusFilter()"
+              (change)="userStatusFilter.set($any($event.target).value); onStatusFilterChange()"
+              class="filter-select"
+            >
+              <option value="all">Tất cả trạng thái</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Đã khóa</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <select
+              [value]="pageSize()"
+              (change)="pageSize.set(+$any($event.target).value); currentPage.set(1); loadUsers()"
+              class="filter-select"
+            >
+              <option value="5">5 / trang</option>
+              <option value="10">10 / trang</option>
+              <option value="20">20 / trang</option>
+              <option value="50">50 / trang</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Users Table -->
         <div class="users-table">
           <table>
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Tên</th>
-                <th>Email</th>
-                <th>Vai trò</th>
+                <th (click)="onSortChange('id')" class="sortable">
+                  ID
+                  @if (userSortField() === 'id') {
+                    <mat-icon>{{ userSortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                  }
+                </th>
+                <th (click)="onSortChange('name')" class="sortable">
+                  Tên
+                  @if (userSortField() === 'name') {
+                    <mat-icon>{{ userSortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                  }
+                </th>
+                <th (click)="onSortChange('email')" class="sortable">
+                  Email
+                  @if (userSortField() === 'email') {
+                    <mat-icon>{{ userSortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                  }
+                </th>
+                <th (click)="onSortChange('role')" class="sortable">
+                  Vai trò
+                  @if (userSortField() === 'role') {
+                    <mat-icon>{{ userSortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                  }
+                </th>
                 <th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              @for (user of allUsers; track user.id) {
+              @if (isLoading()) {
                 <tr>
-                  <td>{{ user.id }}</td>
-                  <td>{{ user.name }}</td>
-                  <td>{{ user.email }}</td>
-                  <td>
-                    <select
-                      [value]="user.role"
-                      (change)="changeUserRole(user, $any($event.target).value)"
-                      class="role-select"
-                    >
-                      <option value="volunteer">Tình nguyện viên</option>
-                      <option value="manager">Quản lý</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button
-                      class="btn btn-icon"
-                      (click)="toggleUserActive(user)"
-                      title="Khóa/Mở khóa"
-                    >
-                      <mat-icon>lock</mat-icon>
-                    </button>
+                  <td colspan="5" class="loading-cell">
+                    <div class="loading-spinner">Đang tải...</div>
                   </td>
                 </tr>
+              } @else if (paginatedUsers().length === 0) {
+                <tr>
+                  <td colspan="5" class="empty-cell">
+                    <div class="empty-state">
+                      <mat-icon>people_outline</mat-icon>
+                      <p>Không tìm thấy người dùng nào</p>
+                    </div>
+                  </td>
+                </tr>
+              } @else {
+                @for (user of paginatedUsers(); track user.id) {
+                  <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.name }}</td>
+                    <td>{{ user.email }}</td>
+                    <td>
+                      <select
+                        [value]="user.role"
+                        (change)="changeUserRole(user, $any($event.target).value)"
+                        class="role-select"
+                      >
+                        <option value="volunteer">Tình nguyện viên</option>
+                        <option value="manager">Quản lý</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </td>
+                    <td>
+                      <button
+                        class="btn btn-icon"
+                        (click)="toggleUserActive(user)"
+                        title="Khóa/Mở khóa"
+                      >
+                        <mat-icon>lock</mat-icon>
+                      </button>
+                    </td>
+                  </tr>
+                }
               }
             </tbody>
           </table>
+        </div>
+
+        <!-- Pagination -->
+        @if (totalPages() > 1) {
+          <div class="pagination">
+            <button
+              class="pagination-btn"
+              (click)="previousPage()"
+              [disabled]="currentPage() === 1"
+            >
+              <mat-icon>chevron_left</mat-icon>
+              Trước
+            </button>
+
+            <div class="pagination-numbers">
+              @for (page of getPaginationPages(); track $index) {
+                @if (page === '...') {
+                  <span class="pagination-ellipsis">...</span>
+                } @else if (isNumber(page)) {
+                  <button
+                    class="pagination-number"
+                    [class.active]="currentPage() === page"
+                    (click)="goToPage(page)"
+                  >
+                    {{ page }}
+                  </button>
+                }
+              }
+            </div>
+
+            <button
+              class="pagination-btn"
+              (click)="nextPage()"
+              [disabled]="currentPage() === totalPages()"
+            >
+              Sau
+              <mat-icon>chevron_right</mat-icon>
+            </button>
+          </div>
+        }
+
+        <!-- Pagination Info -->
+        <div class="pagination-info">
+          Hiển thị {{ (currentPage() - 1) * pageSize() + 1 }} - {{ Math.min(currentPage() * pageSize(), totalUsers) }} 
+          trong tổng số {{ totalUsers }} người dùng
         </div>
       </div>
     }

@@ -1,4 +1,6 @@
 import { Injectable, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { ApiService } from './api.service';
 
 export interface Event {
   id: number;
@@ -40,7 +42,7 @@ export class EventsService {
   public readonly eventsList = this.events.asReadonly();
   public readonly registrationsList = this.registrations.asReadonly();
 
-  constructor() {
+  constructor(private apiService: ApiService) {
     // Initialize with mock data
     this.initializeMockData();
   }
@@ -268,32 +270,41 @@ export class EventsService {
     return { success: true, message: 'Xóa sự kiện thành công!' };
   }
 
-  // Admin methods
-  approveEvent(eventId: number, adminId: number): { success: boolean; message: string } {
-    const event = this.getEventById(eventId);
-    if (!event) {
-      return { success: false, message: 'Sự kiện không tồn tại!' };
+  // Admin methods - Event Approval/Rejection
+  async approveEvent(eventId: number, adminId: number, note?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      await firstValueFrom(
+        this.apiService.patch(
+          `/events/${eventId}/status`,
+          {
+            status: 'APPROVED',
+            note: note || 'Sự kiện đã được duyệt'
+          },
+          true
+        )
+      );
+      return { success: true, message: 'Duyệt sự kiện thành công!' };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Duyệt sự kiện thất bại. Vui lòng thử lại!' };
     }
-
-    event.status = 'approved';
-    event.approvedAt = new Date().toISOString();
-    event.approvedBy = adminId;
-
-    this.events.update(evts => evts.map(e => e.id === eventId ? event : e));
-
-    return { success: true, message: 'Duyệt sự kiện thành công!' };
   }
 
-  rejectEvent(eventId: number): { success: boolean; message: string } {
-    const event = this.getEventById(eventId);
-    if (!event) {
-      return { success: false, message: 'Sự kiện không tồn tại!' };
+  async rejectEvent(eventId: number, note?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      await firstValueFrom(
+        this.apiService.patch(
+          `/events/${eventId}/status`,
+          {
+            status: 'REJECTED',
+            note: note || 'Sự kiện đã bị từ chối'
+          },
+          true
+        )
+      );
+      return { success: true, message: 'Từ chối sự kiện thành công!' };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Từ chối sự kiện thất bại. Vui lòng thử lại!' };
     }
-
-    event.status = 'rejected';
-    this.events.update(evts => evts.map(e => e.id === eventId ? event : e));
-
-    return { success: true, message: 'Từ chối sự kiện thành công!' };
   }
 
   adminDeleteEvent(eventId: number): { success: boolean; message: string } {

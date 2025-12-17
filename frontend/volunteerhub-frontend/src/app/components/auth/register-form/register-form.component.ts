@@ -78,8 +78,8 @@ export class RegisterFormComponent {
         this.successMessage = result.message;
         setTimeout(() => {
           this.registerSuccess.emit();
-          // Redirect to dashboard
-          this.router.navigate(['/dashboard']);
+          // Redirect to login page since registration doesn't auto-login
+          this.router.navigate(['/login']);
         }, 1500);
       } else {
         this.errorMessage = result.message;
