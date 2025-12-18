@@ -18,6 +18,8 @@
     "setup": "npm install && npm run prisma:generate && npm run prisma:migrate",
     "dev": "npm run start:dev",
     "setup:dev": "npm run setup && npm run dev",
+    "kill:dev": "node scripts/kill-dev.js",
+    "kill:node": "node -e \"require('child_process').exec('tasklist /FI \\\"IMAGENAME eq node.exe\\\"', (err, stdout) => { if (stdout && stdout.includes('node.exe')) { console.log('Killing all node.exe processes...'); require('child_process').exec('taskkill /F /IM node.exe', (err, stdout) => { console.log(stdout || 'All node processes killed'); }); } else { console.log('No node.exe processes found'); } });\"",
     "test:socket": "node test-socket.js",
     "test:socket:auto": "node test-socket-with-login.js"
   },

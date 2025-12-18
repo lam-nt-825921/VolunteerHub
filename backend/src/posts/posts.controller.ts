@@ -11,7 +11,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/request/create-post.dto';
 import { UpdatePostDto } from './dto/request/update-post.dto';
@@ -25,6 +30,8 @@ import { EventPermissions } from '../common/decorators/event-permissions.decorat
 import { EventPermissionsGuard } from '../auth/guards/event-permissions.guard';
 import { EventPermission } from '../common/utils/event-permissions.util';
 import { Public } from '../common/decorators/public.decorator';
+import { PostResponseDto } from './dto/response/post-response.dto';
+import { CommentResponseDto } from './dto/response/comment-response.dto';
 
 interface Actor {
   id: number;
@@ -42,6 +49,14 @@ export class PostsController {
    */
   @Get('events/:eventId/posts')
   @Public()
+  @ApiOperation({ summary: 'Lấy danh sách posts của một sự kiện (có phân trang)' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Danh sách posts trong sự kiện. Ví dụ response: [ { \"id\": 1, \"content\": \"Hôm nay sự kiện rất vui\", \"images\": [...], ... } ]',
+    type: PostResponseDto,
+    isArray: true,
+  })
   async getPostsForEvent(
     @Param('eventId', ParseIntPipe) eventId: number,
     @Query() filter: FilterPostsDto,
@@ -58,6 +73,13 @@ export class PostsController {
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
   @UseGuards(EventPermissionsGuard)
   @EventPermissions(EventPermission.POST_CREATE)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Tạo post mới trong sự kiện' })
+  @ApiResponse({
+    status: 201,
+    description: 'Tạo post thành công, trả về thông tin post',
+    type: PostResponseDto,
+  })
   async createPost(
     @Param('eventId', ParseIntPipe) eventId: number,
     @Body() dto: CreatePostDto,
@@ -72,6 +94,12 @@ export class PostsController {
    */
   @Get('posts/:postId')
   @Public()
+  @ApiOperation({ summary: 'Lấy chi tiết một post' })
+  @ApiResponse({
+    status: 200,
+    description: 'Chi tiết post',
+    type: PostResponseDto,
+  })
   async getPostById(
     @Param('postId', ParseIntPipe) postId: number,
     @CurrentUser() user: Actor | null,
@@ -154,6 +182,13 @@ export class PostsController {
    */
   @Get('posts/:postId/comments')
   @Public()
+  @ApiOperation({ summary: 'Lấy danh sách comments của một post' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách comments của post',
+    type: CommentResponseDto,
+    isArray: true,
+  })
   async getCommentsForPost(
     @Param('postId', ParseIntPipe) postId: number,
     @CurrentUser() user: Actor | null,

@@ -66,6 +66,8 @@ npm run start:prod
 | `npm run setup` | Chuẩn bị môi trường (install deps + generate Prisma + migrate) |
 | `npm run dev` | Chạy dev server với hot reload |
 | `npm run setup:dev` | Setup + chạy dev (cho người mới clone) |
+| `npm run kill:dev` | **Kill process đang chạy trên port 3000** |
+| `npm run kill:node` | Kill tất cả process node.exe (cẩn thận!) |
 | `npm run build` | Build production |
 | `npm run start:prod` | Chạy production server |
 | `npm run prisma:generate` | Generate Prisma Client |
@@ -168,7 +170,26 @@ npm run prisma:migrate
 
 ### Lỗi port đã được sử dụng
 
-Thay đổi `PORT` trong `.env` hoặc kill process đang dùng port đó.
+**Cách 1: Dùng script (Khuyến nghị)**
+```bash
+npm run kill:dev
+```
+
+**Cách 2: Kill thủ công trên Windows**
+```powershell
+# Tìm process đang dùng port 3000
+netstat -ano | findstr :3000
+
+# Kill process (thay PID bằng số process ID)
+taskkill /F /PID <PID>
+```
+
+**Cách 3: Kill tất cả Node.js processes (Cẩn thận!)**
+```bash
+npm run kill:node
+```
+
+**Lưu ý:** Trên Windows PowerShell, khi bạn đóng terminal, process có thể vẫn chạy ngầm. Luôn dùng `Ctrl+C` để dừng process trước khi đóng terminal, hoặc dùng `npm run kill:dev` để kill process sau khi đóng terminal.
 
 ## 📞 Support
 

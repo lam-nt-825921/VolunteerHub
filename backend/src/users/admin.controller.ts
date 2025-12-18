@@ -34,7 +34,29 @@ export class AdminUsersController {
    */
   @Get()
   @ApiOperation({ summary: 'Lấy danh sách tất cả users (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Danh sách users' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách users (có filter và pagination)',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 1,
+            email: 'user1@example.com',
+            fullName: 'Nguyễn Văn A',
+            role: 'VOLUNTEER',
+            isActive: true,
+            createdAt: '2025-01-01T10:00:00.000Z',
+          },
+        ],
+        meta: {
+          page: 1,
+          limit: 10,
+          total: 100,
+        },
+      },
+    },
+  })
   async findAll(@Query() filter: FilterUsersDto) {
     return this.usersService.findAll(filter);
   }

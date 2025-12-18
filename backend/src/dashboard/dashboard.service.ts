@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { FilterDashboardEventsDto } from './dto/request/filter-dashboard-events.dto';
 import { DashboardStatsResponseDto } from './dto/response/dashboard-stats-response.dto';
 import { DashboardEventResponseDto } from './dto/response/dashboard-event-response.dto';
+import { AdminDashboardStatsResponseDto } from './dto/response/admin-dashboard-stats-response.dto';
+import { ParticipationHistoryItemDto } from './dto/response/participation-history-response.dto';
 import { plainToInstance } from 'class-transformer';
 import {
   EventStatus,
@@ -111,6 +113,114 @@ export class DashboardService {
       reputationScore: user?.reputationScore || 0,
       upcomingEventsCount,
       activeEventsCount,
+    });
+  }
+
+  /**
+   * Lịch sử tham gia sự kiện của user (dựa trên bảng registrations)
+   */
+  async getParticipationHistory(
+    userId: number,
+    filter: FilterDashboardEventsDto,
+  ): Promise<ParticipationHistoryItemDto[]> {
+    const page = filter.page || 1;
+    const limit = filter.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const registrations = await this.prisma.registration.findMany({
+      where: {
+        userId,
+      },
+      orderBy: {
+        registeredAt: 'desc',
+      },
+      skip,
+      take: limit,
+      select: {
+        id: true,
+        status: true,
+        registeredAt: true,
+        attendedAt: true,
+        event: {
+          select: {
+            id: true,
+            title: true,
+            location: true,
+            coverImage: true,
+            startTime: true,
+            endTime: true,
+            status: true,
+            visibility: true,
+          },
+        },
+      },
+    });
+
+    return plainToInstance(ParticipationHistoryItemDto, registrations, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  /**
+   * Thống kê tổng quan cho ADMIN
+   */
+  async getAdminStats(): Promise<AdminDashboardStatsResponseDto> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const [
+      totalEvents,
+      totalEventsCompletedThisMonth,
+      totalPendingEvents,
+      totalUsers,
+      activeUsers,
+      totalRegistrationsThisMonth,
+    ] = await Promise.all([
+      // Tổng số sự kiện
+      this.prisma.event.count(),
+      // Số sự kiện COMPLETED trong tháng hiện tại
+      this.prisma.event.count({
+        where: {
+          status: EventStatus.COMPLETED,
+          endTime: {
+            gte: startOfMonth,
+            lte: endOfMonth,
+          },
+        },
+      }),
+      // Số sự kiện đang chờ duyệt
+      this.prisma.event.count({
+        where: {
+          status: EventStatus.PENDING,
+        },
+      }),
+      // Tổng số user
+      this.prisma.user.count(),
+      // Số user đang active
+      this.prisma.user.count({
+        where: {
+          isActive: true,
+        },
+      }),
+      // Tổng số registrations trong tháng hiện tại
+      this.prisma.registration.count({
+        where: {
+          registeredAt: {
+            gte: startOfMonth,
+            lte: endOfMonth,
+          },
+        },
+      }),
+    ]);
+
+    return plainToInstance(AdminDashboardStatsResponseDto, {
+      totalEvents,
+      totalEventsCompletedThisMonth,
+      totalPendingEvents,
+      totalUsers,
+      activeUsers,
+      totalRegistrationsThisMonth,
     });
   }
 

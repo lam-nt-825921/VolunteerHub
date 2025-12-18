@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UpdateProfileDto } from './dto/request/update-profile.dto';
 import { UsersService } from './users.service';
+import { UserProfileDto } from './dto/response/users-profile.response';
 
 @ApiTags('users')
 @Controller('users')
@@ -24,7 +25,11 @@ export class UsersController {
 
   @Get('profile')
   @ApiOperation({ summary: 'Lấy thông tin profile của user hiện tại' })
-  @ApiResponse({ status: 200, description: 'Thông tin profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'Thông tin profile của user hiện tại',
+    type: UserProfileDto,
+  })
   async getProfile(@CurrentUser('id') userId: number) {
     return this.usersService.getProfile(userId);
   }
@@ -34,7 +39,11 @@ export class UsersController {
   @ApiOperation({ summary: 'Cập nhật thông tin profile (có thể upload avatar)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UpdateProfileDto })
-  @ApiResponse({ status: 200, description: 'Cập nhật profile thành công' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật profile thành công, trả về profile mới',
+    type: UserProfileDto,
+  })
   async updateProfile(
     @CurrentUser('id') userId: number,
     @Body() dto: UpdateProfileDto,
