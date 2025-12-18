@@ -266,8 +266,13 @@ export class RegistrationsService {
   /**
    * Danh sách người tham gia 1 sự kiện
    * Chỉ creator hoặc ADMIN được xem (sau này có thể dùng bitmask)
+   * Có thể lọc theo status (ví dụ: PENDING để lấy danh sách đăng ký chờ duyệt)
    */
-  async getRegistrationsForEvent(eventId: number, actor: Actor) {
+  async getRegistrationsForEvent(
+    eventId: number,
+    actor: Actor,
+    status?: RegistrationStatus,
+  ) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
       select: { id: true, creatorId: true },
@@ -286,8 +291,14 @@ export class RegistrationsService {
       );
     }
 
+    const where: any = { eventId: event.id };
+
+    if (status) {
+      where.status = status;
+    }
+
     const registrations = await this.prisma.registration.findMany({
-      where: { eventId: event.id },
+      where,
       orderBy: { registeredAt: 'asc' },
       select: {
         id: true,

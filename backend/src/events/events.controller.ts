@@ -9,7 +9,13 @@ import {
   Query,
   ParseIntPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -18,8 +24,8 @@ import { FilterEventsDto } from './dto/filter-event.dto';
 
 import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
-import {CurrentUser } from '../common/decorators/current-user.decorator';
-import { Role } from '../generated/prisma/enums';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { EventStatus, Role } from '../generated/prisma/enums';
 
 @ApiTags('events')
 @Controller('events')
@@ -49,8 +55,53 @@ export class EventsController {
   @Get()
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Lấy danh sách sự kiện (yêu cầu đăng nhập)' })
-  @ApiResponse({ status: 200, description: 'Danh sách sự kiện' })
+  @ApiOperation({
+    summary: 'Lấy danh sách sự kiện (yêu cầu đăng nhập)',
+    description:
+      'ADMIN có thể truyền status=PENDING để lấy danh sách **sự kiện chờ duyệt**. Các role khác chỉ thấy sự kiện phù hợp với quyền của mình.',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: EventStatus,
+    description:
+      'Lọc theo trạng thái sự kiện. Ví dụ: status=PENDING để lấy danh sách sự kiện chờ duyệt (ADMIN).',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Danh sách sự kiện theo bộ lọc (bao gồm trạng thái, category, thời gian,...). Ví dụ response: [ { \"id\": 1, \"title\": \"Ngày hội tình nguyện\", \"status\": \"PENDING\", \"visibility\": \"PUBLIC\", ... } ]',
+    schema: {
+      example: [
+        {
+          id: 1,
+          title: 'Ngày hội tình nguyện',
+          description: 'Sự kiện dọn rác bờ biển Đà Nẵng',
+          location: 'Biển Mỹ Khê, Đà Nẵng',
+          coverImage: 'https://res.cloudinary.com/demo/event-cover.jpg',
+          startTime: '2025-01-20T08:00:00.000Z',
+          endTime: '2025-01-20T12:00:00.000Z',
+          status: 'PENDING',
+          visibility: 'PUBLIC',
+          viewCount: 120,
+          duration: 4,
+          createdAt: '2025-01-10T10:00:00.000Z',
+          creator: {
+            id: 10,
+            fullName: 'Nguyễn Văn A',
+            avatar: 'https://res.cloudinary.com/demo/avatar.jpg',
+            reputationScore: 120,
+          },
+          category: {
+            id: 2,
+            name: 'Môi trường',
+            slug: 'moi-truong',
+          },
+          registrationsCount: 35,
+        },
+      ],
+    },
+  })
   findAll(@Query() filter: FilterEventsDto, @CurrentUser() user: any) {
     return this.eventsService.findAll(filter, user);
   }
