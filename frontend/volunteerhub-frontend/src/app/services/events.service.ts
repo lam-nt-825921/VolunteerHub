@@ -1,7 +1,47 @@
 import { Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { ApiService } from './api.service';
+import { 
+  EventsApiService, 
+  EventResponse, 
+  EventStatus, 
+  EventVisibility,
+  FilterEventsRequest, 
+  CreateEventRequest, 
+  UpdateEventRequest,
+  PaginatedResponse 
+} from './events-api.service';
+import { 
+  RegistrationsApiService, 
+  RegistrationResponse, 
+  RegistrationStatus 
+} from './registrations-api.service';
+import { 
+  DashboardApiService, 
+  DashboardStats, 
+  DashboardEvent, 
+  ParticipationHistoryItem,
+  AdminDashboardStats,
+  FilterDashboardEventsRequest
+} from './dashboard-api.service';
 
+// Re-export types for convenience
+export type { 
+  EventResponse, 
+  EventStatus, 
+  EventVisibility, 
+  FilterEventsRequest,
+  CreateEventRequest,
+  UpdateEventRequest,
+  PaginatedResponse,
+  RegistrationResponse,
+  RegistrationStatus,
+  DashboardStats,
+  DashboardEvent,
+  ParticipationHistoryItem,
+  AdminDashboardStats
+};
+
+// Legacy interface for backwards compatibility
 export interface Event {
   id: number;
   title: string;
@@ -10,7 +50,7 @@ export interface Event {
   endDate: string;
   location: string;
   category: string;
-  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
   maxParticipants: number;
   currentParticipants: number;
   imageUrl?: string;
@@ -25,387 +65,387 @@ export interface EventRegistration {
   id: number;
   eventId: number;
   userId: number;
-  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'attended' | 'kicked' | 'left';
   registeredAt: string;
   approvedAt?: string;
   completedAt?: string;
   volunteerHours?: number;
 }
 
+/**
+ * Events Service
+ * High-level service that combines Events, Registrations, and Dashboard APIs
+ * Provides a unified interface for components to interact with event-related functionality
+ */
 @Injectable({
   providedIn: 'root'
 })
 export class EventsService {
-  private events = signal<Event[]>([]);
-  private registrations = signal<EventRegistration[]>([]);
+  // Local cache signals for reactive updates
+  private eventsCache = signal<EventResponse[]>([]);
+  private loadingState = signal<boolean>(false);
+  
+  public readonly events = this.eventsCache.asReadonly();
+  public readonly isLoading = this.loadingState.asReadonly();
 
-  public readonly eventsList = this.events.asReadonly();
-  public readonly registrationsList = this.registrations.asReadonly();
+  constructor(
+    private eventsApi: EventsApiService,
+    private registrationsApi: RegistrationsApiService,
+    private dashboardApi: DashboardApiService
+  ) {}
 
-  constructor(private apiService: ApiService) {
-    // Initialize with mock data
-    this.initializeMockData();
-  }
+  // ============ PUBLIC EVENTS (No Auth) ============
 
-  private initializeMockData() {
-    const mockEvents: Event[] = [
-      {
-        id: 1,
-        title: 'Dọn dẹp bãi biển Vũng Tàu',
-        description: 'Tham gia dọn dẹp rác thải tại bãi biển Vũng Tàu để bảo vệ môi trường biển.',
-        startDate: '2024-12-20T08:00:00',
-        endDate: '2024-12-20T12:00:00',
-        location: 'Bãi biển Vũng Tàu, Bà Rịa - Vũng Tàu',
-        category: 'Môi trường',
-        status: 'approved',
-        maxParticipants: 50,
-        currentParticipants: 32,
-        managerId: 1,
-        managerName: 'Lê Văn C',
-        createdAt: '2024-12-01T10:00:00',
-        approvedAt: '2024-12-02T09:00:00'
-      },
-      {
-        id: 2,
-        title: 'Dạy học cho trẻ em vùng cao',
-        description: 'Tình nguyện dạy học cho trẻ em tại các vùng cao, giúp các em có cơ hội học tập tốt hơn.',
-        startDate: '2024-12-25T07:00:00',
-        endDate: '2024-12-25T17:00:00',
-        location: 'Xã Đồng Văn, Hà Giang',
-        category: 'Giáo dục',
-        status: 'approved',
-        maxParticipants: 30,
-        currentParticipants: 18,
-        managerId: 1,
-        managerName: 'Lê Văn C',
-        createdAt: '2024-12-05T10:00:00',
-        approvedAt: '2024-12-06T09:00:00'
-      },
-      {
-        id: 3,
-        title: 'Hiến máu nhân đạo',
-        description: 'Chương trình hiến máu nhân đạo tại bệnh viện địa phương.',
-        startDate: '2024-12-22T08:00:00',
-        endDate: '2024-12-22T16:00:00',
-        location: 'Bệnh viện Đa khoa TP.HCM',
-        category: 'Y tế',
-        status: 'approved',
-        maxParticipants: 100,
-        currentParticipants: 65,
-        managerId: 2,
-        managerName: 'Phạm Thị D',
-        createdAt: '2024-12-10T10:00:00',
-        approvedAt: '2024-12-11T09:00:00'
-      },
-      {
-        id: 4,
-        title: 'Trồng cây xanh tại công viên',
-        description: 'Tham gia trồng cây xanh tại công viên thành phố để tạo không gian xanh.',
-        startDate: '2024-12-28T07:00:00',
-        endDate: '2024-12-28T11:00:00',
-        location: 'Công viên Lê Văn Tám, TP.HCM',
-        category: 'Môi trường',
-        status: 'pending',
-        maxParticipants: 40,
-        currentParticipants: 0,
-        managerId: 2,
-        managerName: 'Phạm Thị D',
-        createdAt: '2024-12-15T10:00:00'
-      }
-    ];
-
-    this.events.set(mockEvents);
-  }
-
-  getAllEvents(): Event[] {
-    return this.events();
-  }
-
-  getEventById(id: number): Event | undefined {
-    return this.events().find(e => e.id === id);
-  }
-
-  getApprovedEvents(): Event[] {
-    return this.events().filter(e => e.status === 'approved');
-  }
-
-  getEventsByManager(managerId: number): Event[] {
-    return this.events().filter(e => e.managerId === managerId);
-  }
-
-  getPendingEvents(): Event[] {
-    return this.events().filter(e => e.status === 'pending');
-  }
-
-  registerForEvent(eventId: number, userId: number): { success: boolean; message: string } {
-    const event = this.getEventById(eventId);
-    if (!event) {
-      return { success: false, message: 'Sự kiện không tồn tại!' };
-    }
-
-    if (event.status !== 'approved') {
-      return { success: false, message: 'Sự kiện chưa được duyệt!' };
-    }
-
-    if (event.currentParticipants >= event.maxParticipants) {
-      return { success: false, message: 'Sự kiện đã đủ người tham gia!' };
-    }
-
-    // Check if already registered
-    const existing = this.registrations().find(
-      r => r.eventId === eventId && r.userId === userId
-    );
-
-    if (existing) {
-      return { success: false, message: 'Bạn đã đăng ký sự kiện này!' };
-    }
-
-    const registration: EventRegistration = {
-      id: Date.now(),
-      eventId,
-      userId,
-      status: 'pending',
-      registeredAt: new Date().toISOString()
-    };
-
-    this.registrations.update(regs => [...regs, registration]);
-    event.currentParticipants++;
-
-    return { success: true, message: 'Đăng ký thành công! Đang chờ duyệt.' };
-  }
-
-  cancelRegistration(eventId: number, userId: number): { success: boolean; message: string } {
-    const registration = this.registrations().find(
-      r => r.eventId === eventId && r.userId === userId
-    );
-
-    if (!registration) {
-      return { success: false, message: 'Bạn chưa đăng ký sự kiện này!' };
-    }
-
-    const event = this.getEventById(eventId);
-    if (event && new Date(event.startDate) <= new Date()) {
-      return { success: false, message: 'Không thể hủy sau khi sự kiện đã bắt đầu!' };
-    }
-
-    this.registrations.update(regs => regs.filter(r => r.id !== registration.id));
-    if (event) {
-      event.currentParticipants--;
-    }
-
-    return { success: true, message: 'Hủy đăng ký thành công!' };
-  }
-
-  getUserRegistrations(userId: number): EventRegistration[] {
-    return this.registrations().filter(r => r.userId === userId);
-  }
-
-  getUserUpcomingEvents(userId: number): Event[] {
-    const userRegs = this.getUserRegistrations(userId)
-      .filter(r => r.status === 'approved')
-      .map(r => r.eventId);
-    
-    return this.events().filter(
-      e => userRegs.includes(e.id) && new Date(e.startDate) > new Date()
-    );
-  }
-
-  getUserJoinedEvents(userId: number): Event[] {
-    const userRegs = this.getUserRegistrations(userId)
-      .filter(r => r.status === 'approved' || r.status === 'completed')
-      .map(r => r.eventId);
-    
-    return this.events().filter(e => userRegs.includes(e.id));
-  }
-
-  getTotalVolunteerHours(userId: number): number {
-    return this.getUserRegistrations(userId)
-      .filter(r => r.status === 'completed' && r.volunteerHours)
-      .reduce((total, r) => total + (r.volunteerHours || 0), 0);
-  }
-
-  // Manager methods
-  createEvent(event: Omit<Event, 'id' | 'createdAt' | 'status' | 'currentParticipants'>): Event {
-    const newEvent: Event = {
-      ...event,
-      id: Date.now(),
-      createdAt: new Date().toISOString(),
-      status: 'pending',
-      currentParticipants: 0
-    };
-
-    this.events.update(evts => [...evts, newEvent]);
-    return newEvent;
-  }
-
-  updateEvent(eventId: number, updates: Partial<Event>): { success: boolean; message: string } {
-    const event = this.getEventById(eventId);
-    if (!event) {
-      return { success: false, message: 'Sự kiện không tồn tại!' };
-    }
-
-    if (event.status === 'approved') {
-      return { success: false, message: 'Không thể sửa sự kiện đã được duyệt!' };
-    }
-
-    Object.assign(event, updates);
-    this.events.update(evts => evts.map(e => e.id === eventId ? event : e));
-
-    return { success: true, message: 'Cập nhật sự kiện thành công!' };
-  }
-
-  deleteEvent(eventId: number): { success: boolean; message: string } {
-    const event = this.getEventById(eventId);
-    if (!event) {
-      return { success: false, message: 'Sự kiện không tồn tại!' };
-    }
-
-    if (event.status === 'approved') {
-      return { success: false, message: 'Không thể xóa sự kiện đã được duyệt!' };
-    }
-
-    this.events.update(evts => evts.filter(e => e.id !== eventId));
-    this.registrations.update(regs => regs.filter(r => r.eventId !== eventId));
-
-    return { success: true, message: 'Xóa sự kiện thành công!' };
-  }
-
-  // Admin methods - Event Approval/Rejection
-  async approveEvent(eventId: number, adminId: number, note?: string): Promise<{ success: boolean; message: string }> {
+  /**
+   * Get public events (no authentication required)
+   */
+  async getPublicEvents(filter?: FilterEventsRequest): Promise<PaginatedResponse<EventResponse>> {
+    this.loadingState.set(true);
     try {
-      await firstValueFrom(
-        this.apiService.patch(
-          `/events/${eventId}/status`,
-          {
-            status: 'APPROVED',
-            note: note || 'Sự kiện đã được duyệt'
-          },
-          true
-        )
-      );
+      const result = await firstValueFrom(this.eventsApi.getPublicEvents(filter));
+      this.eventsCache.set(result.data);
+      return result;
+    } finally {
+      this.loadingState.set(false);
+    }
+  }
+
+  // ============ AUTHENTICATED EVENTS ============
+
+  /**
+   * Get all events (authentication required)
+   */
+  async getEvents(filter?: FilterEventsRequest): Promise<PaginatedResponse<EventResponse>> {
+    this.loadingState.set(true);
+    try {
+      const result = await firstValueFrom(this.eventsApi.getEvents(filter));
+      this.eventsCache.set(result.data);
+      return result;
+    } finally {
+      this.loadingState.set(false);
+    }
+  }
+
+  /**
+   * Get pending events for admin approval
+   */
+  async getPendingEvents(filter?: Omit<FilterEventsRequest, 'status'>): Promise<PaginatedResponse<EventResponse>> {
+    return firstValueFrom(this.eventsApi.getPendingEvents(filter));
+  }
+
+  /**
+   * Get a single event by ID
+   */
+  async getEventById(eventId: number, authenticated: boolean = true): Promise<EventResponse> {
+    return firstValueFrom(this.eventsApi.getEventById(eventId, authenticated));
+  }
+
+  // ============ EVENT MANAGEMENT (EVENT_MANAGER, ADMIN) ============
+
+  /**
+   * Create a new event
+   * Only EVENT_MANAGER and ADMIN can create events
+   */
+  async createEvent(data: CreateEventRequest): Promise<{ success: boolean; message: string; event?: EventResponse }> {
+    try {
+      const event = await firstValueFrom(this.eventsApi.createEvent(data));
+      return { success: true, message: 'Tạo sự kiện thành công! Đang chờ duyệt.', event };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Tạo sự kiện thất bại. Vui lòng thử lại!' };
+    }
+  }
+
+  /**
+   * Update an existing event
+   */
+  async updateEvent(eventId: number, data: UpdateEventRequest): Promise<{ success: boolean; message: string; event?: EventResponse }> {
+    try {
+      const event = await firstValueFrom(this.eventsApi.updateEvent(eventId, data));
+      return { success: true, message: 'Cập nhật sự kiện thành công!', event };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Cập nhật sự kiện thất bại. Vui lòng thử lại!' };
+    }
+  }
+
+  // ============ EVENT STATUS MANAGEMENT (ADMIN/CREATOR) ============
+
+  /**
+   * Approve an event (ADMIN only)
+   */
+  async approveEvent(eventId: number, note?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      await firstValueFrom(this.eventsApi.approveEvent(eventId, note));
       return { success: true, message: 'Duyệt sự kiện thành công!' };
     } catch (error: any) {
       return { success: false, message: error?.message || 'Duyệt sự kiện thất bại. Vui lòng thử lại!' };
     }
   }
 
+  /**
+   * Reject an event (ADMIN only)
+   */
   async rejectEvent(eventId: number, note?: string): Promise<{ success: boolean; message: string }> {
     try {
-      await firstValueFrom(
-        this.apiService.patch(
-          `/events/${eventId}/status`,
-          {
-            status: 'REJECTED',
-            note: note || 'Sự kiện đã bị từ chối'
-          },
-          true
-        )
-      );
+      await firstValueFrom(this.eventsApi.rejectEvent(eventId, note));
       return { success: true, message: 'Từ chối sự kiện thành công!' };
     } catch (error: any) {
       return { success: false, message: error?.message || 'Từ chối sự kiện thất bại. Vui lòng thử lại!' };
     }
   }
 
-  adminDeleteEvent(eventId: number): { success: boolean; message: string } {
-    const event = this.getEventById(eventId);
-    if (!event) {
-      return { success: false, message: 'Sự kiện không tồn tại!' };
+  /**
+   * Cancel an event (Creator or ADMIN)
+   */
+  async cancelEvent(eventId: number, note?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      await firstValueFrom(this.eventsApi.cancelEvent(eventId, note));
+      return { success: true, message: 'Hủy sự kiện thành công!' };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!' };
     }
-
-    this.events.update(evts => evts.filter(e => e.id !== eventId));
-    this.registrations.update(regs => regs.filter(r => r.eventId !== eventId));
-
-    return { success: true, message: 'Xóa sự kiện thành công!' };
   }
 
-  // Registration management
-  getEventRegistrations(eventId: number): EventRegistration[] {
-    return this.registrations().filter(r => r.eventId === eventId);
-  }
-
-  approveRegistration(registrationId: number): { success: boolean; message: string } {
-    const registration = this.registrations().find(r => r.id === registrationId);
-    if (!registration) {
-      return { success: false, message: 'Đăng ký không tồn tại!' };
+  /**
+   * Mark event as completed (Creator or ADMIN)
+   */
+  async completeEvent(eventId: number, note?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      await firstValueFrom(this.eventsApi.completeEvent(eventId, note));
+      return { success: true, message: 'Đánh dấu hoàn thành sự kiện thành công!' };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Đánh dấu hoàn thành thất bại. Vui lòng thử lại!' };
     }
-
-    registration.status = 'approved';
-    registration.approvedAt = new Date().toISOString();
-
-    this.registrations.update(regs => regs.map(r => r.id === registrationId ? registration : r));
-
-    return { success: true, message: 'Duyệt đăng ký thành công!' };
   }
 
-  rejectRegistration(registrationId: number): { success: boolean; message: string } {
-    const registration = this.registrations().find(r => r.id === registrationId);
-    if (!registration) {
-      return { success: false, message: 'Đăng ký không tồn tại!' };
+  /**
+   * Get invite code for PRIVATE events
+   */
+  async getInviteCode(eventId: number): Promise<{ success: boolean; inviteCode?: string; message?: string }> {
+    try {
+      const result = await firstValueFrom(this.eventsApi.getInviteCode(eventId));
+      return { success: true, inviteCode: result.inviteCode };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Không thể lấy mã mời. Vui lòng thử lại!' };
     }
+  }
 
-    registration.status = 'rejected';
-    const event = this.getEventById(registration.eventId);
-    if (event) {
-      event.currentParticipants--;
+  // ============ REGISTRATION MANAGEMENT ============
+
+  /**
+   * Register for an event
+   */
+  async registerForEvent(eventId: number): Promise<{ success: boolean; message: string; registration?: RegistrationResponse }> {
+    try {
+      const registration = await firstValueFrom(this.registrationsApi.registerForEvent(eventId));
+      return { success: true, message: 'Đăng ký tham gia thành công!', registration };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Đăng ký thất bại. Vui lòng thử lại!' };
     }
-
-    this.registrations.update(regs => regs.map(r => r.id === registrationId ? registration : r));
-
-    return { success: true, message: 'Từ chối đăng ký thành công!' };
   }
 
-  markRegistrationComplete(registrationId: number, volunteerHours: number): { success: boolean; message: string } {
-    const registration = this.registrations().find(r => r.id === registrationId);
-    if (!registration) {
-      return { success: false, message: 'Đăng ký không tồn tại!' };
+  /**
+   * Join a PRIVATE event by invite code
+   */
+  async joinByInviteCode(inviteCode: string): Promise<{ success: boolean; message: string; registration?: RegistrationResponse }> {
+    try {
+      const registration = await firstValueFrom(this.registrationsApi.joinByInviteCode({ inviteCode }));
+      return { success: true, message: 'Tham gia sự kiện thành công!', registration };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Mã mời không hợp lệ hoặc đã hết hạn!' };
     }
-
-    registration.status = 'completed';
-    registration.completedAt = new Date().toISOString();
-    registration.volunteerHours = volunteerHours;
-
-    this.registrations.update(regs => regs.map(r => r.id === registrationId ? registration : r));
-
-    return { success: true, message: 'Đánh dấu hoàn thành thành công!' };
   }
 
-  // Export methods
-  exportEventsToCSV(): string {
-    const events = this.events();
-    const headers = ['ID', 'Tiêu đề', 'Mô tả', 'Ngày bắt đầu', 'Ngày kết thúc', 'Địa điểm', 'Danh mục', 'Trạng thái', 'Số người tham gia', 'Tối đa', 'Người tổ chức'];
-    const rows = events.map(e => [
-      e.id.toString(),
-      e.title,
-      e.description,
-      e.startDate,
-      e.endDate,
-      e.location,
-      e.category,
-      e.status,
-      e.currentParticipants.toString(),
-      e.maxParticipants.toString(),
-      e.managerName
-    ]);
-
-    return [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+  /**
+   * Leave an event
+   */
+  async leaveEvent(eventId: number): Promise<{ success: boolean; message: string }> {
+    try {
+      await firstValueFrom(this.registrationsApi.leaveEvent(eventId));
+      return { success: true, message: 'Đã rời khỏi sự kiện!' };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Không thể rời sự kiện. Vui lòng thử lại!' };
+    }
   }
 
-  exportRegistrationsToCSV(eventId: number): string {
-    const registrations = this.getEventRegistrations(eventId);
-    const headers = ['ID', 'Event ID', 'User ID', 'Trạng thái', 'Ngày đăng ký', 'Ngày duyệt', 'Ngày hoàn thành', 'Giờ tình nguyện'];
-    const rows = registrations.map(r => [
-      r.id.toString(),
-      r.eventId.toString(),
-      r.userId.toString(),
-      r.status,
-      r.registeredAt,
-      r.approvedAt || '',
-      r.completedAt || '',
-      (r.volunteerHours || 0).toString()
-    ]);
+  /**
+   * Get event registrations (Creator or ADMIN)
+   */
+  async getEventRegistrations(eventId: number, status?: RegistrationStatus): Promise<RegistrationResponse[]> {
+    return firstValueFrom(this.registrationsApi.getEventRegistrations(eventId, status));
+  }
 
-    return [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+  /**
+   * Approve a registration
+   */
+  async approveRegistration(eventId: number, registrationId: number): Promise<{ success: boolean; message: string }> {
+    try {
+      await firstValueFrom(this.registrationsApi.approveRegistration(eventId, registrationId));
+      return { success: true, message: 'Duyệt đăng ký thành công!' };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Duyệt đăng ký thất bại!' };
+    }
+  }
+
+  /**
+   * Reject a registration
+   */
+  async rejectRegistration(eventId: number, registrationId: number): Promise<{ success: boolean; message: string }> {
+    try {
+      await firstValueFrom(this.registrationsApi.rejectRegistration(eventId, registrationId));
+      return { success: true, message: 'Từ chối đăng ký thành công!' };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Từ chối đăng ký thất bại!' };
+    }
+  }
+
+  /**
+   * Kick a participant
+   */
+  async kickParticipant(eventId: number, registrationId: number): Promise<{ success: boolean; message: string }> {
+    try {
+      await firstValueFrom(this.registrationsApi.kickParticipant(eventId, registrationId));
+      return { success: true, message: 'Đã xóa người tham gia khỏi sự kiện!' };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Xóa người tham gia thất bại!' };
+    }
+  }
+
+  /**
+   * Check-in a participant
+   */
+  async checkInParticipant(eventId: number, registrationId: number): Promise<{ success: boolean; message: string }> {
+    try {
+      await firstValueFrom(this.registrationsApi.checkIn(eventId, registrationId));
+      return { success: true, message: 'Điểm danh thành công!' };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Điểm danh thất bại!' };
+    }
+  }
+
+  // ============ DASHBOARD ============
+
+  /**
+   * Get user dashboard statistics
+   */
+  async getDashboardStats(): Promise<DashboardStats> {
+    return firstValueFrom(this.dashboardApi.getStats());
+  }
+
+  /**
+   * Get recommended events for the user
+   */
+  async getRecommendedEvents(filter?: FilterDashboardEventsRequest): Promise<DashboardEvent[]> {
+    return firstValueFrom(this.dashboardApi.getRecommendedEvents(filter));
+  }
+
+  /**
+   * Get user's events (created or joined)
+   */
+  async getMyEvents(filter?: FilterDashboardEventsRequest, type: 'created' | 'joined' | 'all' = 'all'): Promise<DashboardEvent[]> {
+    return firstValueFrom(this.dashboardApi.getMyEvents(filter, type));
+  }
+
+  /**
+   * Get upcoming events the user registered for
+   */
+  async getUpcomingEvents(filter?: FilterDashboardEventsRequest): Promise<DashboardEvent[]> {
+    return firstValueFrom(this.dashboardApi.getUpcomingEvents(filter));
+  }
+
+  /**
+   * Get participation history
+   */
+  async getParticipationHistory(filter?: FilterDashboardEventsRequest): Promise<ParticipationHistoryItem[]> {
+    return firstValueFrom(this.dashboardApi.getParticipationHistory(filter));
+  }
+
+  /**
+   * Get admin dashboard statistics (ADMIN only)
+   */
+  async getAdminDashboardStats(): Promise<AdminDashboardStats> {
+    return firstValueFrom(this.dashboardApi.getAdminStats());
+  }
+
+  // ============ UTILITY METHODS ============
+
+  /**
+   * Convert backend EventStatus to legacy status format
+   */
+  convertStatus(status: EventStatus): 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled' {
+    const statusMap: Record<EventStatus, 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled'> = {
+      'PENDING': 'pending',
+      'APPROVED': 'approved',
+      'REJECTED': 'rejected',
+      'COMPLETED': 'completed',
+      'CANCELLED': 'cancelled'
+    };
+    return statusMap[status] || 'pending';
+  }
+
+  /**
+   * Convert legacy status to backend EventStatus format
+   */
+  convertToBackendStatus(status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled'): EventStatus {
+    const statusMap: Record<string, EventStatus> = {
+      'pending': 'PENDING',
+      'approved': 'APPROVED',
+      'rejected': 'REJECTED',
+      'completed': 'COMPLETED',
+      'cancelled': 'CANCELLED'
+    };
+    return statusMap[status] || 'PENDING';
+  }
+
+  /**
+   * Convert EventResponse to legacy Event format for backwards compatibility
+   */
+  convertToLegacyEvent(event: EventResponse): Event {
+    return {
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      startDate: event.startTime,
+      endDate: event.endTime,
+      location: event.location,
+      category: event.category?.name || 'Chưa phân loại',
+      status: this.convertStatus(event.status),
+      maxParticipants: 100, // Backend doesn't have this field yet
+      currentParticipants: event._count?.registrations || 0,
+      imageUrl: event.coverImage || undefined,
+      managerId: event.creatorId || 0,
+      managerName: event.creator?.fullName || 'Unknown',
+      createdAt: event.createdAt,
+      approvedAt: event.status === 'APPROVED' ? event.updatedAt : undefined
+    };
+  }
+
+  /**
+   * Get status display text in Vietnamese
+   */
+  getStatusDisplayText(status: EventStatus | RegistrationStatus): string {
+    const statusTexts: Record<string, string> = {
+      'PENDING': 'Chờ duyệt',
+      'APPROVED': 'Đã duyệt',
+      'REJECTED': 'Đã từ chối',
+      'CANCELLED': 'Đã hủy',
+      'COMPLETED': 'Đã hoàn thành',
+      'ATTENDED': 'Đã tham gia',
+      'KICKED': 'Đã bị xóa',
+      'LEFT': 'Đã rời'
+    };
+    return statusTexts[status] || status;
+  }
+
+  /**
+   * Get visibility display text in Vietnamese
+   */
+  getVisibilityDisplayText(visibility: EventVisibility): string {
+    const visibilityTexts: Record<EventVisibility, string> = {
+      'PUBLIC': 'Công khai',
+      'INTERNAL': 'Nội bộ',
+      'PRIVATE': 'Riêng tư'
+    };
+    return visibilityTexts[visibility] || visibility;
   }
 }
 

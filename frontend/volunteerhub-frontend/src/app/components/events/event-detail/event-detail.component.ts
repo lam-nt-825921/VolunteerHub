@@ -1,9 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../services/auth.service';
-import { EventsService, Event } from '../../../services/events.service';
+import { EventsService, EventResponse } from '../../../services/events.service';
 import { NavbarComponent } from '../../navbar/navbar.component';
 import { FooterComponent } from '../../footer/footer.component';
 import { EventWallComponent } from '../event-wall/event-wall.component';
@@ -17,11 +17,12 @@ import { EventRegistrationsComponent } from '../event-registrations/event-regist
   styleUrl: './event-detail.component.scss'
 })
 export class EventDetailComponent implements OnInit {
-  event: Event | undefined;
+  event: EventResponse | null = null;
   isRegistered = false;
-  registrationStatus: 'pending' | 'approved' | 'rejected' | 'completed' | null = null;
+  registrationStatus: string | null = null;
   canCancel = false;
   showLoginPrompt = false;
+  isLoading = signal(false);
 
   constructor(
     public authService: AuthService,
@@ -30,31 +31,56 @@ export class EventDetailComponent implements OnInit {
     private route: ActivatedRoute
   ) {}
 
-  ngOnInit() {
+  async ngOnInit() {
     const eventId = Number(this.route.snapshot.paramMap.get('id'));
-    this.event = this.eventsService.getEventById(eventId);
+    await this.loadEvent(eventId);
+  }
 
-    if (!this.event) {
-      this.router.navigate(['/events']);
-      return;
-    }
+  async loadEvent(eventId: number) {
+    this.isLoading.set(true);
+    try {
+      const isAuthenticated = this.authService.isAuthenticated();
+      this.event = await this.eventsService.getEventById(eventId, isAuthenticated);
 
-    if (this.authService.isAuthenticated()) {
-      const userId = this.authService.user()?.id;
-      if (userId) {
-        const registrations = this.eventsService.getUserRegistrations(userId);
-        const registration = registrations.find(r => r.eventId === eventId);
-        if (registration) {
-          this.isRegistered = true;
-          this.registrationStatus = registration.status as 'pending' | 'approved' | 'rejected' | 'completed' | null;
-          // Can cancel only if event hasn't started
-          this.canCancel = new Date(this.event.startDate) > new Date();
-        }
+      if (!this.event) {
+        this.router.navigate(['/events']);
+        return;
       }
+
+      // Check user's registration status
+      if (isAuthenticated) {
+        await this.checkRegistrationStatus(eventId);
+      }
+    } catch (error) {
+      console.error('Error loading event:', error);
+      this.router.navigate(['/events']);
+    } finally {
+      this.isLoading.set(false);
     }
   }
 
-  onRegister() {
+  async checkRegistrationStatus(eventId: number) {
+    try {
+      // Get user's participation history and check if they're registered for this event
+      const history = await this.eventsService.getParticipationHistory();
+      const registration = history.find(h => h.event.id === eventId);
+      
+      if (registration) {
+        this.isRegistered = true;
+        this.registrationStatus = registration.status;
+        // Can cancel only if event hasn't started and not already left/kicked
+        this.canCancel = this.event?.startTime 
+          ? new Date(this.event.startTime) > new Date() && 
+            !['LEFT', 'KICKED', 'REJECTED'].includes(registration.status)
+          : false;
+      }
+    } catch (error) {
+      // User might not have access to their history, or no registrations
+      console.error('Error checking registration:', error);
+    }
+  }
+
+  async onRegister() {
     if (!this.authService.isAuthenticated()) {
       this.showLoginPrompt = true;
       return;
@@ -62,32 +88,38 @@ export class EventDetailComponent implements OnInit {
 
     if (!this.event) return;
 
-    const userId = this.authService.user()?.id;
-    if (userId) {
-      const result = this.eventsService.registerForEvent(this.event.id, userId);
+    this.isLoading.set(true);
+    try {
+      const result = await this.eventsService.registerForEvent(this.event.id);
       if (result.success) {
         this.isRegistered = true;
-        this.registrationStatus = 'pending';
-        alert(result.message);
-      } else {
-        alert(result.message);
+        this.registrationStatus = result.registration?.status || 'APPROVED';
+        this.canCancel = true;
       }
+      alert(result.message);
+    } catch (error: any) {
+      alert(error?.message || 'Đăng ký thất bại. Vui lòng thử lại!');
+    } finally {
+      this.isLoading.set(false);
     }
   }
 
-  onCancelRegistration() {
+  async onCancelRegistration() {
     if (!this.event) return;
 
-    const userId = this.authService.user()?.id;
-    if (userId) {
-      const result = this.eventsService.cancelRegistration(this.event.id, userId);
+    this.isLoading.set(true);
+    try {
+      const result = await this.eventsService.leaveEvent(this.event.id);
       if (result.success) {
         this.isRegistered = false;
         this.registrationStatus = null;
-        alert(result.message);
-      } else {
-        alert(result.message);
+        this.canCancel = false;
       }
+      alert(result.message);
+    } catch (error: any) {
+      alert(error?.message || 'Hủy đăng ký thất bại. Vui lòng thử lại!');
+    } finally {
+      this.isLoading.set(false);
     }
   }
 
@@ -117,8 +149,22 @@ export class EventDetailComponent implements OnInit {
   canManageRegistrations(): boolean {
     const user = this.authService.user();
     if (!user || !this.event) return false;
-    // Managers can manage registrations for their own events, Admins can manage all
-    return (user.role === 'manager' && this.event.managerId === user.id) || user.role === 'admin';
+    // Event creator can manage registrations, Admins can manage all
+    return (user.role === 'manager' && this.event.creatorId === user.id) || user.role === 'admin';
+  }
+
+  getStatusText(status: string): string {
+    const statusMap: Record<string, string> = {
+      'PENDING': 'Chờ duyệt',
+      'APPROVED': 'Đã duyệt',
+      'REJECTED': 'Từ chối',
+      'CANCELLED': 'Đã hủy',
+      'COMPLETED': 'Hoàn thành',
+      'ATTENDED': 'Đã tham gia',
+      'KICKED': 'Đã bị xóa',
+      'LEFT': 'Đã rời'
+    };
+    return statusMap[status] || status;
   }
 }
 

@@ -64,7 +64,7 @@
           @for (event of upcomingEvents.slice(0, 3); track event.id) {
             <div class="event-card" (click)="viewEventDetail(event.id)">
               <div class="event-header">
-                <span class="event-category">{{ event.category }}</span>
+                <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
                 <span class="event-status approved">Đã duyệt</span>
               </div>
               <h3 class="event-title">{{ event.title }}</h3>
@@ -72,7 +72,7 @@
               <div class="event-details">
                 <div class="event-detail-item">
                   <mat-icon>calendar_today</mat-icon>
-                  <span>{{ formatDate(event.startDate) }}</span>
+                  <span>{{ formatDate(event.startTime) }}</span>
                 </div>
                 <div class="event-detail-item">
                   <mat-icon>location_on</mat-icon>
@@ -80,7 +80,7 @@
                 </div>
                 <div class="event-detail-item">
                   <mat-icon>people</mat-icon>
-                  <span>{{ event.currentParticipants }}/{{ event.maxParticipants }} người</span>
+                  <span>{{ event.registrationsCount || 0 }} đăng ký</span>
                 </div>
               </div>
             </div>
@@ -105,7 +105,7 @@
           @for (event of newEvents; track event.id) {
             <div class="event-card" (click)="viewEventDetail(event.id)">
               <div class="event-header">
-                <span class="event-category">{{ event.category }}</span>
+                <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
                 <span class="event-badge new">Mới</span>
               </div>
               <h3 class="event-title">{{ event.title }}</h3>
@@ -113,7 +113,7 @@
               <div class="event-details">
                 <div class="event-detail-item">
                   <mat-icon>calendar_today</mat-icon>
-                  <span>{{ formatDate(event.startDate) }}</span>
+                  <span>{{ formatDate(event.startTime) }}</span>
                 </div>
                 <div class="event-detail-item">
                   <mat-icon>location_on</mat-icon>
@@ -136,7 +136,7 @@
           @for (event of eventsWithNewPosts; track event.id) {
             <div class="event-card" (click)="viewEventDetail(event.id)">
               <div class="event-header">
-                <span class="event-category">{{ event.category }}</span>
+                <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
                 <span class="event-badge new-post">
                   <mat-icon>forum</mat-icon>
                   Có tin mới
@@ -160,7 +160,7 @@
           @for (event of trendingEvents; track event.id) {
             <div class="event-card" (click)="viewEventDetail(event.id)">
               <div class="event-header">
-                <span class="event-category">{{ event.category }}</span>
+                <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
                 <span class="event-badge trending">
                   <mat-icon>trending_up</mat-icon>
                   Đang hot
@@ -171,7 +171,7 @@
               <div class="event-details">
                 <div class="event-detail-item">
                   <mat-icon>people</mat-icon>
-                  <span>{{ event.currentParticipants }}/{{ event.maxParticipants }} người</span>
+                  <span>{{ event.registrationsCount || 0 }} đăng ký</span>
                 </div>
               </div>
             </div>
@@ -191,7 +191,7 @@
           @for (event of joinedEvents.slice(0, 3); track event.id) {
             <div class="event-card" (click)="viewEventDetail(event.id)">
               <div class="event-header">
-                <span class="event-category">{{ event.category }}</span>
+                <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
                 <span class="event-status completed">Hoàn thành</span>
               </div>
               <h3 class="event-title">{{ event.title }}</h3>
@@ -199,7 +199,7 @@
               <div class="event-details">
                 <div class="event-detail-item">
                   <mat-icon>calendar_today</mat-icon>
-                  <span>{{ formatDate(event.startDate) }}</span>
+                  <span>{{ formatDate(event.startTime) }}</span>
                 </div>
                 <div class="event-detail-item">
                   <mat-icon>location_on</mat-icon>
@@ -231,8 +231,8 @@
               </div>
               <div class="history-content">
                 <h4 (click)="viewEventDetail(event.id)">{{ event.title }}</h4>
-                <p>{{ formatDate(event.startDate) }} - {{ event.location }}</p>
-                @if (event.status === 'completed') {
+                <p>{{ formatDate(event.startTime) }} - {{ event.location }}</p>
+                @if (event.status === 'COMPLETED') {
                   <span class="status-badge completed">Đã hoàn thành</span>
                 } @else {
                   <span class="status-badge approved">Đã tham gia</span>

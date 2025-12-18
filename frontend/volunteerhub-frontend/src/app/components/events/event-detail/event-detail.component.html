@@ -9,17 +9,9 @@
           Quay lại
         </button>
         <div class="event-badge">
-          <span class="event-category">{{ event.category }}</span>
-          <span class="event-status" [class]="event.status">
-            @if (event.status === 'pending') {
-              Chờ duyệt
-            } @else if (event.status === 'approved') {
-              Đã duyệt
-            } @else if (event.status === 'rejected') {
-              Từ chối
-            } @else {
-              Hoàn thành
-            }
+          <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
+          <span class="event-status" [class]="event.status.toLowerCase()">
+            {{ getStatusText(event.status) }}
           </span>
         </div>
         <h1>{{ event.title }}</h1>
@@ -34,7 +26,7 @@
         </div>
 
         <!-- Wall Tab - Only for approved events and authenticated users -->
-        @if (event.status === 'approved' && authService.isAuthenticated() && isRegistered && registrationStatus === 'approved') {
+        @if (event.status === 'APPROVED' && authService.isAuthenticated() && isRegistered && (registrationStatus === 'APPROVED' || registrationStatus === 'ATTENDED')) {
           <div class="section">
             <app-event-wall [eventId]="event.id" [canManage]="canManageWall()"></app-event-wall>
           </div>
@@ -48,14 +40,14 @@
             <mat-icon>calendar_today</mat-icon>
             <div>
               <strong>Ngày bắt đầu</strong>
-              <p>{{ formatDate(event.startDate) }}</p>
+              <p>{{ formatDate(event.startTime) }}</p>
             </div>
           </div>
           <div class="info-item">
             <mat-icon>schedule</mat-icon>
             <div>
               <strong>Ngày kết thúc</strong>
-              <p>{{ formatDate(event.endDate) }}</p>
+              <p>{{ formatDate(event.endTime) }}</p>
             </div>
           </div>
           <div class="info-item">
@@ -68,21 +60,21 @@
           <div class="info-item">
             <mat-icon>people</mat-icon>
             <div>
-              <strong>Người tham gia</strong>
-              <p>{{ event.currentParticipants }}/{{ event.maxParticipants }}</p>
+              <strong>Số đăng ký</strong>
+              <p>{{ event._count?.registrations || 0 }} người</p>
             </div>
           </div>
           <div class="info-item">
             <mat-icon>person</mat-icon>
             <div>
               <strong>Người tổ chức</strong>
-              <p>{{ event.managerName }}</p>
+              <p>{{ event.creator?.fullName || 'Unknown' }}</p>
             </div>
           </div>
         </div>
 
         <!-- Registration Card -->
-        @if (event.status === 'approved') {
+        @if (event.status === 'APPROVED') {
           <div class="action-card">
             @if (!authService.isAuthenticated()) {
               <div class="login-prompt">
@@ -97,7 +89,7 @@
               </button>
             } @else {
               <div class="registration-status">
-                @if (registrationStatus === 'pending') {
+                @if (registrationStatus === 'PENDING') {
                   <div class="status-message pending">
                     <mat-icon>schedule</mat-icon>
                     <p>Đang chờ duyệt</p>
@@ -107,20 +99,30 @@
                       Hủy đăng ký
                     </button>
                   }
-                } @else if (registrationStatus === 'approved') {
+                } @else if (registrationStatus === 'APPROVED' || registrationStatus === 'ATTENDED') {
                   <div class="status-message approved">
                     <mat-icon>check_circle</mat-icon>
-                    <p>Đã được duyệt</p>
+                    <p>{{ registrationStatus === 'ATTENDED' ? 'Đã tham gia' : 'Đã được duyệt' }}</p>
                   </div>
                   @if (canCancel) {
                     <button class="btn btn-secondary btn-full" (click)="onCancelRegistration()">
-                      Hủy đăng ký
+                      Rời sự kiện
                     </button>
                   }
-                } @else if (registrationStatus === 'rejected') {
+                } @else if (registrationStatus === 'REJECTED') {
                   <div class="status-message rejected">
                     <mat-icon>cancel</mat-icon>
                     <p>Đã bị từ chối</p>
+                  </div>
+                } @else if (registrationStatus === 'LEFT') {
+                  <div class="status-message">
+                    <mat-icon>exit_to_app</mat-icon>
+                    <p>Đã rời sự kiện</p>
+                  </div>
+                } @else if (registrationStatus === 'KICKED') {
+                  <div class="status-message rejected">
+                    <mat-icon>block</mat-icon>
+                    <p>Đã bị xóa khỏi sự kiện</p>
                   </div>
                 }
               </div>

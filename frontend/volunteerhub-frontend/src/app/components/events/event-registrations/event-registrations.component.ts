@@ -2,7 +2,7 @@ import { Component, OnInit, Input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
-import { EventsService, EventRegistration } from '../../../services/events.service';
+import { EventsService, RegistrationResponse } from '../../../services/events.service';
 import { AuthService } from '../../../services/auth.service';
 
 @Component({
@@ -16,43 +16,82 @@ export class EventRegistrationsComponent implements OnInit {
   @Input() eventId!: number;
   @Input() canManage = false;
 
-  registrations: EventRegistration[] = [];
-  pendingRegistrations: EventRegistration[] = [];
-  approvedRegistrations: EventRegistration[] = [];
-  completedRegistrations: EventRegistration[] = [];
+  registrations: RegistrationResponse[] = [];
+  pendingRegistrations: RegistrationResponse[] = [];
+  approvedRegistrations: RegistrationResponse[] = [];
+  attendedRegistrations: RegistrationResponse[] = [];
   showCompleteForm = signal<number | null>(null);
   volunteerHours = signal<number>(0);
+  isLoading = signal(false);
 
   constructor(
     private eventsService: EventsService,
     public authService: AuthService
   ) {}
 
-  ngOnInit() {
-    this.loadRegistrations();
+  async ngOnInit() {
+    await this.loadRegistrations();
   }
 
-  loadRegistrations() {
-    this.registrations = this.eventsService.getEventRegistrations(this.eventId);
-    this.pendingRegistrations = this.registrations.filter(r => r.status === 'pending');
-    this.approvedRegistrations = this.registrations.filter(r => r.status === 'approved');
-    this.completedRegistrations = this.registrations.filter(r => r.status === 'completed');
-  }
-
-  approveRegistration(registrationId: number) {
-    const result = this.eventsService.approveRegistration(registrationId);
-    alert(result.message);
-    if (result.success) {
-      this.loadRegistrations();
+  async loadRegistrations() {
+    this.isLoading.set(true);
+    try {
+      this.registrations = await this.eventsService.getEventRegistrations(this.eventId);
+      this.pendingRegistrations = this.registrations.filter(r => r.status === 'PENDING');
+      this.approvedRegistrations = this.registrations.filter(r => r.status === 'APPROVED');
+      this.attendedRegistrations = this.registrations.filter(r => r.status === 'ATTENDED');
+    } catch (error) {
+      console.error('Error loading registrations:', error);
+    } finally {
+      this.isLoading.set(false);
     }
   }
 
-  rejectRegistration(registrationId: number) {
-    if (confirm('Bạn có chắc muốn từ chối đăng ký này?')) {
-      const result = this.eventsService.rejectRegistration(registrationId);
+  async approveRegistration(registrationId: number) {
+    this.isLoading.set(true);
+    try {
+      const result = await this.eventsService.approveRegistration(this.eventId, registrationId);
       alert(result.message);
       if (result.success) {
-        this.loadRegistrations();
+        await this.loadRegistrations();
+      }
+    } catch (error: any) {
+      alert(error?.message || 'Duyệt đăng ký thất bại!');
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  async rejectRegistration(registrationId: number) {
+    if (confirm('Bạn có chắc muốn từ chối đăng ký này?')) {
+      this.isLoading.set(true);
+      try {
+        const result = await this.eventsService.rejectRegistration(this.eventId, registrationId);
+        alert(result.message);
+        if (result.success) {
+          await this.loadRegistrations();
+        }
+      } catch (error: any) {
+        alert(error?.message || 'Từ chối đăng ký thất bại!');
+      } finally {
+        this.isLoading.set(false);
+      }
+    }
+  }
+
+  async kickParticipant(registrationId: number) {
+    if (confirm('Bạn có chắc muốn xóa người tham gia này?')) {
+      this.isLoading.set(true);
+      try {
+        const result = await this.eventsService.kickParticipant(this.eventId, registrationId);
+        alert(result.message);
+        if (result.success) {
+          await this.loadRegistrations();
+        }
+      } catch (error: any) {
+        alert(error?.message || 'Xóa người tham gia thất bại!');
+      } finally {
+        this.isLoading.set(false);
       }
     }
   }
@@ -67,24 +106,35 @@ export class EventRegistrationsComponent implements OnInit {
     this.volunteerHours.set(0);
   }
 
-  markComplete(registrationId: number) {
-    const hours = this.volunteerHours();
-    if (hours <= 0) {
-      alert('Vui lòng nhập số giờ tình nguyện lớn hơn 0!');
-      return;
-    }
-
-    const result = this.eventsService.markRegistrationComplete(registrationId, hours);
-    alert(result.message);
-    if (result.success) {
-      this.closeCompleteForm();
-      this.loadRegistrations();
+  async checkIn(registrationId: number) {
+    this.isLoading.set(true);
+    try {
+      const result = await this.eventsService.checkInParticipant(this.eventId, registrationId);
+      alert(result.message);
+      if (result.success) {
+        this.closeCompleteForm();
+        await this.loadRegistrations();
+      }
+    } catch (error: any) {
+      alert(error?.message || 'Điểm danh thất bại!');
+    } finally {
+      this.isLoading.set(false);
     }
   }
 
   exportToCSV() {
-    const csv = this.eventsService.exportRegistrationsToCSV(this.eventId);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // Export registrations to CSV
+    const headers = ['ID', 'Tên', 'Trạng thái', 'Ngày đăng ký', 'Ngày điểm danh'];
+    const rows = this.registrations.map(r => [
+      r.id.toString(),
+      r.user.fullName,
+      this.getStatusText(r.status),
+      r.registeredAt,
+      r.attendedAt || ''
+    ]);
+
+    const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -106,9 +156,20 @@ export class EventRegistrationsComponent implements OnInit {
     });
   }
 
-  getUserName(userId: number): string {
-    // In a real app, this would fetch from a users service
-    return `User ${userId}`;
+  getUserName(registration: RegistrationResponse): string {
+    return registration.user?.fullName || 'Unknown';
+  }
+
+  getStatusText(status: string): string {
+    const statusMap: Record<string, string> = {
+      'PENDING': 'Chờ duyệt',
+      'APPROVED': 'Đã duyệt',
+      'REJECTED': 'Từ chối',
+      'ATTENDED': 'Đã điểm danh',
+      'KICKED': 'Đã xóa',
+      'LEFT': 'Đã rời'
+    };
+    return statusMap[status] || status;
   }
 }
 

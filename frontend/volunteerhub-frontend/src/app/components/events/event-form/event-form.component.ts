@@ -2,7 +2,33 @@ import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
-import { Event } from '../../../services/events.service';
+
+// Flexible event input interface that works with both legacy Event and DashboardEvent
+interface EventInput {
+  id?: number;
+  title?: string;
+  description?: string;
+  startTime?: string;
+  startDate?: string;
+  endTime?: string;
+  endDate?: string;
+  location?: string;
+  category?: { name?: string } | string | null;
+  visibility?: string;
+  coverImage?: string | null;
+}
+
+// Output interface for the form
+export interface EventFormData {
+  title: string;
+  description: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  category: string;
+  visibility: string;
+  coverImage?: string;
+}
 
 @Component({
   selector: 'app-event-form',
@@ -12,34 +38,53 @@ import { Event } from '../../../services/events.service';
   styleUrl: './event-form.component.scss'
 })
 export class EventFormComponent implements OnInit {
-  @Input() event: Event | null = null;
+  @Input() event: EventInput | null = null;
   @Input() managerId!: number;
   @Input() managerName!: string;
-  @Output() save = new EventEmitter<Partial<Event>>();
+  @Output() save = new EventEmitter<EventFormData>();
   @Output() cancel = new EventEmitter<void>();
 
-  formData: Partial<Event> = {
+  formData: EventFormData = {
     title: '',
     description: '',
-    startDate: '',
-    endDate: '',
+    startTime: '',
+    endTime: '',
     location: '',
     category: '',
-    maxParticipants: 50
+    visibility: 'PUBLIC',
+    coverImage: ''
   };
 
   categories = ['Môi trường', 'Giáo dục', 'Y tế', 'Xã hội', 'Văn hóa', 'Thể thao'];
+  visibilities = [
+    { value: 'PUBLIC', label: 'Công khai' },
+    { value: 'INTERNAL', label: 'Nội bộ' },
+    { value: 'PRIVATE', label: 'Riêng tư' }
+  ];
 
   ngOnInit() {
     if (this.event) {
+      // Handle both new API format (startTime) and legacy format (startDate)
+      const startTime = this.event.startTime || this.event.startDate || '';
+      const endTime = this.event.endTime || this.event.endDate || '';
+      
+      // Handle category as object or string
+      let categoryName = '';
+      if (typeof this.event.category === 'object' && this.event.category?.name) {
+        categoryName = this.event.category.name;
+      } else if (typeof this.event.category === 'string') {
+        categoryName = this.event.category;
+      }
+
       this.formData = {
-        title: this.event.title,
-        description: this.event.description,
-        startDate: this.event.startDate.split('T')[0] + 'T' + this.event.startDate.split('T')[1].substring(0, 5),
-        endDate: this.event.endDate.split('T')[0] + 'T' + this.event.endDate.split('T')[1].substring(0, 5),
-        location: this.event.location,
-        category: this.event.category,
-        maxParticipants: this.event.maxParticipants
+        title: this.event.title || '',
+        description: this.event.description || '',
+        startTime: this.formatDateTimeForInput(startTime),
+        endTime: this.formatDateTimeForInput(endTime),
+        location: this.event.location || '',
+        category: categoryName,
+        visibility: this.event.visibility || 'PUBLIC',
+        coverImage: this.event.coverImage || ''
       };
     } else {
       // Set default dates
@@ -47,8 +92,18 @@ export class EventFormComponent implements OnInit {
       const tomorrow = new Date(now);
       tomorrow.setDate(tomorrow.getDate() + 1);
       
-      this.formData.startDate = this.formatDateForInput(tomorrow);
-      this.formData.endDate = this.formatDateForInput(tomorrow);
+      this.formData.startTime = this.formatDateForInput(tomorrow);
+      this.formData.endTime = this.formatDateForInput(tomorrow);
+    }
+  }
+
+  formatDateTimeForInput(dateString: string): string {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      return this.formatDateForInput(date);
+    } catch {
+      return dateString.split('T')[0] + 'T' + (dateString.split('T')[1]?.substring(0, 5) || '00:00');
     }
   }
 
@@ -66,13 +121,7 @@ export class EventFormComponent implements OnInit {
       return;
     }
 
-    const eventData: Partial<Event> = {
-      ...this.formData,
-      managerId: this.managerId,
-      managerName: this.managerName
-    };
-
-    this.save.emit(eventData);
+    this.save.emit(this.formData);
   }
 
   validateForm(): boolean {
@@ -86,17 +135,22 @@ export class EventFormComponent implements OnInit {
       return false;
     }
 
-    if (!this.formData.startDate) {
+    if (this.formData.description.trim().length < 20) {
+      alert('Mô tả sự kiện phải có ít nhất 20 ký tự!');
+      return false;
+    }
+
+    if (!this.formData.startTime) {
       alert('Vui lòng chọn ngày bắt đầu!');
       return false;
     }
 
-    if (!this.formData.endDate) {
+    if (!this.formData.endTime) {
       alert('Vui lòng chọn ngày kết thúc!');
       return false;
     }
 
-    if (new Date(this.formData.startDate) >= new Date(this.formData.endDate)) {
+    if (new Date(this.formData.startTime) >= new Date(this.formData.endTime)) {
       alert('Ngày kết thúc phải sau ngày bắt đầu!');
       return false;
     }
@@ -108,11 +162,6 @@ export class EventFormComponent implements OnInit {
 
     if (!this.formData.category) {
       alert('Vui lòng chọn danh mục!');
-      return false;
-    }
-
-    if (!this.formData.maxParticipants || this.formData.maxParticipants < 1) {
-      alert('Số người tham gia tối đa phải lớn hơn 0!');
       return false;
     }
 

@@ -4,7 +4,7 @@ import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService, User } from '../../../services/auth.service';
-import { EventsService, Event } from '../../../services/events.service';
+import { EventsService, EventResponse } from '../../../services/events.service';
 import { AdminApiService } from '../../../services/admin-api.service';
 import { NavbarComponent } from '../../navbar/navbar.component';
 import { FooterComponent } from '../../footer/footer.component';
@@ -17,9 +17,9 @@ import { FooterComponent } from '../../footer/footer.component';
   styleUrl: './admin-dashboard.component.scss'
 })
 export class AdminDashboardComponent implements OnInit {
-  allEvents: Event[] = [];
-  pendingEvents: Event[] = [];
-  approvedEvents: Event[] = [];
+  allEvents: EventResponse[] = [];
+  pendingEvents: EventResponse[] = [];
+  approvedEvents: EventResponse[] = [];
   totalEvents = 0;
   totalUsers = 0;
   allUsers: User[] = [];
@@ -56,11 +56,17 @@ export class AdminDashboardComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set('');
     try {
-      // TODO: Replace with API call when events API is implemented
-      this.allEvents = this.eventsService.getAllEvents();
-      this.pendingEvents = this.eventsService.getPendingEvents();
-      this.approvedEvents = this.allEvents.filter(e => e.status === 'approved');
-      this.totalEvents = this.allEvents.length;
+      // Get all events for admin
+      const allResult = await this.eventsService.getEvents({ limit: 100 });
+      this.allEvents = allResult.data;
+      this.totalEvents = allResult.meta.total;
+      
+      // Get pending events for approval
+      const pendingResult = await this.eventsService.getPendingEvents({ limit: 50 });
+      this.pendingEvents = pendingResult.data;
+      
+      // Filter approved events from all
+      this.approvedEvents = this.allEvents.filter(e => e.status === 'APPROVED');
     } catch (error: any) {
       this.errorMessage.set(error?.message || 'Không thể tải danh sách sự kiện');
     } finally {
@@ -268,14 +274,11 @@ export class AdminDashboardComponent implements OnInit {
     });
   }
 
-  async approveEvent(event: Event) {
-    const user = this.authService.user();
-    if (!user) return;
-
+  async approveEvent(event: EventResponse) {
     if (confirm(`Bạn có chắc muốn duyệt sự kiện "${event.title}"?`)) {
       this.isLoading.set(true);
       try {
-        const result = await this.eventsService.approveEvent(event.id, user.id);
+        const result = await this.eventsService.approveEvent(event.id);
         alert(result.message);
         if (result.success) {
           await this.loadEvents();
@@ -288,7 +291,7 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
-  async rejectEvent(event: Event) {
+  async rejectEvent(event: EventResponse) {
     if (confirm(`Bạn có chắc muốn từ chối sự kiện "${event.title}"?`)) {
       this.isLoading.set(true);
       try {
@@ -305,12 +308,19 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
-  deleteEvent(event: Event) {
-    if (confirm(`Bạn có chắc muốn xóa sự kiện "${event.title}"?`)) {
-      const result = this.eventsService.adminDeleteEvent(event.id);
-      alert(result.message);
-      if (result.success) {
-        this.loadEvents();
+  async cancelEvent(event: EventResponse) {
+    if (confirm(`Bạn có chắc muốn hủy sự kiện "${event.title}"?`)) {
+      this.isLoading.set(true);
+      try {
+        const result = await this.eventsService.cancelEvent(event.id);
+        alert(result.message);
+        if (result.success) {
+          await this.loadEvents();
+        }
+      } catch (error: any) {
+        alert(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
+      } finally {
+        this.isLoading.set(false);
       }
     }
   }
@@ -352,8 +362,23 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   exportEvents() {
-    const csv = this.eventsService.exportEventsToCSV();
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // Export events to CSV
+    const events = this.allEvents;
+    const headers = ['ID', 'Tiêu đề', 'Mô tả', 'Địa điểm', 'Ngày bắt đầu', 'Ngày kết thúc', 'Trạng thái', 'Hiển thị', 'Số đăng ký'];
+    const rows = events.map(e => [
+      e.id.toString(),
+      e.title,
+      e.description.substring(0, 100),
+      e.location,
+      e.startTime,
+      e.endTime,
+      e.status,
+      e.visibility,
+      (e._count?.registrations || 0).toString()
+    ]);
+
+    const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -362,6 +387,34 @@ export class AdminDashboardComponent implements OnInit {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  }
+
+  /**
+   * Get status display text in Vietnamese
+   */
+  getStatusText(status: string): string {
+    const statusMap: Record<string, string> = {
+      'PENDING': 'Chờ duyệt',
+      'APPROVED': 'Đã duyệt',
+      'REJECTED': 'Từ chối',
+      'CANCELLED': 'Đã hủy',
+      'COMPLETED': 'Hoàn thành'
+    };
+    return statusMap[status] || status;
+  }
+
+  /**
+   * Get status CSS class
+   */
+  getStatusClass(status: string): string {
+    const classMap: Record<string, string> = {
+      'PENDING': 'status-pending',
+      'APPROVED': 'status-approved',
+      'REJECTED': 'status-rejected',
+      'CANCELLED': 'status-cancelled',
+      'COMPLETED': 'status-completed'
+    };
+    return classMap[status] || '';
   }
 }
 

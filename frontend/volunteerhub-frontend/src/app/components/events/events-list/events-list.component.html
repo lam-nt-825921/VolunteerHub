@@ -62,15 +62,15 @@
         @for (event of paginatedEvents; track event.id) {
           <div class="event-card" (click)="viewEventDetail(event.id)">
             <div class="event-header">
-              <span class="event-category">{{ event.category }}</span>
-              <span class="event-status approved">Đã duyệt</span>
+              <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
+              <span class="event-status" [class]="getStatusClass(event.status)">{{ getStatusText(event.status) }}</span>
             </div>
             <h3 class="event-title">{{ event.title }}</h3>
             <p class="event-description">{{ event.description }}</p>
             <div class="event-details">
               <div class="event-detail-item">
                 <mat-icon>calendar_today</mat-icon>
-                <span>{{ formatDate(event.startDate) }}</span>
+                <span>{{ formatDate(event.startTime) }}</span>
               </div>
               <div class="event-detail-item">
                 <mat-icon>location_on</mat-icon>
@@ -78,7 +78,7 @@
               </div>
               <div class="event-detail-item">
                 <mat-icon>people</mat-icon>
-                <span>{{ event.currentParticipants }}/{{ event.maxParticipants }} người</span>
+                <span>{{ event._count?.registrations || 0 }} đăng ký</span>
               </div>
             </div>
           </div>

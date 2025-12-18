@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../services/auth.service';
-import { EventsService, Event } from '../../../services/events.service';
+import { EventsService, EventResponse, DashboardEvent } from '../../../services/events.service';
 import { NavbarComponent } from '../../navbar/navbar.component';
 import { FooterComponent } from '../../footer/footer.component';
 import { EventFormComponent } from '../../events/event-form/event-form.component';
@@ -16,13 +16,14 @@ import { EventFormComponent } from '../../events/event-form/event-form.component
   styleUrl: './manager-dashboard.component.scss'
 })
 export class ManagerDashboardComponent implements OnInit {
-  myEvents: Event[] = [];
-  pendingEvents: Event[] = [];
-  approvedEvents: Event[] = [];
+  myEvents: DashboardEvent[] = [];
+  pendingEvents: DashboardEvent[] = [];
+  approvedEvents: DashboardEvent[] = [];
   totalEvents = 0;
   totalParticipants = 0;
   showEventForm = signal(false);
-  editingEvent = signal<Event | null>(null);
+  editingEvent = signal<DashboardEvent | null>(null);
+  isLoading = signal(false);
 
   constructor(
     public authService: AuthService,
@@ -30,14 +31,23 @@ export class ManagerDashboardComponent implements OnInit {
     private router: Router
   ) {}
 
-  ngOnInit() {
-    const userId = this.authService.user()?.id;
-    if (userId) {
-      this.myEvents = this.eventsService.getEventsByManager(userId);
-      this.pendingEvents = this.myEvents.filter(e => e.status === 'pending');
-      this.approvedEvents = this.myEvents.filter(e => e.status === 'approved');
+  async ngOnInit() {
+    await this.loadEvents();
+  }
+
+  async loadEvents() {
+    this.isLoading.set(true);
+    try {
+      // Get events created by the current user
+      this.myEvents = await this.eventsService.getMyEvents(undefined, 'created');
+      this.pendingEvents = this.myEvents.filter(e => e.status === 'PENDING');
+      this.approvedEvents = this.myEvents.filter(e => e.status === 'APPROVED');
       this.totalEvents = this.myEvents.length;
-      this.totalParticipants = this.myEvents.reduce((sum, e) => sum + e.currentParticipants, 0);
+      this.totalParticipants = this.myEvents.reduce((sum, e) => sum + (e.registrationsCount || 0), 0);
+    } catch (error) {
+      console.error('Error loading events:', error);
+    } finally {
+      this.isLoading.set(false);
     }
   }
 
@@ -61,7 +71,7 @@ export class ManagerDashboardComponent implements OnInit {
     this.showEventForm.set(true);
   }
 
-  openEditForm(event: Event) {
+  openEditForm(event: DashboardEvent) {
     this.editingEvent.set(event);
     this.showEventForm.set(true);
   }
@@ -71,41 +81,69 @@ export class ManagerDashboardComponent implements OnInit {
     this.editingEvent.set(null);
   }
 
-  onSaveEvent(eventData: Partial<Event>) {
+  async onSaveEvent(eventData: any) {
     const user = this.authService.user();
     if (!user) return;
 
-    if (this.editingEvent()) {
-      const result = this.eventsService.updateEvent(this.editingEvent()!.id, eventData);
-      if (result.success) {
+    this.isLoading.set(true);
+    try {
+      if (this.editingEvent()) {
+        const result = await this.eventsService.updateEvent(this.editingEvent()!.id, eventData);
         alert(result.message);
-        this.closeEventForm();
-        this.ngOnInit();
+        if (result.success) {
+          this.closeEventForm();
+          await this.loadEvents();
+        }
       } else {
+        const result = await this.eventsService.createEvent({
+          title: eventData.title,
+          description: eventData.description,
+          location: eventData.location,
+          startTime: eventData.startDate || eventData.startTime,
+          endTime: eventData.endDate || eventData.endTime,
+          coverImage: eventData.imageUrl || eventData.coverImage,
+          visibility: eventData.visibility || 'PUBLIC',
+          categoryId: eventData.categoryId
+        });
         alert(result.message);
+        if (result.success) {
+          this.closeEventForm();
+          await this.loadEvents();
+        }
       }
-    } else {
-      const newEvent = this.eventsService.createEvent({
-        ...eventData,
-        managerId: user.id,
-        managerName: user.name
-      } as any);
-      alert('Tạo sự kiện thành công! Đang chờ duyệt.');
-      this.closeEventForm();
-      this.ngOnInit();
+    } catch (error: any) {
+      alert(error?.message || 'Đã xảy ra lỗi. Vui lòng thử lại!');
+    } finally {
+      this.isLoading.set(false);
     }
   }
 
-  onDeleteEvent(event: Event) {
-    if (confirm(`Bạn có chắc muốn xóa sự kiện "${event.title}"?`)) {
-      const result = this.eventsService.deleteEvent(event.id);
-      if (result.success) {
+  async onCancelEvent(event: DashboardEvent) {
+    if (confirm(`Bạn có chắc muốn hủy sự kiện "${event.title}"?`)) {
+      this.isLoading.set(true);
+      try {
+        const result = await this.eventsService.cancelEvent(event.id);
         alert(result.message);
-        this.ngOnInit();
-      } else {
-        alert(result.message);
+        if (result.success) {
+          await this.loadEvents();
+        }
+      } catch (error: any) {
+        alert(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
+      } finally {
+        this.isLoading.set(false);
       }
     }
+  }
+
+  getStatusText(status: string): string {
+    const statusMap: Record<string, string> = {
+      'PENDING': 'Chờ duyệt',
+      'APPROVED': 'Đã duyệt',
+      'REJECTED': 'Từ chối',
+      'CANCELLED': 'Đã hủy',
+      'COMPLETED': 'Hoàn thành'
+    };
+    return statusMap[status] || status;
   }
 }
 

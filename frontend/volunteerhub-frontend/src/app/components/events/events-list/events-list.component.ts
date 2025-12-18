@@ -1,10 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../services/auth.service';
-import { EventsService, Event } from '../../../services/events.service';
+import { EventsService, EventResponse } from '../../../services/events.service';
 import { NavbarComponent } from '../../navbar/navbar.component';
 import { FooterComponent } from '../../footer/footer.component';
 
@@ -16,8 +16,8 @@ import { FooterComponent } from '../../footer/footer.component';
   styleUrl: './events-list.component.scss'
 })
 export class EventsListComponent implements OnInit {
-  allEvents: Event[] = [];
-  filteredEvents: Event[] = [];
+  allEvents: EventResponse[] = [];
+  filteredEvents: EventResponse[] = [];
   searchTerm = '';
   selectedCategory = '';
   selectedLocation = '';
@@ -25,6 +25,9 @@ export class EventsListComponent implements OnInit {
   locations: string[] = [];
   currentPage = 1;
   itemsPerPage = 9;
+  isLoading = signal(false);
+  totalPages = 0;
+  totalItems = 0;
 
   constructor(
     public authService: AuthService,
@@ -33,19 +36,46 @@ export class EventsListComponent implements OnInit {
     private route: ActivatedRoute
   ) {}
 
-  ngOnInit() {
-    // Get approved events for guests, all for authenticated users
-    if (this.authService.isAuthenticated() && this.authService.hasRole('admin')) {
-      this.allEvents = this.eventsService.getAllEvents();
-    } else {
-      this.allEvents = this.eventsService.getApprovedEvents();
+  async ngOnInit() {
+    await this.loadEvents();
+  }
+
+  async loadEvents() {
+    this.isLoading.set(true);
+    try {
+      // Get events based on authentication status
+      if (this.authService.isAuthenticated()) {
+        // Authenticated users see all events they have access to
+        const result = await this.eventsService.getEvents({ 
+          page: 1, 
+          limit: 100 
+        });
+        this.allEvents = result.data;
+        this.totalItems = result.meta.total;
+      } else {
+        // Public users only see public approved events
+        const result = await this.eventsService.getPublicEvents({ 
+          page: 1, 
+          limit: 100 
+        });
+        this.allEvents = result.data;
+        this.totalItems = result.meta.total;
+      }
+
+      // Extract unique categories and locations
+      this.categories = [...new Set(
+        this.allEvents
+          .filter(e => e.category?.name)
+          .map(e => e.category!.name)
+      )];
+      this.locations = [...new Set(this.allEvents.map(e => e.location))];
+
+      this.applyFilters();
+    } catch (error) {
+      console.error('Error loading events:', error);
+    } finally {
+      this.isLoading.set(false);
     }
-
-    // Extract unique categories and locations
-    this.categories = [...new Set(this.allEvents.map(e => e.category))];
-    this.locations = [...new Set(this.allEvents.map(e => e.location))];
-
-    this.filteredEvents = this.allEvents;
   }
 
   onSearch() {
@@ -75,7 +105,7 @@ export class EventsListComponent implements OnInit {
 
     // Category filter
     if (this.selectedCategory) {
-      filtered = filtered.filter(e => e.category === this.selectedCategory);
+      filtered = filtered.filter(e => e.category?.name === this.selectedCategory);
     }
 
     // Location filter
@@ -84,6 +114,7 @@ export class EventsListComponent implements OnInit {
     }
 
     this.filteredEvents = filtered;
+    this.totalPages = Math.ceil(this.filteredEvents.length / this.itemsPerPage);
     this.currentPage = 1;
   }
 
@@ -92,6 +123,7 @@ export class EventsListComponent implements OnInit {
     this.selectedCategory = '';
     this.selectedLocation = '';
     this.filteredEvents = this.allEvents;
+    this.totalPages = Math.ceil(this.filteredEvents.length / this.itemsPerPage);
     this.currentPage = 1;
   }
 
@@ -110,14 +142,10 @@ export class EventsListComponent implements OnInit {
     });
   }
 
-  get paginatedEvents(): Event[] {
+  get paginatedEvents(): EventResponse[] {
     const start = (this.currentPage - 1) * this.itemsPerPage;
     const end = start + this.itemsPerPage;
     return this.filteredEvents.slice(start, end);
-  }
-
-  get totalPages(): number {
-    return Math.ceil(this.filteredEvents.length / this.itemsPerPage);
   }
 
   goToPage(page: number) {
@@ -125,6 +153,28 @@ export class EventsListComponent implements OnInit {
       this.currentPage = page;
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  }
+
+  getStatusText(status: string): string {
+    const statusMap: Record<string, string> = {
+      'PENDING': 'Chờ duyệt',
+      'APPROVED': 'Đã duyệt',
+      'REJECTED': 'Từ chối',
+      'CANCELLED': 'Đã hủy',
+      'COMPLETED': 'Hoàn thành'
+    };
+    return statusMap[status] || status;
+  }
+
+  getStatusClass(status: string): string {
+    const classMap: Record<string, string> = {
+      'PENDING': 'status-pending',
+      'APPROVED': 'status-approved',
+      'REJECTED': 'status-rejected',
+      'CANCELLED': 'status-cancelled',
+      'COMPLETED': 'status-completed'
+    };
+    return classMap[status] || '';
   }
 }
 

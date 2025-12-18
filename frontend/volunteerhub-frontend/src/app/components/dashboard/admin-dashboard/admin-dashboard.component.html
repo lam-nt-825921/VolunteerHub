@@ -62,7 +62,7 @@
           @for (event of pendingEvents; track event.id) {
             <div class="event-card">
               <div class="event-header">
-                <span class="event-category">{{ event.category }}</span>
+                <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
                 <span class="event-status pending">Chờ duyệt</span>
               </div>
               <h3 class="event-title" (click)="viewEventDetail(event.id)">{{ event.title }}</h3>
@@ -70,7 +70,7 @@
               <div class="event-details">
                 <div class="event-detail-item">
                   <mat-icon>calendar_today</mat-icon>
-                  <span>{{ formatDate(event.startDate) }}</span>
+                  <span>{{ formatDate(event.startTime) }}</span>
                 </div>
                 <div class="event-detail-item">
                   <mat-icon>location_on</mat-icon>
@@ -78,7 +78,7 @@
                 </div>
                 <div class="event-detail-item">
                   <mat-icon>person</mat-icon>
-                  <span>{{ event.managerName }}</span>
+                  <span>{{ event.creator?.fullName || 'Unknown' }}</span>
                 </div>
               </div>
               <div class="event-actions">
@@ -90,8 +90,8 @@
                   <mat-icon>close</mat-icon>
                   Từ chối
                 </button>
-                <button class="btn btn-icon" (click)="deleteEvent(event)" title="Xóa">
-                  <mat-icon>delete</mat-icon>
+                <button class="btn btn-icon" (click)="cancelEvent(event)" title="Hủy">
+                  <mat-icon>cancel</mat-icon>
                 </button>
               </div>
             </div>
@@ -137,17 +137,9 @@
           @for (event of allEvents.slice(0, 6); track event.id) {
             <div class="event-card" (click)="viewEventDetail(event.id)">
               <div class="event-header">
-                <span class="event-category">{{ event.category }}</span>
-                <span class="event-status" [class]="event.status">
-                  @if (event.status === 'pending') {
-                    Chờ duyệt
-                  } @else if (event.status === 'approved') {
-                    Đã duyệt
-                  } @else if (event.status === 'rejected') {
-                    Từ chối
-                  } @else {
-                    Hoàn thành
-                  }
+                <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
+                <span class="event-status" [class]="getStatusClass(event.status)">
+                  {{ getStatusText(event.status) }}
                 </span>
               </div>
               <h3 class="event-title">{{ event.title }}</h3>
@@ -155,7 +147,7 @@
               <div class="event-details">
                 <div class="event-detail-item">
                   <mat-icon>calendar_today</mat-icon>
-                  <span>{{ formatDate(event.startDate) }}</span>
+                  <span>{{ formatDate(event.startTime) }}</span>
                 </div>
                 <div class="event-detail-item">
                   <mat-icon>location_on</mat-icon>
@@ -163,7 +155,11 @@
                 </div>
                 <div class="event-detail-item">
                   <mat-icon>person</mat-icon>
-                  <span>{{ event.managerName }}</span>
+                  <span>{{ event.creator?.fullName || 'Unknown' }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>group</mat-icon>
+                  <span>{{ event._count?.registrations || 0 }} đăng ký</span>
                 </div>
               </div>
             </div>

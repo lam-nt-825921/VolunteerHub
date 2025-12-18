@@ -1,9 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../services/auth.service';
-import { EventsService, Event } from '../../../services/events.service';
+import { EventsService, DashboardEvent, DashboardStats, ParticipationHistoryItem } from '../../../services/events.service';
 import { WallService, WallPost } from '../../../services/wall.service';
 import { NavbarComponent } from '../../navbar/navbar.component';
 import { FooterComponent } from '../../footer/footer.component';
@@ -16,13 +16,15 @@ import { FooterComponent } from '../../footer/footer.component';
   styleUrl: './volunteer-dashboard.component.scss'
 })
 export class VolunteerDashboardComponent implements OnInit {
-  upcomingEvents: Event[] = [];
-  joinedEvents: Event[] = [];
+  upcomingEvents: DashboardEvent[] = [];
+  joinedEvents: DashboardEvent[] = [];
   totalHours = 0;
   badges = 0;
-  newEvents: Event[] = [];
-  trendingEvents: Event[] = [];
-  eventsWithNewPosts: Event[] = [];
+  newEvents: DashboardEvent[] = [];
+  trendingEvents: DashboardEvent[] = [];
+  eventsWithNewPosts: DashboardEvent[] = [];
+  stats: DashboardStats | null = null;
+  isLoading = signal(false);
 
   constructor(
     public authService: AuthService,
@@ -31,56 +33,50 @@ export class VolunteerDashboardComponent implements OnInit {
     private router: Router
   ) {}
 
-  ngOnInit() {
-    const userId = this.authService.user()?.id;
-    if (userId) {
-      this.upcomingEvents = this.eventsService.getUserUpcomingEvents(userId);
-      this.joinedEvents = this.eventsService.getUserJoinedEvents(userId);
-      this.totalHours = this.eventsService.getTotalVolunteerHours(userId);
-      // Mock badges count
-      this.badges = Math.floor(this.totalHours / 10);
-      
-      // Load enhanced dashboard data
-      this.loadNewEvents();
-      this.loadTrendingEvents();
-      this.loadEventsWithNewPosts();
+  async ngOnInit() {
+    if (this.authService.isAuthenticated()) {
+      await this.loadDashboard();
     }
   }
 
-  loadNewEvents() {
-    // Events created in last 7 days
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    this.newEvents = this.eventsService.getApprovedEvents()
-      .filter(e => new Date(e.createdAt) >= sevenDaysAgo)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 3);
-  }
+  async loadDashboard() {
+    this.isLoading.set(true);
+    try {
+      // Load dashboard stats
+      this.stats = await this.eventsService.getDashboardStats();
+      this.totalHours = this.stats.totalHoursVolunteered || 0;
+      this.badges = Math.floor(this.totalHours / 10);
 
-  loadTrendingEvents() {
-    // Events with high participation and activity
-    this.trendingEvents = this.eventsService.getApprovedEvents()
-      .filter(e => {
-        const participationRate = e.currentParticipants / e.maxParticipants;
-        const hasPosts = this.wallService.getPostsByEvent(e.id).length > 0;
-        return participationRate > 0.5 && hasPosts;
-      })
-      .sort((a, b) => {
-        const aRate = a.currentParticipants / a.maxParticipants;
-        const bRate = b.currentParticipants / b.maxParticipants;
-        return bRate - aRate;
-      })
-      .slice(0, 3);
+      // Load upcoming events
+      this.upcomingEvents = await this.eventsService.getUpcomingEvents();
+
+      // Load joined events
+      this.joinedEvents = await this.eventsService.getMyEvents(undefined, 'joined');
+
+      // Load recommended events as "new events"
+      this.newEvents = await this.eventsService.getRecommendedEvents({ limit: 3 });
+
+      // Load trending events (recommended with high registrations)
+      const recommended = await this.eventsService.getRecommendedEvents({ limit: 10 });
+      this.trendingEvents = recommended
+        .filter(e => e.registrationsCount > 5)
+        .slice(0, 3);
+
+      // Events with new posts - use local wall service data
+      this.loadEventsWithNewPosts();
+    } catch (error) {
+      console.error('Error loading dashboard:', error);
+    } finally {
+      this.isLoading.set(false);
+    }
   }
 
   loadEventsWithNewPosts() {
-    // Events with recent posts (last 24 hours)
+    // Events with recent posts (last 24 hours) - using local wall service
     const oneDayAgo = new Date();
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
     
-    const allEvents = this.eventsService.getApprovedEvents();
-    this.eventsWithNewPosts = allEvents.filter(e => {
+    this.eventsWithNewPosts = this.joinedEvents.filter(e => {
       const posts = this.wallService.getPostsByEvent(e.id);
       return posts.some((p: WallPost) => new Date(p.createdAt) >= oneDayAgo);
     }).slice(0, 3);

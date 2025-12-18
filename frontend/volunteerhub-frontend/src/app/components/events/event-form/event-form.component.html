@@ -10,7 +10,9 @@
         [(ngModel)]="formData.title"
         name="title"
         required
-        placeholder="Nhập tiêu đề sự kiện"
+        placeholder="Nhập tiêu đề sự kiện (tối thiểu 5 ký tự)"
+        minlength="5"
+        maxlength="120"
       />
     </div>
 
@@ -22,29 +24,31 @@
         name="description"
         required
         rows="4"
-        placeholder="Nhập mô tả chi tiết về sự kiện"
+        placeholder="Nhập mô tả chi tiết về sự kiện (tối thiểu 20 ký tự)"
+        minlength="20"
+        maxlength="5000"
       ></textarea>
     </div>
 
     <div class="form-row">
       <div class="form-group">
-        <label for="startDate">Ngày bắt đầu *</label>
+        <label for="startTime">Ngày bắt đầu *</label>
         <input
           type="datetime-local"
-          id="startDate"
-          [(ngModel)]="formData.startDate"
-          name="startDate"
+          id="startTime"
+          [(ngModel)]="formData.startTime"
+          name="startTime"
           required
         />
       </div>
 
       <div class="form-group">
-        <label for="endDate">Ngày kết thúc *</label>
+        <label for="endTime">Ngày kết thúc *</label>
         <input
           type="datetime-local"
-          id="endDate"
-          [(ngModel)]="formData.endDate"
-          name="endDate"
+          id="endTime"
+          [(ngModel)]="formData.endTime"
+          name="endTime"
           required
         />
       </div>
@@ -59,6 +63,7 @@
         name="location"
         required
         placeholder="Nhập địa điểm tổ chức"
+        minlength="3"
       />
     </div>
 
@@ -79,17 +84,29 @@
       </div>
 
       <div class="form-group">
-        <label for="maxParticipants">Số người tham gia tối đa *</label>
-        <input
-          type="number"
-          id="maxParticipants"
-          [(ngModel)]="formData.maxParticipants"
-          name="maxParticipants"
+        <label for="visibility">Mức độ hiển thị *</label>
+        <select
+          id="visibility"
+          [(ngModel)]="formData.visibility"
+          name="visibility"
           required
-          min="1"
-          placeholder="50"
-        />
+        >
+          @for (vis of visibilities; track vis.value) {
+            <option [value]="vis.value">{{ vis.label }}</option>
+          }
+        </select>
       </div>
+    </div>
+
+    <div class="form-group">
+      <label for="coverImage">URL ảnh bìa (tùy chọn)</label>
+      <input
+        type="url"
+        id="coverImage"
+        [(ngModel)]="formData.coverImage"
+        name="coverImage"
+        placeholder="https://example.com/image.jpg"
+      />
     </div>
 
     <div class="form-actions">
