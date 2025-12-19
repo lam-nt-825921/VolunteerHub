@@ -45,6 +45,15 @@ export const API_CONFIG = {
       upcomingEvents: '/dashboard/upcoming-events',  // GET - upcoming events
       participationHistory: '/dashboard/participation-history', // GET - history
       adminStats: '/dashboard/admin/stats',          // GET - admin stats
+    },
+    // Posts endpoints
+    posts: {
+      forEvent: '/events/:eventId/posts',           // GET - list posts for event, POST - create post
+      byId: '/posts/:postId',                       // GET - get post, PATCH - update post, DELETE - delete post
+      pin: '/posts/:postId/pin',                    // PATCH - pin/unpin post
+      like: '/posts/:postId/like',                  // POST - like post, DELETE - unlike post
+      comments: '/posts/:postId/comments',          // GET - get comments, POST - create comment
+      commentById: '/comments/:commentId',          // PATCH - update comment, DELETE - delete comment
     }
   }
 };

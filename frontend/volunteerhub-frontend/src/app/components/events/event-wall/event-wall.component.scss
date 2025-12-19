@@ -98,6 +98,11 @@
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   background-color: var(--bg-primary);
+  cursor: pointer;
+  
+  .file-input-hidden {
+    display: none;
+  }
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
   color: var(--text-primary);
@@ -199,6 +204,14 @@
   justify-content: center;
   font-weight: 600;
   font-size: 1rem;
+  overflow: hidden;
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 }
 
 .author-info {
@@ -337,6 +350,13 @@
   font-weight: 600;
   font-size: 0.875rem;
   flex-shrink: 0;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 }
 
 .comment-content {
@@ -344,6 +364,74 @@
   background-color: var(--bg-primary);
   padding: 0.75rem;
   border-radius: 0.5rem;
+
+  .comment-replies {
+    margin-top: 0.75rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--border-color);
+  }
+}
+
+.comment-replies {
+  margin-top: 0.75rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--border-color);
+}
+
+.reply-item {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  position: relative;
+
+  &:hover .delete-comment-btn {
+    opacity: 1;
+  }
+}
+
+.reply-author-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-accent-1), var(--color-accent-2));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.reply-content {
+  flex: 1;
+  background-color: var(--bg-secondary);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+}
+
+.reply-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+
+  strong {
+    color: var(--text-primary);
+    font-size: 0.875rem;
+  }
+
+  .reply-time {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+  }
 }
 
 .comment-header {
@@ -465,6 +553,48 @@
   p {
     font-size: 1rem;
     margin: 0;
+  }
+}
+
+.loading-posts {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-secondary);
+
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 1rem;
+    animation: spin 1s linear infinite;
+  }
+
+  p {
+    font-size: 1rem;
+    margin: 0;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.post-images {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+
+  .post-image {
+    width: 100%;
+    border-radius: 0.5rem;
+    max-height: 400px;
+    object-fit: cover;
   }
 }
 

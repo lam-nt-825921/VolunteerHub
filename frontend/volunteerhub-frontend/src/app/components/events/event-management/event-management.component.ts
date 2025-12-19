@@ -84,7 +84,7 @@ export class EventManagementComponent implements OnInit {
       const isCreator = this.isEventCreator();
       
       // Allow access if:
-      // 1. User is admin, OR
+      // 1. User is admin (can access any event management), OR
       // 2. User is manager (even if creatorId check fails, backend APIs will enforce)
       //    This is a workaround for backend potentially not returning creatorId
       if (!isAdmin && !isManager) {
@@ -93,8 +93,8 @@ export class EventManagementComponent implements OnInit {
         return;
       }
       
-      // Log if creatorId is missing (might indicate backend issue)
-      if (isManager && !this.event?.creatorId) {
+      // Log if creatorId is missing (might indicate backend issue) - only for managers
+      if (isManager && !isAdmin && !this.event?.creatorId) {
         console.warn('Event missing creatorId in response - this may indicate a backend issue', {
           eventId: this.event?.id,
           userId: user.id,
@@ -103,7 +103,8 @@ export class EventManagementComponent implements OnInit {
       }
       
       // If we have creatorId and it doesn't match, show warning but allow (backend will enforce)
-      if (isManager && !isCreator && this.event?.creatorId) {
+      // Skip this check for admins as they have access to all events
+      if (isManager && !isAdmin && !isCreator && this.event?.creatorId) {
         console.warn('User ID does not match event creatorId - backend APIs will enforce permissions', {
           userId: user.id,
           eventCreatorId: this.event.creatorId

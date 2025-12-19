@@ -152,6 +152,28 @@ export class EventDetailComponent implements OnInit {
     return user.role === 'manager' || user.role === 'admin';
   }
 
+  canAccessWall(): boolean {
+    const user = this.authService.user();
+    if (!user || !this.event) return false;
+    
+    // Managers and Admins can always access
+    if (user.role === 'manager' || user.role === 'admin') {
+      return true;
+    }
+    
+    // For PUBLIC events, all authenticated users can access
+    if (this.event.visibility === 'PUBLIC') {
+      return true;
+    }
+    
+    // For INTERNAL/PRIVATE events, users need to be registered and approved
+    if (this.event.visibility === 'INTERNAL' || this.event.visibility === 'PRIVATE') {
+      return this.isRegistered && (this.registrationStatus === 'APPROVED' || this.registrationStatus === 'ATTENDED');
+    }
+    
+    return false;
+  }
+
   canManageRegistrations(): boolean {
     const user = this.authService.user();
     if (!user || !this.event) return false;

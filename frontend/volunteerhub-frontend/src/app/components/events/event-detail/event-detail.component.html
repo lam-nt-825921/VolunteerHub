@@ -33,8 +33,9 @@
         }
 
         <!-- Wall Tab - Only for approved events and authenticated users -->
-        <!-- Managers who created the event can access without registering, others need to be registered and approved -->
-        @if (event.status === 'APPROVED' && authService.isAuthenticated() && (canManageWall() || (isRegistered && (registrationStatus === 'APPROVED' || registrationStatus === 'ATTENDED')))) {
+        <!-- Managers/admins can access without registering, volunteers need to be registered and approved for INTERNAL/PRIVATE events -->
+        <!-- For PUBLIC events, all authenticated users can access -->
+        @if (event.status === 'APPROVED' && authService.isAuthenticated() && (canManageWall() || canAccessWall())) {
           <div class="section">
             <app-event-wall [eventId]="event.id" [canManage]="canManageWall()"></app-event-wall>
           </div>
@@ -73,13 +74,13 @@
             </div>
           </div>
           @if (event.creator?.fullName) {
-            <div class="info-item">
-              <mat-icon>person</mat-icon>
-              <div>
-                <strong>Người tổ chức</strong>
+          <div class="info-item">
+            <mat-icon>person</mat-icon>
+            <div>
+              <strong>Người tổ chức</strong>
                 <p>{{ event.creator?.fullName }}</p>
-              </div>
             </div>
+          </div>
           }
         </div>
 
