@@ -1,1 +1,10 @@
 <router-outlet></router-outlet>
+
+@if (alertService.alert().show) {
+  <app-alert-modal
+    [message]="alertService.alert().message"
+    [type]="alertService.alert().type"
+    [title]="alertService.alert().title"
+    (close)="alertService.close()"
+  ></app-alert-modal>
+}

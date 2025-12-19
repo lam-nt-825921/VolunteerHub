@@ -29,7 +29,8 @@ export class SignupComponent implements OnInit {
     confirmPassword: '',
     role: 'volunteer'
   };
-  errorMessage = '';
+  fieldErrors: { [key: string]: string } = {};
+  errorMessage = ''; // For API errors
   successMessage = '';
   isLoading = false;
 
@@ -52,34 +53,17 @@ export class SignupComponent implements OnInit {
   }
 
   async onRegister() {
+    // Clear previous errors
+    this.fieldErrors = {};
     this.errorMessage = '';
     this.successMessage = '';
-    this.isLoading = true;
 
     // Validation
-    if (!this.registerData.name || !this.registerData.email) {
-      this.errorMessage = 'Vui lòng nhập đầy đủ họ tên và email!';
-      this.isLoading = false;
+    if (!this.validateForm()) {
       return;
     }
 
-    if (!this.registerData.password || !this.registerData.confirmPassword) {
-      this.errorMessage = 'Vui lòng nhập mật khẩu và xác nhận mật khẩu!';
-      this.isLoading = false;
-      return;
-    }
-
-    if (this.registerData.password.length < 6) {
-      this.errorMessage = 'Mật khẩu phải có ít nhất 6 ký tự!';
-      this.isLoading = false;
-      return;
-    }
-
-    if (this.registerData.password !== this.registerData.confirmPassword) {
-      this.errorMessage = 'Mật khẩu xác nhận không khớp!';
-      this.isLoading = false;
-      return;
-    }
+    this.isLoading = true;
 
     try {
       const result = await this.authService.register(this.registerData);
@@ -97,6 +81,48 @@ export class SignupComponent implements OnInit {
       this.errorMessage = error?.message || 'Đăng ký thất bại. Vui lòng thử lại!';
     } finally {
       this.isLoading = false;
+    }
+  }
+
+  validateForm(): boolean {
+    this.fieldErrors = {};
+    let isValid = true;
+
+    if (!this.registerData.name?.trim()) {
+      this.fieldErrors['name'] = 'Vui lòng nhập họ và tên!';
+      isValid = false;
+    }
+
+    if (!this.registerData.email?.trim()) {
+      this.fieldErrors['email'] = 'Vui lòng nhập email!';
+      isValid = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.registerData.email)) {
+      this.fieldErrors['email'] = 'Email không hợp lệ!';
+      isValid = false;
+    }
+
+    if (!this.registerData.password) {
+      this.fieldErrors['password'] = 'Vui lòng nhập mật khẩu!';
+      isValid = false;
+    } else if (this.registerData.password.length < 6) {
+      this.fieldErrors['password'] = 'Mật khẩu phải có ít nhất 6 ký tự!';
+      isValid = false;
+    }
+
+    if (!this.registerData.confirmPassword) {
+      this.fieldErrors['confirmPassword'] = 'Vui lòng xác nhận mật khẩu!';
+      isValid = false;
+    } else if (this.registerData.password !== this.registerData.confirmPassword) {
+      this.fieldErrors['confirmPassword'] = 'Mật khẩu xác nhận không khớp!';
+      isValid = false;
+    }
+
+    return isValid;
+  }
+
+  clearFieldError(fieldName: string) {
+    if (this.fieldErrors[fieldName]) {
+      delete this.fieldErrors[fieldName];
     }
   }
 

@@ -4,6 +4,7 @@ import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../services/auth.service';
 import { EventsService, EventResponse, DashboardEvent } from '../../../services/events.service';
+import { AlertService } from '../../../services/alert.service';
 import { NavbarComponent } from '../../navbar/navbar.component';
 import { FooterComponent } from '../../footer/footer.component';
 import { EventFormComponent } from '../../events/event-form/event-form.component';
@@ -28,6 +29,7 @@ export class ManagerDashboardComponent implements OnInit {
   constructor(
     public authService: AuthService,
     private eventsService: EventsService,
+    private alertService: AlertService,
     private router: Router
   ) {}
 
@@ -108,10 +110,12 @@ export class ManagerDashboardComponent implements OnInit {
         }
         
         const result = await this.eventsService.updateEvent(this.editingEvent()!.id, updateData);
-        alert(result.message);
         if (result.success) {
+          this.alertService.showSuccess(result.message);
           this.closeEventForm();
           await this.loadEvents();
+        } else {
+          this.alertService.showError(result.message);
         }
       } else {
         // Map category name to categoryId (if category API exists, use that)
@@ -140,15 +144,15 @@ export class ManagerDashboardComponent implements OnInit {
             console.warn('Could not auto-register manager for event:', regError);
           }
           
-          alert('Tạo sự kiện thành công! Bạn đã được tự động đăng ký tham gia sự kiện này.');
+          this.alertService.showSuccess('Tạo sự kiện thành công! Bạn đã được tự động đăng ký tham gia sự kiện này.');
           this.closeEventForm();
           await this.loadEvents();
         } else {
-          alert(result.message);
+          this.alertService.showError(result.message);
         }
       }
     } catch (error: any) {
-      alert(error?.message || 'Đã xảy ra lỗi. Vui lòng thử lại!');
+      this.alertService.showError(error?.message || 'Đã xảy ra lỗi. Vui lòng thử lại!');
     } finally {
       this.isLoading.set(false);
     }
@@ -159,12 +163,14 @@ export class ManagerDashboardComponent implements OnInit {
       this.isLoading.set(true);
       try {
         const result = await this.eventsService.cancelEvent(event.id);
-        alert(result.message);
         if (result.success) {
+          this.alertService.showSuccess(result.message);
           await this.loadEvents();
+        } else {
+          this.alertService.showError(result.message);
         }
       } catch (error: any) {
-        alert(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
+        this.alertService.showError(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
       } finally {
         this.isLoading.set(false);
       }

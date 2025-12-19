@@ -13,7 +13,12 @@
         placeholder="Nhập tiêu đề sự kiện (tối thiểu 5 ký tự)"
         minlength="5"
         maxlength="120"
+        [class.error]="fieldErrors['title']"
+        (input)="clearFieldError('title')"
       />
+      @if (fieldErrors['title']) {
+        <span class="error-message">{{ fieldErrors['title'] }}</span>
+      }
     </div>
 
     <div class="form-group">
@@ -27,7 +32,12 @@
         placeholder="Nhập mô tả chi tiết về sự kiện (tối thiểu 20 ký tự)"
         minlength="20"
         maxlength="5000"
+        [class.error]="fieldErrors['description']"
+        (input)="clearFieldError('description')"
       ></textarea>
+      @if (fieldErrors['description']) {
+        <span class="error-message">{{ fieldErrors['description'] }}</span>
+      }
     </div>
 
     <div class="form-row">
@@ -39,7 +49,12 @@
           [(ngModel)]="formData.startTime"
           name="startTime"
           required
+          [class.error]="fieldErrors['startTime']"
+          (change)="clearFieldError('startTime')"
         />
+        @if (fieldErrors['startTime']) {
+          <span class="error-message">{{ fieldErrors['startTime'] }}</span>
+        }
       </div>
 
       <div class="form-group">
@@ -50,7 +65,12 @@
           [(ngModel)]="formData.endTime"
           name="endTime"
           required
+          [class.error]="fieldErrors['endTime']"
+          (change)="clearFieldError('endTime')"
         />
+        @if (fieldErrors['endTime']) {
+          <span class="error-message">{{ fieldErrors['endTime'] }}</span>
+        }
       </div>
     </div>
 
@@ -64,7 +84,12 @@
         required
         placeholder="Nhập địa điểm tổ chức"
         minlength="3"
+        [class.error]="fieldErrors['location']"
+        (input)="clearFieldError('location')"
       />
+      @if (fieldErrors['location']) {
+        <span class="error-message">{{ fieldErrors['location'] }}</span>
+      }
     </div>
 
     <div class="form-row">
@@ -75,12 +100,17 @@
           [(ngModel)]="formData.category"
           name="category"
           required
+          [class.error]="fieldErrors['category']"
+          (change)="clearFieldError('category')"
         >
           <option value="">Chọn danh mục</option>
           @for (cat of categories; track cat) {
             <option [value]="cat">{{ cat }}</option>
           }
         </select>
+        @if (fieldErrors['category']) {
+          <span class="error-message">{{ fieldErrors['category'] }}</span>
+        }
       </div>
 
       <div class="form-group">

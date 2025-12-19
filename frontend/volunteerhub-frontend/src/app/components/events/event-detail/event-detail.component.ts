@@ -4,6 +4,7 @@ import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../services/auth.service';
 import { EventsService, EventResponse } from '../../../services/events.service';
+import { AlertService } from '../../../services/alert.service';
 import { NavbarComponent } from '../../navbar/navbar.component';
 import { FooterComponent } from '../../footer/footer.component';
 import { EventWallComponent } from '../event-wall/event-wall.component';
@@ -27,6 +28,7 @@ export class EventDetailComponent implements OnInit {
   constructor(
     public authService: AuthService,
     private eventsService: EventsService,
+    private alertService: AlertService,
     public router: Router,
     private route: ActivatedRoute
   ) {}
@@ -93,12 +95,14 @@ export class EventDetailComponent implements OnInit {
       const result = await this.eventsService.registerForEvent(this.event.id);
       if (result.success) {
         this.isRegistered = true;
-        this.registrationStatus = result.registration?.status || 'APPROVED';
+        this.registrationStatus = result.registration?.status || 'PENDING';
         this.canCancel = true;
+        this.alertService.showSuccess(result.message);
+      } else {
+        this.alertService.showError(result.message);
       }
-      alert(result.message);
     } catch (error: any) {
-      alert(error?.message || 'Đăng ký thất bại. Vui lòng thử lại!');
+      this.alertService.showError(error?.message || 'Đăng ký thất bại. Vui lòng thử lại!');
     } finally {
       this.isLoading.set(false);
     }
@@ -114,10 +118,12 @@ export class EventDetailComponent implements OnInit {
         this.isRegistered = false;
         this.registrationStatus = null;
         this.canCancel = false;
+        this.alertService.showSuccess(result.message);
+      } else {
+        this.alertService.showError(result.message);
       }
-      alert(result.message);
     } catch (error: any) {
-      alert(error?.message || 'Hủy đăng ký thất bại. Vui lòng thử lại!');
+      this.alertService.showError(error?.message || 'Hủy đăng ký thất bại. Vui lòng thử lại!');
     } finally {
       this.isLoading.set(false);
     }

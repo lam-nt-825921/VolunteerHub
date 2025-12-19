@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { AuthService, User } from '../../../services/auth.service';
 import { EventsService, EventResponse } from '../../../services/events.service';
 import { AdminApiService } from '../../../services/admin-api.service';
+import { AlertService } from '../../../services/alert.service';
 import { NavbarComponent } from '../../navbar/navbar.component';
 import { FooterComponent } from '../../footer/footer.component';
 
@@ -44,6 +45,7 @@ export class AdminDashboardComponent implements OnInit {
     public authService: AuthService,
     private eventsService: EventsService,
     private adminApi: AdminApiService,
+    private alertService: AlertService,
     private router: Router
   ) {}
 
@@ -279,12 +281,14 @@ export class AdminDashboardComponent implements OnInit {
       this.isLoading.set(true);
       try {
         const result = await this.eventsService.approveEvent(event.id);
-        alert(result.message);
         if (result.success) {
+          this.alertService.showSuccess(result.message);
           await this.loadEvents();
+        } else {
+          this.alertService.showError(result.message);
         }
       } catch (error: any) {
-        alert(error?.message || 'Duyệt sự kiện thất bại. Vui lòng thử lại!');
+        this.alertService.showError(error?.message || 'Duyệt sự kiện thất bại. Vui lòng thử lại!');
       } finally {
         this.isLoading.set(false);
       }
@@ -296,12 +300,14 @@ export class AdminDashboardComponent implements OnInit {
       this.isLoading.set(true);
       try {
         const result = await this.eventsService.rejectEvent(event.id);
-        alert(result.message);
         if (result.success) {
+          this.alertService.showSuccess(result.message);
           await this.loadEvents();
+        } else {
+          this.alertService.showError(result.message);
         }
       } catch (error: any) {
-        alert(error?.message || 'Từ chối sự kiện thất bại. Vui lòng thử lại!');
+        this.alertService.showError(error?.message || 'Từ chối sự kiện thất bại. Vui lòng thử lại!');
       } finally {
         this.isLoading.set(false);
       }
@@ -313,12 +319,14 @@ export class AdminDashboardComponent implements OnInit {
       this.isLoading.set(true);
       try {
         const result = await this.eventsService.cancelEvent(event.id);
-        alert(result.message);
         if (result.success) {
+          this.alertService.showSuccess(result.message);
           await this.loadEvents();
+        } else {
+          this.alertService.showError(result.message);
         }
       } catch (error: any) {
-        alert(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
+        this.alertService.showError(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
       } finally {
         this.isLoading.set(false);
       }
@@ -333,12 +341,14 @@ export class AdminDashboardComponent implements OnInit {
     this.isLoading.set(true);
     try {
       const result = await this.authService.toggleUserActive(user.id);
-      alert(result.message);
       if (result.success) {
+        this.alertService.showSuccess(result.message);
         await this.loadUsers();
+      } else {
+        this.alertService.showError(result.message);
       }
     } catch (error: any) {
-      alert(error?.message || 'Cập nhật trạng thái thất bại. Vui lòng thử lại!');
+      this.alertService.showError(error?.message || 'Cập nhật trạng thái thất bại. Vui lòng thử lại!');
     } finally {
       this.isLoading.set(false);
     }
@@ -349,12 +359,14 @@ export class AdminDashboardComponent implements OnInit {
       this.isLoading.set(true);
       try {
         const result = await this.authService.changeUserRole(user.id, newRole);
-        alert(result.message);
         if (result.success) {
+          this.alertService.showSuccess(result.message);
           await this.loadUsers();
+        } else {
+          this.alertService.showError(result.message);
         }
       } catch (error: any) {
-        alert(error?.message || 'Thay đổi vai trò thất bại. Vui lòng thử lại!');
+        this.alertService.showError(error?.message || 'Thay đổi vai trò thất bại. Vui lòng thử lại!');
       } finally {
         this.isLoading.set(false);
       }

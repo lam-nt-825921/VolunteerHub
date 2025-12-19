@@ -44,6 +44,22 @@
     &::placeholder {
       color: var(--text-secondary);
     }
+
+    &.error {
+      border-color: #f44336;
+    }
+
+    &.error:focus {
+      border-color: #f44336;
+    }
+  }
+
+  .error-message {
+    display: block;
+    color: #f44336;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    font-weight: 500;
   }
 
   textarea {

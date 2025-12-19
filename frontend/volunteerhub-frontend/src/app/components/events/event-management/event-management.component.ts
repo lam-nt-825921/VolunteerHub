@@ -4,6 +4,7 @@ import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../services/auth.service';
 import { EventsService, EventResponse, DashboardEvent } from '../../../services/events.service';
+import { AlertService } from '../../../services/alert.service';
 import { NavbarComponent } from '../../navbar/navbar.component';
 import { FooterComponent } from '../../footer/footer.component';
 import { EventRegistrationsComponent } from '../event-registrations/event-registrations.component';
@@ -33,6 +34,7 @@ export class EventManagementComponent implements OnInit {
   constructor(
     public authService: AuthService,
     private eventsService: EventsService,
+    private alertService: AlertService,
     public router: Router,
     private route: ActivatedRoute
   ) {}
@@ -69,7 +71,7 @@ export class EventManagementComponent implements OnInit {
       });
       
       if (!user) {
-        alert('Bạn cần đăng nhập để quản lý sự kiện');
+        this.alertService.showError('Bạn cần đăng nhập để quản lý sự kiện');
         this.router.navigate(['/events', eventId]);
         return;
       }
@@ -86,7 +88,7 @@ export class EventManagementComponent implements OnInit {
       // 2. User is manager (even if creatorId check fails, backend APIs will enforce)
       //    This is a workaround for backend potentially not returning creatorId
       if (!isAdmin && !isManager) {
-        alert('Chỉ quản lý sự kiện hoặc admin mới có thể quản lý sự kiện');
+        this.alertService.showError('Chỉ quản lý sự kiện hoặc admin mới có thể quản lý sự kiện');
         this.router.navigate(['/events', eventId]);
         return;
       }
@@ -215,13 +217,15 @@ export class EventManagementComponent implements OnInit {
       // For now, we only update if the category name matches the existing one
 
       const result = await this.eventsService.updateEvent(this.event.id, updateData);
-      alert(result.message);
       if (result.success) {
+        this.alertService.showSuccess(result.message);
         this.closeEventForm();
         await this.loadEvent(this.event.id);
+      } else {
+        this.alertService.showError(result.message);
       }
     } catch (error: any) {
-      alert(error?.message || 'Cập nhật sự kiện thất bại. Vui lòng thử lại!');
+      this.alertService.showError(error?.message || 'Cập nhật sự kiện thất bại. Vui lòng thử lại!');
     } finally {
       this.isLoading.set(false);
     }
@@ -234,12 +238,14 @@ export class EventManagementComponent implements OnInit {
       this.isLoading.set(true);
       try {
         const result = await this.eventsService.cancelEvent(this.event.id);
-        alert(result.message);
         if (result.success) {
+          this.alertService.showSuccess(result.message);
           await this.loadEvent(this.event.id);
+        } else {
+          this.alertService.showError(result.message);
         }
       } catch (error: any) {
-        alert(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
+        this.alertService.showError(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
       } finally {
         this.isLoading.set(false);
       }

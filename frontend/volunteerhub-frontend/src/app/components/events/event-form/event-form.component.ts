@@ -2,6 +2,7 @@ import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { AlertService } from '../../../services/alert.service';
 
 // Flexible event input interface that works with both legacy Event and DashboardEvent
 interface EventInput {
@@ -59,6 +60,10 @@ export class EventFormComponent implements OnInit {
   previewUrl: string | null = null;
 
   categories = ['Môi trường', 'Giáo dục', 'Y tế', 'Xã hội', 'Văn hóa', 'Thể thao'];
+
+  fieldErrors: { [key: string]: string } = {};
+
+  constructor(private alertService: AlertService) {}
   visibilities = [
     { value: 'PUBLIC', label: 'Công khai' },
     { value: 'INTERNAL', label: 'Nội bộ' },
@@ -131,13 +136,13 @@ export class EventFormComponent implements OnInit {
       
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        alert('Vui lòng chọn file ảnh hợp lệ');
+        this.alertService.showError('Vui lòng chọn file ảnh hợp lệ');
         return;
       }
 
       // Validate file size (max 30MB)
       if (file.size > 30 * 1024 * 1024) {
-        alert('Kích thước file không được vượt quá 30MB');
+        this.alertService.showError('Kích thước file không được vượt quá 30MB');
         return;
       }
 
@@ -173,7 +178,7 @@ export class EventFormComponent implements OnInit {
     } else if (this.formData.coverImage?.trim()) {
       // Validate that it's a proper URL format (not base64)
       if (this.formData.coverImage.startsWith('data:')) {
-        alert('Backend chỉ chấp nhận URL ảnh hợp lệ. Vui lòng upload ảnh lên server và nhập URL, hoặc để trống để bỏ qua ảnh bìa.');
+        this.alertService.showWarning('Backend chỉ chấp nhận URL ảnh hợp lệ. Vui lòng upload ảnh lên server và nhập URL, hoặc để trống để bỏ qua ảnh bìa.');
         this.formData.coverImage = undefined;
       }
       // If it's a valid URL string, keep it
@@ -186,47 +191,53 @@ export class EventFormComponent implements OnInit {
   }
 
   validateForm(): boolean {
+    // Clear previous errors
+    this.fieldErrors = {};
+    let isValid = true;
+
     if (!this.formData.title?.trim()) {
-      alert('Vui lòng nhập tiêu đề sự kiện!');
-      return false;
+      this.fieldErrors['title'] = 'Vui lòng nhập tiêu đề sự kiện!';
+      isValid = false;
     }
 
     if (!this.formData.description?.trim()) {
-      alert('Vui lòng nhập mô tả sự kiện!');
-      return false;
-    }
-
-    if (this.formData.description.trim().length < 20) {
-      alert('Mô tả sự kiện phải có ít nhất 20 ký tự!');
-      return false;
+      this.fieldErrors['description'] = 'Vui lòng nhập mô tả sự kiện!';
+      isValid = false;
+    } else if (this.formData.description.trim().length < 20) {
+      this.fieldErrors['description'] = 'Mô tả sự kiện phải có ít nhất 20 ký tự!';
+      isValid = false;
     }
 
     if (!this.formData.startTime) {
-      alert('Vui lòng chọn ngày bắt đầu!');
-      return false;
+      this.fieldErrors['startTime'] = 'Vui lòng chọn ngày bắt đầu!';
+      isValid = false;
     }
 
     if (!this.formData.endTime) {
-      alert('Vui lòng chọn ngày kết thúc!');
-      return false;
-    }
-
-    if (new Date(this.formData.startTime) >= new Date(this.formData.endTime)) {
-      alert('Ngày kết thúc phải sau ngày bắt đầu!');
-      return false;
+      this.fieldErrors['endTime'] = 'Vui lòng chọn ngày kết thúc!';
+      isValid = false;
+    } else if (this.formData.startTime && new Date(this.formData.startTime) >= new Date(this.formData.endTime)) {
+      this.fieldErrors['endTime'] = 'Ngày kết thúc phải sau ngày bắt đầu!';
+      isValid = false;
     }
 
     if (!this.formData.location?.trim()) {
-      alert('Vui lòng nhập địa điểm!');
-      return false;
+      this.fieldErrors['location'] = 'Vui lòng nhập địa điểm!';
+      isValid = false;
     }
 
     if (!this.formData.category) {
-      alert('Vui lòng chọn danh mục!');
-      return false;
+      this.fieldErrors['category'] = 'Vui lòng chọn danh mục!';
+      isValid = false;
     }
 
-    return true;
+    return isValid;
+  }
+
+  clearFieldError(fieldName: string) {
+    if (this.fieldErrors[fieldName]) {
+      delete this.fieldErrors[fieldName];
+    }
   }
 
   onCancel() {

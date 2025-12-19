@@ -90,11 +90,28 @@
     &::placeholder {
       color: var(--text-secondary);
     }
+
+    &.error {
+      border-color: #f44336;
+    }
+
+    &.error:focus {
+      border-color: #f44336;
+      box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.1);
+    }
+  }
+
+  .error-message {
+    display: block;
+    color: #f44336;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    font-weight: 500;
   }
 }
 
-.error-message,
-.success-message {
+.success-message,
+.general-error-message {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -103,7 +120,7 @@
   font-size: 0.875rem;
 }
 
-.error-message {
+.general-error-message {
   background-color: rgba(242, 68, 5, 0.1);
   border: 1px solid rgba(242, 68, 5, 0.3);
   color: var(--color-primary);

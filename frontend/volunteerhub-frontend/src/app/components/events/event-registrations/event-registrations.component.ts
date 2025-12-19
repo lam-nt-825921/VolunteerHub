@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { EventsService, RegistrationResponse } from '../../../services/events.service';
 import { AuthService } from '../../../services/auth.service';
+import { AlertService } from '../../../services/alert.service';
 
 @Component({
   selector: 'app-event-registrations',
@@ -27,7 +28,8 @@ export class EventRegistrationsComponent implements OnInit {
 
   constructor(
     private eventsService: EventsService,
-    public authService: AuthService
+    public authService: AuthService,
+    private alertService: AlertService
   ) {}
 
   async ngOnInit() {
@@ -92,12 +94,14 @@ export class EventRegistrationsComponent implements OnInit {
     this.isLoading.set(true);
     try {
       const result = await this.eventsService.approveRegistration(this.eventId, registrationId);
-      alert(result.message);
       if (result.success) {
+        this.alertService.showSuccess(result.message);
         await this.loadRegistrations();
+      } else {
+        this.alertService.showError(result.message);
       }
     } catch (error: any) {
-      alert(error?.message || 'Duyệt đăng ký thất bại!');
+      this.alertService.showError(error?.message || 'Duyệt đăng ký thất bại!');
     } finally {
       this.isLoading.set(false);
     }
@@ -106,7 +110,7 @@ export class EventRegistrationsComponent implements OnInit {
   async bulkApprovePending() {
     const selectedIds = Array.from(this.selectedPendingIds());
     if (selectedIds.length === 0) {
-      alert('Vui lòng chọn ít nhất một đăng ký để duyệt!');
+      this.alertService.showWarning('Vui lòng chọn ít nhất một đăng ký để duyệt!');
       return;
     }
 
@@ -121,10 +125,10 @@ export class EventRegistrationsComponent implements OnInit {
       );
       const results = await Promise.all(promises);
       const successCount = results.filter(r => r.success).length;
-      alert(`Đã duyệt thành công ${successCount}/${selectedIds.length} đăng ký!`);
+      this.alertService.showSuccess(`Đã duyệt thành công ${successCount}/${selectedIds.length} đăng ký!`);
       await this.loadRegistrations();
     } catch (error: any) {
-      alert(error?.message || 'Duyệt đăng ký thất bại!');
+      this.alertService.showError(error?.message || 'Duyệt đăng ký thất bại!');
     } finally {
       this.isLoading.set(false);
     }
@@ -135,12 +139,14 @@ export class EventRegistrationsComponent implements OnInit {
       this.isLoading.set(true);
       try {
         const result = await this.eventsService.rejectRegistration(this.eventId, registrationId);
-        alert(result.message);
         if (result.success) {
+          this.alertService.showSuccess(result.message);
           await this.loadRegistrations();
+        } else {
+          this.alertService.showError(result.message);
         }
       } catch (error: any) {
-        alert(error?.message || 'Từ chối đăng ký thất bại!');
+        this.alertService.showError(error?.message || 'Từ chối đăng ký thất bại!');
       } finally {
         this.isLoading.set(false);
       }
@@ -150,7 +156,7 @@ export class EventRegistrationsComponent implements OnInit {
   async bulkRejectPending() {
     const selectedIds = Array.from(this.selectedPendingIds());
     if (selectedIds.length === 0) {
-      alert('Vui lòng chọn ít nhất một đăng ký để từ chối!');
+      this.alertService.showWarning('Vui lòng chọn ít nhất một đăng ký để từ chối!');
       return;
     }
 
@@ -165,10 +171,10 @@ export class EventRegistrationsComponent implements OnInit {
       );
       const results = await Promise.all(promises);
       const successCount = results.filter(r => r.success).length;
-      alert(`Đã từ chối thành công ${successCount}/${selectedIds.length} đăng ký!`);
+      this.alertService.showSuccess(`Đã từ chối thành công ${successCount}/${selectedIds.length} đăng ký!`);
       await this.loadRegistrations();
     } catch (error: any) {
-      alert(error?.message || 'Từ chối đăng ký thất bại!');
+      this.alertService.showError(error?.message || 'Từ chối đăng ký thất bại!');
     } finally {
       this.isLoading.set(false);
     }
@@ -179,12 +185,14 @@ export class EventRegistrationsComponent implements OnInit {
       this.isLoading.set(true);
       try {
         const result = await this.eventsService.kickParticipant(this.eventId, registrationId);
-        alert(result.message);
         if (result.success) {
+          this.alertService.showSuccess(result.message);
           await this.loadRegistrations();
+        } else {
+          this.alertService.showError(result.message);
         }
       } catch (error: any) {
-        alert(error?.message || 'Xóa người tham gia thất bại!');
+        this.alertService.showError(error?.message || 'Xóa người tham gia thất bại!');
       } finally {
         this.isLoading.set(false);
       }
@@ -195,12 +203,14 @@ export class EventRegistrationsComponent implements OnInit {
     this.isLoading.set(true);
     try {
       const result = await this.eventsService.checkInParticipant(this.eventId, registrationId);
-      alert(result.message);
       if (result.success) {
+        this.alertService.showSuccess(result.message);
         await this.loadRegistrations();
+      } else {
+        this.alertService.showError(result.message);
       }
     } catch (error: any) {
-      alert(error?.message || 'Điểm danh thất bại!');
+      this.alertService.showError(error?.message || 'Điểm danh thất bại!');
     } finally {
       this.isLoading.set(false);
     }
