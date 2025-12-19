@@ -18,7 +18,10 @@ import { DashboardModule } from './dashboard/dashboard.module';
 
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: `.env`,
+      // Tự động load .env.prod nếu NODE_ENV=production, ngược lại load .env
+      envFilePath: process.env.NODE_ENV === 'production' ? '.env.prod' : '.env',
+      // Cho phép override từ system environment variables
+      ignoreEnvFile: false,
     }),
     PrismaModule,
     AuthModule,

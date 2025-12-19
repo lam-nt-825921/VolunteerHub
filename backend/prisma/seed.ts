@@ -1,18 +1,36 @@
 // prisma/seed.ts
-import 'dotenv/config'; // Load .env (nếu cần)
+import 'dotenv/config'; // Load .env tự động
 import * as bcrypt from 'bcrypt';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 import { faker } from '@faker-js/faker';
 
-// Tạo adapter giống hệt như trong PrismaService
-const adapter = new PrismaBetterSqlite3(
-  { url: process.env.DATABASE_URL || 'file:./dev.db' }, // BẮT BUỘC truyền object có url
-  { timestampFormat: 'unixepoch-ms' }
-);
+// Tự động detect database type từ DATABASE_URL
+const databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
+const isSQLite = databaseUrl.startsWith('file:');
 
-const ExtendedPrismaClient = PrismaClient; // class đã được generate
-const prisma = new ExtendedPrismaClient({ adapter }); // ← ĐÚNG CÚ PHÁP
+// Tạo Prisma Client với adapter phù hợp
+let prisma: PrismaClient;
+if (isSQLite) {
+  // Development: Dùng SQLite với adapter (giống code mẫu)
+  const adapter = new PrismaBetterSqlite3(
+    { url: databaseUrl }, // BẮT BUỘC truyền object có url
+    { timestampFormat: 'unixepoch-ms' }
+  );
+  const ExtendedPrismaClient = PrismaClient; // class đã được generate
+  prisma = new ExtendedPrismaClient({ adapter }); // ← ĐÚNG CÚ PHÁP
+  console.log('✅ Seeding SQLite database...');
+} else {
+  // Production: Dùng PostgreSQL (Supabase) với adapter pg
+  const pool = new Pool({ connectionString: databaseUrl });
+  const adapter = new PrismaPg(pool);
+  const ExtendedPrismaClient = PrismaClient;
+  prisma = new ExtendedPrismaClient({ adapter });
+  console.log('✅ Seeding PostgreSQL database...');
+  console.log(`   Database: ${databaseUrl.split('@')[1] || 'Supabase'}`);
+}
 
 
 // Định nghĩa Bitmask quyền hạn (để seed cho chuẩn)

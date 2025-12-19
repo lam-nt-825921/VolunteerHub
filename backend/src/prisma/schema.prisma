@@ -5,7 +5,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite" 
+  provider = "postgresql"  // PostgreSQL cho production (Supabase), SQLite cho dev dùng adapter riêng
 }
 
 // ==================== ENUMS ====================

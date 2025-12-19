@@ -61,26 +61,39 @@ npm run start:prod
 
 ## 📝 Scripts Available
 
+### Development Scripts
+
 | Script | Mô tả |
 |--------|-------|
 | `npm run setup` | Chuẩn bị môi trường (install deps + generate Prisma + migrate) |
-| `npm run dev` | Chạy dev server với hot reload |
+| `npm run dev` | Chạy dev server với hot reload (dùng `.env`) |
 | `npm run setup:dev` | Setup + chạy dev (cho người mới clone) |
+| `npm run prisma:migrate` | Chạy migrations trên SQLite (dev) |
+| `npm run prisma:studio` | Mở Prisma Studio (SQLite dev database) |
+| `npm run prisma:seed` | Seed dữ liệu mẫu vào SQLite |
 | `npm run kill:dev` | **Kill process đang chạy trên port 3000** |
 | `npm run kill:node` | Kill tất cả process node.exe (cẩn thận!) |
+
+### Production Scripts
+
+| Script | Mô tả |
+|--------|-------|
+| `npm run prod` | Build + chạy production server (dùng `.env.prod`) |
+| `npm run setup:prod` | Setup production (generate + migrate trên Supabase) |
+| `npm run prisma:migrate:prod` | Chạy migrations trên PostgreSQL (Supabase) |
+| `npm run prisma:studio:prod` | Mở Prisma Studio (PostgreSQL production database) |
+| `npm run prisma:seed:prod` | Seed dữ liệu mẫu vào Supabase |
 | `npm run build` | Build production |
-| `npm run start:prod` | Chạy production server |
-| `npm run prisma:generate` | Generate Prisma Client |
-| `npm run prisma:migrate` | Chạy migrations |
-| `npm run prisma:studio` | Mở Prisma Studio (GUI cho database) |
-| `npm run prisma:seed` | Seed dữ liệu mẫu |
+| `npm run start:prod` | Chạy production server (sau khi build) |
 
 ## 🔧 Environment Variables
+
+### Development (`.env`)
 
 Tạo file `.env` trong thư mục `backend/` với các biến sau:
 
 ```env
-# Database
+# Database (SQLite cho dev)
 DATABASE_URL="file:./dev.db"
 
 # JWT
@@ -88,7 +101,7 @@ JWT_ACCESS_SECRET=your-access-secret-key-here
 JWT_REFRESH_SECRET=your-refresh-secret-key-here
 
 # Server
-PORT=3000
+PORT=3001
 
 # Cloudinary (Optional - cho upload ảnh)
 CLOUDINARY_CLOUD_NAME=your-cloud-name
@@ -96,7 +109,32 @@ CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
 ```
 
-**Lưu ý:** File `.env` không được commit vào git. Xem `.env.example` để biết template.
+### Production (`.env.prod`)
+
+Tạo file `.env.prod` với thông tin Supabase:
+
+```env
+# Database (PostgreSQL - Supabase)
+DATABASE_URL=postgresql://postgres:[PASSWORD]@db.xxx.supabase.co:5432/postgres
+
+# JWT (Tạo secret keys mạnh cho production!)
+JWT_ACCESS_SECRET=your-production-access-secret-key
+JWT_REFRESH_SECRET=your-production-refresh-secret-key
+
+# Server
+NODE_ENV=production
+PORT=3001
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+```
+
+**Lưu ý:** 
+- File `.env` và `.env.prod` không được commit vào git
+- Xem `.env.prod` để biết template cho production
+- Xem `scripts/setup-prod.md` để biết cách setup production
 
 ## 📡 Socket.IO
 
@@ -110,10 +148,19 @@ Xem `src/notifications/SOCKET_IO_GUIDE.md` để biết chi tiết.
 
 ## 🗄️ Database
 
-- **Database:** SQLite (file: `dev.db`)
+- **Development:** SQLite (file: `dev.db`)
+- **Production:** PostgreSQL (Supabase) - Tự động detect từ `DATABASE_URL`
 - **ORM:** Prisma
 - **Schema:** `src/prisma/schema.prisma`
 - **Migrations:** `src/prisma/migrations/`
+
+### Database Auto-Detection
+
+Code tự động detect database type từ `DATABASE_URL`:
+- `file:./dev.db` → SQLite (Development)
+- `postgresql://...` → PostgreSQL (Production/Supabase)
+
+Không cần thay đổi code khi chuyển giữa SQLite và PostgreSQL!
 
 ### Prisma Studio
 
@@ -153,6 +200,19 @@ backend/
 ## 📚 API Documentation
 
 API endpoints được document bằng Swagger (nếu có setup).
+
+## 🚀 Deployment
+
+Xem file [DEPLOYMENT.md](./DEPLOYMENT.md) để biết cách deploy lên **Railway + Supabase** (miễn phí).
+
+### Quick Deploy
+
+1. **Setup Supabase**: Tạo PostgreSQL database
+2. **Setup Railway**: Deploy NestJS backend
+3. **Set Environment Variables**: `DATABASE_URL`, `JWT_ACCESS_SECRET`, etc.
+4. **Deploy**: Railway tự động deploy từ GitHub
+
+Chi tiết: [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ## 🐛 Troubleshooting
 
