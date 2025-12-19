@@ -125,7 +125,7 @@ export class UsersService {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { id: 'asc' },
         select: {
           id: true,
           email: true,
