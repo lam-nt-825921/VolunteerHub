@@ -6,12 +6,10 @@
     "frontend/volunteerhub-frontend"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "concurrently \"npm run dev:backend\"",
     "dev:backend": "cd backend && npm run start:dev",
-    "dev:frontend": "cd frontend/volunteerhub-frontend && npm start",
-    "build": "npm run build:backend && npm run build:frontend",
-    "build:backend": "cd backend && npm run build",
-    "build:frontend": "cd frontend/volunteerhub-frontend && ng build"
+    "build": "npm run build:backend",
+    "build:backend": "cd backend && npm run build"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
