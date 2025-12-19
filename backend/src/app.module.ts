@@ -15,11 +15,10 @@ import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
-
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: `.env`,
-    }),
+    }) as any,
     PrismaModule,
     AuthModule,
     EventsModule,
@@ -28,7 +27,6 @@ import { DashboardModule } from './dashboard/dashboard.module';
     PostsModule,
     NotificationsModule,
     DashboardModule,
-
   ],
   controllers: [HealthController],
   providers: [

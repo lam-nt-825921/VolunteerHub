@@ -149,8 +149,11 @@ export class EventDetailComponent implements OnInit {
   canManageRegistrations(): boolean {
     const user = this.authService.user();
     if (!user || !this.event) return false;
-    // Event creator can manage registrations, Admins can manage all
-    return (user.role === 'manager' && this.event.creatorId === user.id) || user.role === 'admin';
+    // Event creator (manager) can manage registrations for events they created
+    // Admins can manage registrations for all events
+    const isEventCreator = user.role === 'manager' && this.event.creatorId !== undefined && this.event.creatorId === user.id;
+    const isAdmin = user.role === 'admin';
+    return isEventCreator || isAdmin;
   }
 
   getStatusText(status: string): string {

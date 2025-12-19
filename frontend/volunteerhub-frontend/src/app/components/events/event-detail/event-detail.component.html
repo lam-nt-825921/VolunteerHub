@@ -25,8 +25,16 @@
           <p class="description">{{ event.description }}</p>
         </div>
 
+        <!-- Registration Management - Only for event creators/managers -->
+        @if (canManageRegistrations()) {
+          <div class="section">
+            <app-event-registrations [eventId]="event.id" [canManage]="true"></app-event-registrations>
+          </div>
+        }
+
         <!-- Wall Tab - Only for approved events and authenticated users -->
-        @if (event.status === 'APPROVED' && authService.isAuthenticated() && isRegistered && (registrationStatus === 'APPROVED' || registrationStatus === 'ATTENDED')) {
+        <!-- Managers who created the event can access without registering, others need to be registered and approved -->
+        @if (event.status === 'APPROVED' && authService.isAuthenticated() && (canManageWall() || (isRegistered && (registrationStatus === 'APPROVED' || registrationStatus === 'ATTENDED')))) {
           <div class="section">
             <app-event-wall [eventId]="event.id" [canManage]="canManageWall()"></app-event-wall>
           </div>
@@ -64,13 +72,15 @@
               <p>{{ event._count?.registrations || 0 }} người</p>
             </div>
           </div>
-          <div class="info-item">
-            <mat-icon>person</mat-icon>
-            <div>
-              <strong>Người tổ chức</strong>
-              <p>{{ event.creator?.fullName || 'Unknown' }}</p>
+          @if (event.creator?.fullName) {
+            <div class="info-item">
+              <mat-icon>person</mat-icon>
+              <div>
+                <strong>Người tổ chức</strong>
+                <p>{{ event.creator?.fullName }}</p>
+              </div>
             </div>
-          </div>
+          }
         </div>
 
         <!-- Registration Card -->

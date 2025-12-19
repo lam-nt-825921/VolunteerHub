@@ -28,8 +28,8 @@ async function bootstrap() {
   // === 2. Cấu hình CORS cho frontend chạy port 5000 ===
   app.enableCors({
     origin: [
-      'http://localhost:5000',     // ← Frontend chính của bạn
-      'http://127.0.0.1:5000',
+      'http://localhost:4200',     // ← Frontend chính của bạn
+      'http://127.0.0.1:4200',
       // Nếu sau này deploy thì thêm domain thật ở đây
     ],
     credentials: true, // cần nếu dùng cookie/session (auth jwt với httpOnly cookie)

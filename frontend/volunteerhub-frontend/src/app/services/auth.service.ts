@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AuthApiService, UserProfile } from './auth-api.service';
 import { AdminApiService, FilterUsersRequest } from './admin-api.service';
+import { UserProfileResponse } from './users-api.service';
 
 export interface User {
   id: number;
@@ -28,25 +29,29 @@ export interface RegisterData {
 /**
  * Helper function to convert backend role to frontend role
  */
-function mapRole(backendRole: 'VOLUNTEER' | 'MANAGER' | 'ADMIN'): 'volunteer' | 'manager' | 'admin' {
-  const roleMap: Record<'VOLUNTEER' | 'MANAGER' | 'ADMIN', 'volunteer' | 'manager' | 'admin'> = {
+function mapRole(backendRole: 'VOLUNTEER' | 'EVENT_MANAGER' | 'ADMIN'): 'volunteer' | 'manager' | 'admin' {
+  const roleMap: Record<'VOLUNTEER' | 'EVENT_MANAGER' | 'ADMIN', 'volunteer' | 'manager' | 'admin'> = {
     VOLUNTEER: 'volunteer',
-    MANAGER: 'manager',
+    EVENT_MANAGER: 'manager',
     ADMIN: 'admin'
   };
   return roleMap[backendRole] || 'volunteer';
 }
 
 /**
- * Helper function to convert UserProfile to User
+ * Helper function to convert UserProfile or UserProfileResponse to User
  */
-function mapUserProfile(profile: UserProfile): User {
+function mapUserProfile(profile: UserProfile | UserProfileResponse): User {
+  const avatar = 'avatarUrl' in profile 
+    ? (profile as UserProfile).avatarUrl 
+    : (profile as UserProfileResponse).avatar;
+  
   return {
     id: profile.id,
     email: profile.email,
     name: profile.fullName || profile.email.split('@')[0],
     role: mapRole(profile.role),
-    avatar: profile.avatarUrl || undefined
+    avatar: avatar || undefined
   };
 }
 

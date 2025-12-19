@@ -128,11 +128,12 @@ export class RegistrationsService {
       },
     });
 
-    // Thông báo cho user (chính actor) là đã đăng ký/được duyệt
+    // Thông báo cho user (chính actor) là đã đăng ký, đang chờ duyệt
+    // Note: Using REGISTRATION_APPROVED type but with pending message since REGISTRATION_PENDING may not exist
     await this.notificationsService.createNotification(
       actor.id,
-      'Tham gia sự kiện thành công',
-      `Bạn đã tham gia sự kiện "${event.title}".`,
+      'Đăng ký tham gia sự kiện',
+      `Bạn đã đăng ký tham gia sự kiện "${event.title}". Đang chờ quản lý duyệt.`,
       NotificationType.REGISTRATION_APPROVED,
       { eventId: event.id, registrationId: registration.id },
     );

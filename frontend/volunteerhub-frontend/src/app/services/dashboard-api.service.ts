@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { ApiService } from './api.service';
 import { API_CONFIG } from './api.config';
 import { EventCategory, EventCreator, EventStatus, EventVisibility } from './events-api.service';
@@ -8,12 +9,15 @@ import { RegistrationStatus } from './registrations-api.service';
 // ============ INTERFACES ============
 
 export interface DashboardStats {
-  totalEventsJoined: number;
   totalEventsCreated: number;
-  totalHoursVolunteered: number;
-  upcomingEventsCount: number;
+  totalEventsJoined: number;
+  totalEventsAttended: number;
+  totalPostsCreated: number;
+  totalCommentsCreated: number;
+  totalLikesGiven: number;
   reputationScore: number;
-  attendanceRate: number;
+  upcomingEventsCount: number;
+  activeEventsCount: number; // Events đang diễn ra mà user đã đăng ký
 }
 
 export interface DashboardEvent {
@@ -27,51 +31,45 @@ export interface DashboardEvent {
   status: EventStatus;
   visibility: EventVisibility;
   viewCount: number;
+  duration: number;
   createdAt: string;
-  creator?: EventCreator;
+  creator: {
+    id: number;
+    fullName: string;
+    avatar: string | null;
+    reputationScore: number;
+  };
   category: EventCategory | null;
   registrationsCount: number;
-  isRegistered?: boolean;
-  registrationStatus?: RegistrationStatus;
+  isRegistered: boolean;
+  registrationStatus: RegistrationStatus | null;
+  recommendationScore?: number; // Only for recommended events
 }
 
 export interface ParticipationHistoryItem {
-  id: number;
+  registrationId: number;
   status: RegistrationStatus;
   registeredAt: string;
   attendedAt: string | null;
   event: {
     id: number;
     title: string;
-    description: string;
     location: string;
     coverImage: string | null;
     startTime: string;
     endTime: string;
     status: EventStatus;
-    category: EventCategory | null;
+    visibility: EventVisibility;
   };
 }
 
 export interface AdminDashboardStats {
   totalEvents: number;
-  completedEventsThisMonth: number;
-  pendingEventsCount: number;
+  totalEventsCompletedThisMonth: number;
+  totalPendingEvents: number;
   totalUsers: number;
-  activeUsersCount: number;
-  registrationsThisMonth: number;
-  eventsByStatus: {
-    pending: number;
-    approved: number;
-    rejected: number;
-    cancelled: number;
-    completed: number;
-  };
-  usersByRole: {
-    volunteer: number;
-    eventManager: number;
-    admin: number;
-  };
+  activeUsers: number;
+  totalRegistrationsThisMonth: number;
 }
 
 // Request DTOs
@@ -85,6 +83,17 @@ export interface FilterDashboardEventsRequest {
 }
 
 export type MyEventsType = 'created' | 'joined' | 'all';
+
+// Paginated response structure
+export interface PaginatedDashboardEventsResponse {
+  data: DashboardEvent[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
 
 /**
  * Dashboard API Service
@@ -114,7 +123,9 @@ export class DashboardApiService {
   getRecommendedEvents(filter?: FilterDashboardEventsRequest): Observable<DashboardEvent[]> {
     const queryString = this.buildQueryString(filter);
     const url = `${API_CONFIG.endpoints.dashboard.recommendedEvents}${queryString}`;
-    return this.apiService.get<DashboardEvent[]>(url, true);
+    return this.apiService.get<PaginatedDashboardEventsResponse>(url, true).pipe(
+      map(response => response.data || response as any) // Handle both paginated and array responses
+    );
   }
 
   /**
@@ -125,7 +136,9 @@ export class DashboardApiService {
     const queryString = this.buildQueryString(filter);
     const typeParam = type !== 'all' ? `${queryString ? '&' : '?'}type=${type}` : '';
     const url = `${API_CONFIG.endpoints.dashboard.myEvents}${queryString}${typeParam}`;
-    return this.apiService.get<DashboardEvent[]>(url, true);
+    return this.apiService.get<PaginatedDashboardEventsResponse>(url, true).pipe(
+      map(response => response.data || response as any) // Handle both paginated and array responses
+    );
   }
 
   /**
@@ -148,7 +161,9 @@ export class DashboardApiService {
   getUpcomingEvents(filter?: FilterDashboardEventsRequest): Observable<DashboardEvent[]> {
     const queryString = this.buildQueryString(filter);
     const url = `${API_CONFIG.endpoints.dashboard.upcomingEvents}${queryString}`;
-    return this.apiService.get<DashboardEvent[]>(url, true);
+    return this.apiService.get<PaginatedDashboardEventsResponse>(url, true).pipe(
+      map(response => response.data || response as any) // Handle both paginated and array responses
+    );
   }
 
   /**

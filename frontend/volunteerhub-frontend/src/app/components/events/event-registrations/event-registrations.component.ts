@@ -20,8 +20,9 @@ export class EventRegistrationsComponent implements OnInit {
   pendingRegistrations: RegistrationResponse[] = [];
   approvedRegistrations: RegistrationResponse[] = [];
   attendedRegistrations: RegistrationResponse[] = [];
-  showCompleteForm = signal<number | null>(null);
-  volunteerHours = signal<number>(0);
+  currentParticipants: RegistrationResponse[] = []; // Approved + Attended
+  selectedPendingIds = signal<Set<number>>(new Set());
+  selectAllPending = signal(false);
   isLoading = signal(false);
 
   constructor(
@@ -40,11 +41,51 @@ export class EventRegistrationsComponent implements OnInit {
       this.pendingRegistrations = this.registrations.filter(r => r.status === 'PENDING');
       this.approvedRegistrations = this.registrations.filter(r => r.status === 'APPROVED');
       this.attendedRegistrations = this.registrations.filter(r => r.status === 'ATTENDED');
+      this.currentParticipants = [...this.approvedRegistrations, ...this.attendedRegistrations];
+      this.selectedPendingIds.set(new Set());
+      this.selectAllPending.set(false);
     } catch (error) {
       console.error('Error loading registrations:', error);
     } finally {
       this.isLoading.set(false);
     }
+  }
+
+  toggleSelectPending(registrationId: number) {
+    const selected = new Set(this.selectedPendingIds());
+    if (selected.has(registrationId)) {
+      selected.delete(registrationId);
+    } else {
+      selected.add(registrationId);
+    }
+    this.selectedPendingIds.set(selected);
+    this.updateSelectAllState();
+  }
+
+  toggleSelectAllPending() {
+    const selectAll = !this.selectAllPending();
+    this.selectAllPending.set(selectAll);
+    if (selectAll) {
+      this.selectedPendingIds.set(new Set(this.pendingRegistrations.map(r => r.id)));
+    } else {
+      this.selectedPendingIds.set(new Set());
+    }
+  }
+
+  updateSelectAllState() {
+    const selected = this.selectedPendingIds();
+    this.selectAllPending.set(
+      this.pendingRegistrations.length > 0 &&
+      this.pendingRegistrations.every(r => selected.has(r.id))
+    );
+  }
+
+  isPendingSelected(registrationId: number): boolean {
+    return this.selectedPendingIds().has(registrationId);
+  }
+
+  get selectedPendingCount(): number {
+    return this.selectedPendingIds().size;
   }
 
   async approveRegistration(registrationId: number) {
@@ -55,6 +96,33 @@ export class EventRegistrationsComponent implements OnInit {
       if (result.success) {
         await this.loadRegistrations();
       }
+    } catch (error: any) {
+      alert(error?.message || 'Duyệt đăng ký thất bại!');
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  async bulkApprovePending() {
+    const selectedIds = Array.from(this.selectedPendingIds());
+    if (selectedIds.length === 0) {
+      alert('Vui lòng chọn ít nhất một đăng ký để duyệt!');
+      return;
+    }
+
+    if (!confirm(`Bạn có chắc muốn duyệt ${selectedIds.length} đăng ký đã chọn?`)) {
+      return;
+    }
+
+    this.isLoading.set(true);
+    try {
+      const promises = selectedIds.map(id => 
+        this.eventsService.approveRegistration(this.eventId, id)
+      );
+      const results = await Promise.all(promises);
+      const successCount = results.filter(r => r.success).length;
+      alert(`Đã duyệt thành công ${successCount}/${selectedIds.length} đăng ký!`);
+      await this.loadRegistrations();
     } catch (error: any) {
       alert(error?.message || 'Duyệt đăng ký thất bại!');
     } finally {
@@ -79,6 +147,33 @@ export class EventRegistrationsComponent implements OnInit {
     }
   }
 
+  async bulkRejectPending() {
+    const selectedIds = Array.from(this.selectedPendingIds());
+    if (selectedIds.length === 0) {
+      alert('Vui lòng chọn ít nhất một đăng ký để từ chối!');
+      return;
+    }
+
+    if (!confirm(`Bạn có chắc muốn từ chối ${selectedIds.length} đăng ký đã chọn?`)) {
+      return;
+    }
+
+    this.isLoading.set(true);
+    try {
+      const promises = selectedIds.map(id => 
+        this.eventsService.rejectRegistration(this.eventId, id)
+      );
+      const results = await Promise.all(promises);
+      const successCount = results.filter(r => r.success).length;
+      alert(`Đã từ chối thành công ${successCount}/${selectedIds.length} đăng ký!`);
+      await this.loadRegistrations();
+    } catch (error: any) {
+      alert(error?.message || 'Từ chối đăng ký thất bại!');
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
   async kickParticipant(registrationId: number) {
     if (confirm('Bạn có chắc muốn xóa người tham gia này?')) {
       this.isLoading.set(true);
@@ -96,23 +191,12 @@ export class EventRegistrationsComponent implements OnInit {
     }
   }
 
-  openCompleteForm(registrationId: number) {
-    this.showCompleteForm.set(registrationId);
-    this.volunteerHours.set(0);
-  }
-
-  closeCompleteForm() {
-    this.showCompleteForm.set(null);
-    this.volunteerHours.set(0);
-  }
-
   async checkIn(registrationId: number) {
     this.isLoading.set(true);
     try {
       const result = await this.eventsService.checkInParticipant(this.eventId, registrationId);
       alert(result.message);
       if (result.success) {
-        this.closeCompleteForm();
         await this.loadRegistrations();
       }
     } catch (error: any) {
@@ -123,11 +207,11 @@ export class EventRegistrationsComponent implements OnInit {
   }
 
   exportToCSV() {
-    // Export registrations to CSV
-    const headers = ['ID', 'Tên', 'Trạng thái', 'Ngày đăng ký', 'Ngày điểm danh'];
+    const headers = ['ID', 'Tên', 'Email', 'Trạng thái', 'Ngày đăng ký', 'Ngày điểm danh'];
     const rows = this.registrations.map(r => [
       r.id.toString(),
       r.user.fullName,
+      '', // Email not available in RegistrationResponse
       this.getStatusText(r.status),
       r.registeredAt,
       r.attendedAt || ''
@@ -156,10 +240,6 @@ export class EventRegistrationsComponent implements OnInit {
     });
   }
 
-  getUserName(registration: RegistrationResponse): string {
-    return registration.user?.fullName || 'Unknown';
-  }
-
   getStatusText(status: string): string {
     const statusMap: Record<string, string> = {
       'PENDING': 'Chờ duyệt',
@@ -171,5 +251,12 @@ export class EventRegistrationsComponent implements OnInit {
     };
     return statusMap[status] || status;
   }
-}
 
+  getInitials(fullName: string): string {
+    const names = fullName.trim().split(' ');
+    if (names.length >= 2) {
+      return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+    }
+    return fullName.substring(0, 2).toUpperCase();
+  }
+}

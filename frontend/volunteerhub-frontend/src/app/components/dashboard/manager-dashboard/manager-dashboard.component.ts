@@ -52,7 +52,7 @@ export class ManagerDashboardComponent implements OnInit {
   }
 
   viewEventDetail(eventId: number) {
-    this.router.navigate(['/events', eventId]);
+    this.router.navigate(['/events', eventId, 'manage']);
   }
 
   formatDate(dateString: string): string {
@@ -88,27 +88,63 @@ export class ManagerDashboardComponent implements OnInit {
     this.isLoading.set(true);
     try {
       if (this.editingEvent()) {
-        const result = await this.eventsService.updateEvent(this.editingEvent()!.id, eventData);
+        const updateData: any = {
+          title: eventData.title,
+          description: eventData.description,
+          location: eventData.location,
+          startTime: eventData.startDate || eventData.startTime,
+          endTime: eventData.endDate || eventData.endTime,
+          visibility: eventData.visibility || 'PUBLIC',
+        };
+        
+        // Only include coverImage if it's provided
+        if (eventData.imageUrl || eventData.coverImage) {
+          updateData.coverImage = eventData.imageUrl || eventData.coverImage;
+        }
+        
+        // Only include categoryId if provided
+        if (eventData.categoryId) {
+          updateData.categoryId = eventData.categoryId;
+        }
+        
+        const result = await this.eventsService.updateEvent(this.editingEvent()!.id, updateData);
         alert(result.message);
         if (result.success) {
           this.closeEventForm();
           await this.loadEvents();
         }
       } else {
+        // Map category name to categoryId (if category API exists, use that)
+        // For now, categoryId is optional in backend, so we'll leave it undefined
+        const categoryId = eventData.categoryId || undefined;
+        
         const result = await this.eventsService.createEvent({
           title: eventData.title,
           description: eventData.description,
           location: eventData.location,
           startTime: eventData.startDate || eventData.startTime,
           endTime: eventData.endDate || eventData.endTime,
-          coverImage: eventData.imageUrl || eventData.coverImage,
+          coverImage: eventData.imageUrl || eventData.coverImage || undefined,
           visibility: eventData.visibility || 'PUBLIC',
-          categoryId: eventData.categoryId
+          categoryId: categoryId
         });
-        alert(result.message);
-        if (result.success) {
+        
+        if (result.success && result.event) {
+          // Automatically register the manager as a participant in their own event
+          try {
+            await this.eventsService.registerForEvent(result.event.id);
+            // Registration successful - manager is now a participant
+          } catch (regError: any) {
+            // If registration fails (e.g., already registered), that's okay
+            // The manager can still manage the event as creator
+            console.warn('Could not auto-register manager for event:', regError);
+          }
+          
+          alert('Tạo sự kiện thành công! Bạn đã được tự động đăng ký tham gia sự kiện này.');
           this.closeEventForm();
           await this.loadEvents();
+        } else {
+          alert(result.message);
         }
       }
     } catch (error: any) {

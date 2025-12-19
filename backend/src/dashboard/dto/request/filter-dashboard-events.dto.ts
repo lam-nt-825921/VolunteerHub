@@ -1,9 +1,19 @@
 // src/dashboard/dto/request/filter-dashboard-events.dto.ts
-import { IsOptional, IsInt, Min } from 'class-validator';
+import { IsOptional, IsInt, Min, IsIn } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class FilterDashboardEventsDto {
+  @ApiProperty({
+    example: 'created',
+    description: 'Loại events: created (đã tạo), joined (đã đăng ký), all (tất cả)',
+    enum: ['created', 'joined', 'all'],
+    required: false,
+  })
+  @IsOptional()
+  @IsIn(['created', 'joined', 'all'])
+  type?: 'created' | 'joined' | 'all';
+
   @ApiProperty({
     example: 1,
     description: 'Số trang',

@@ -55,6 +55,9 @@ export class EventFormComponent implements OnInit {
     coverImage: ''
   };
 
+  selectedFile: File | null = null;
+  previewUrl: string | null = null;
+
   categories = ['Môi trường', 'Giáo dục', 'Y tế', 'Xã hội', 'Văn hóa', 'Thể thao'];
   visibilities = [
     { value: 'PUBLIC', label: 'Công khai' },
@@ -86,6 +89,11 @@ export class EventFormComponent implements OnInit {
         visibility: this.event.visibility || 'PUBLIC',
         coverImage: this.event.coverImage || ''
       };
+      
+      // Set preview if there's an existing cover image
+      if (this.event.coverImage) {
+        this.previewUrl = this.event.coverImage;
+      }
     } else {
       // Set default dates
       const now = new Date();
@@ -116,9 +124,62 @@ export class EventFormComponent implements OnInit {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   }
 
+  onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Vui lòng chọn file ảnh hợp lệ');
+        return;
+      }
+
+      // Validate file size (max 30MB)
+      if (file.size > 30 * 1024 * 1024) {
+        alert('Kích thước file không được vượt quá 30MB');
+        return;
+      }
+
+      this.selectedFile = file;
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.previewUrl = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  removeImage() {
+    this.selectedFile = null;
+    this.previewUrl = null;
+    this.formData.coverImage = '';
+  }
+
   onSubmit() {
     if (!this.validateForm()) {
       return;
+    }
+
+    // Cover image is optional
+    // If a file is selected, we'd need to upload it first to get a URL
+    // For now, only accept URL strings (backend validation requires valid URL format)
+    // If user selected a file, they need to provide a URL or the image will be omitted
+    if (this.selectedFile && !this.formData.coverImage?.trim()) {
+      // File selected but no URL provided - make coverImage optional (omit it)
+      this.formData.coverImage = undefined;
+    } else if (this.formData.coverImage?.trim()) {
+      // Validate that it's a proper URL format (not base64)
+      if (this.formData.coverImage.startsWith('data:')) {
+        alert('Backend chỉ chấp nhận URL ảnh hợp lệ. Vui lòng upload ảnh lên server và nhập URL, hoặc để trống để bỏ qua ảnh bìa.');
+        this.formData.coverImage = undefined;
+      }
+      // If it's a valid URL string, keep it
+    } else {
+      // No cover image - that's fine, it's optional
+      this.formData.coverImage = undefined;
     }
 
     this.save.emit(this.formData);

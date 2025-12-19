@@ -28,7 +28,7 @@ export interface UserProfile {
   id: number;
   email: string;
   fullName: string | null;
-  role: 'VOLUNTEER' | 'MANAGER' | 'ADMIN';
+  role: 'VOLUNTEER' | 'EVENT_MANAGER' | 'ADMIN';
   isActive: boolean;
   createdAt?: string;
   avatarUrl?: string | null;

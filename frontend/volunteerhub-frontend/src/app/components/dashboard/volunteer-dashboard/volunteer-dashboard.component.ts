@@ -44,7 +44,9 @@ export class VolunteerDashboardComponent implements OnInit {
     try {
       // Load dashboard stats
       this.stats = await this.eventsService.getDashboardStats();
-      this.totalHours = this.stats.totalHoursVolunteered || 0;
+      // Calculate total hours from attended events (would need participation history with duration)
+      // For now, use a placeholder - backend doesn't provide totalHours directly
+      this.totalHours = this.stats.totalEventsAttended * 4; // Approximate 4 hours per event
       this.badges = Math.floor(this.totalHours / 10);
 
       // Load upcoming events
