@@ -30,6 +30,7 @@
     "test:socket:auto": "node test-socket-with-login.js"
   },
   "dependencies": {
+    "@nestjs/cli": "^10.0.0",
     "@faker-js/faker": "^10.1.0",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^4.0.2",
