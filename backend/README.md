@@ -79,21 +79,14 @@ npm run start:prod
 | Script | Mô tả |
 |--------|-------|
 | `npm run prod` | Build + chạy production server (dùng `.env.prod`) |
-| `npm run setup:prod` | Setup production (generate PostgreSQL + migrate trên Supabase) |
-| `npm run prisma:generate:prod` | Generate Prisma Client cho PostgreSQL (tự động chọn schema) |
-| `npm run prisma:migrate:prod` | Chạy migrations trên PostgreSQL (Supabase) |
+| `npm run setup:prod` | Setup production (generate PostgreSQL + migrate trên Neon) |
+| `npm run prisma:generate:prod` | Generate Prisma Client cho PostgreSQL |
+| `npm run prisma:migrate:prod` | Chạy migrations trên PostgreSQL (Neon) |
 | `npm run prisma:studio:prod` | Mở Prisma Studio (PostgreSQL production database) |
-| `npm run prisma:seed:prod` | Seed dữ liệu mẫu vào Supabase |
+| `npm run prisma:seed:prod` | Seed dữ liệu mẫu vào Neon |
 | `npm run build` | Build production |
 | `npm run start:prod` | Chạy production server (sau khi build) |
 
-### Schema Management
-
-- **`schema.sqlite.prisma`**: Schema cho SQLite (development)
-- **`schema.postgresql.prisma`**: Schema cho PostgreSQL (production)
-- **`schema.prisma`**: File được tự động tạo từ một trong hai file trên
-
-Scripts tự động chọn schema phù hợp dựa trên `DATABASE_URL` trong env file.
 
 ## 🔧 Environment Variables
 
@@ -120,11 +113,11 @@ CLOUDINARY_API_SECRET=your-api-secret
 
 ### Production (`.env.prod`)
 
-Tạo file `.env.prod` với thông tin Supabase:
+Tạo file `.env.prod` với thông tin Neon (hoặc PostgreSQL khác):
 
 ```env
-# Database (PostgreSQL - Supabase)
-DATABASE_URL=postgresql://postgres:[PASSWORD]@db.xxx.supabase.co:5432/postgres
+# Database (PostgreSQL - Neon)
+DATABASE_URL=postgresql://USER:PASSWORD@ep-xxxx.region.aws.neon.tech/neondb?sslmode=require
 
 # JWT (Tạo secret keys mạnh cho production!)
 JWT_ACCESS_SECRET=your-production-access-secret-key
@@ -143,7 +136,6 @@ CLOUDINARY_API_SECRET=your-api-secret
 **Lưu ý:** 
 - File `.env` và `.env.prod` không được commit vào git
 - Xem `.env.prod` để biết template cho production
-- Xem `scripts/setup-prod.md` để biết cách setup production
 
 ## 📡 Socket.IO
 
@@ -158,7 +150,7 @@ Xem `src/notifications/SOCKET_IO_GUIDE.md` để biết chi tiết.
 ## 🗄️ Database
 
 - **Development:** SQLite (file: `dev.db`)
-- **Production:** PostgreSQL (Supabase)
+- **Production:** PostgreSQL (Neon hoặc PostgreSQL khác)
 - **ORM:** Prisma
 - **Schema:** `src/prisma/schema.prisma`
 - **Migrations:** `src/prisma/migrations/`
@@ -204,16 +196,17 @@ API endpoints được document bằng Swagger (nếu có setup).
 
 ## 🚀 Deployment
 
-Xem file [DEPLOYMENT.md](./DEPLOYMENT.md) để biết cách deploy lên **Railway + Supabase** (miễn phí).
+Backend có thể deploy lên các platform như **Render**, **Railway**, hoặc **Koyeb** với database PostgreSQL (ví dụ: **Neon**).
 
-### Quick Deploy
+### Environment Variables trên Platform
 
-1. **Setup Supabase**: Tạo PostgreSQL database
-2. **Setup Railway**: Deploy NestJS backend
-3. **Set Environment Variables**: `DATABASE_URL`, `JWT_ACCESS_SECRET`, etc.
-4. **Deploy**: Railway tự động deploy từ GitHub
-
-Chi tiết: [DEPLOYMENT.md](./DEPLOYMENT.md)
+Khi deploy, cần set các biến môi trường sau trên platform:
+- `DATABASE_URL`: Connection string của PostgreSQL (Neon)
+- `NODE_ENV`: `production`
+- `PORT`: `3000` (hoặc port mà platform yêu cầu)
+- `JWT_ACCESS_SECRET`: Secret key cho JWT access token
+- `JWT_REFRESH_SECRET`: Secret key cho JWT refresh token
+- `CLOUDINARY_*`: Nếu sử dụng Cloudinary cho upload ảnh
 
 ## 🐛 Troubleshooting
 
