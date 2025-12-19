@@ -10,7 +10,7 @@
     "start": "nest start",
     "start:dev": "node -r dotenv/config node_modules/@nestjs/cli/bin/nest.js start --watch --preserveWatchOutput dotenv_config_path=.env",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node -r dotenv/config dist/main dotenv_config_path=.env.prod",
+    "start:prod": "node -r dotenv/config dist/src/main.js dotenv_config_path=.env.prod",
     "prisma:generate": "prisma generate --schema=./src/prisma/schema.prisma",
     "prisma:migrate": "node scripts/run-prisma.js migrate .env",
     "prisma:migrate:prod": "node scripts/run-prisma.js migrate:prod .env.prod",

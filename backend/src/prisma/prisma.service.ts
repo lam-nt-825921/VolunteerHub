@@ -25,12 +25,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const isSQLite = databaseUrl.startsWith('file:');
     
     if (isSQLite) {
-      // Development: Dùng SQLite với adapter
-      const adapter = new PrismaBetterSqlite3({ url: databaseUrl }, {
-        timestampFormat: 'unixepoch-ms'  
-      });
-      super({ adapter });
-      logger.log('✅ PrismaService initialized with SQLite adapter (Development mode)');
+      // LƯU Ý: Schema hiện tại là PostgreSQL, không thể dùng SQLite adapter
+      // Nếu muốn dùng SQLite cho dev, cần đổi schema.prisma về provider = "sqlite"
+      logger.error('❌ Schema mismatch: Schema is PostgreSQL but DATABASE_URL is SQLite');
+      logger.error('💡 Solution: Use PostgreSQL DATABASE_URL OR change schema.prisma to "sqlite" for development');
+      throw new Error('Schema provider (postgresql) does not match DATABASE_URL (SQLite). Please use PostgreSQL DATABASE_URL for production or change schema.prisma to "sqlite" for development.');
     } else {
       // Production: Dùng PostgreSQL (Supabase) với adapter pg
       const pool = new Pool({ connectionString: databaseUrl });
