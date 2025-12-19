@@ -1,85 +1,216 @@
-# 🚀 Quick Start: Deploy lên Railway + Supabase
+# 🚀 Quick Start: Deploy lên Supabase + Render (Backend) + Vercel/Netlify (Frontend)
 
-## ⚡ 5 Bước Nhanh
+## ⚡ Tổng quan
 
-### 1️⃣ Tạo Supabase Database (2 phút)
+- **Database:** Supabase PostgreSQL (free)
+- **Backend:** Render Web Service (NestJS backend, free tier)
+- **Frontend:** Vercel hoặc Netlify (Angular build, free)
+
+Mục tiêu:  
+- Backend NestJS (`backend/`) chạy trên Render, kết nối Supabase  
+- Frontend Angular (`frontend/volunteerhub-frontend/`) chạy trên Vercel/Netlify và gọi API Render
+
+---
+
+## 1️⃣ Tạo Supabase Database (2 phút)
 
 1. Vào [supabase.com](https://supabase.com) → Đăng ký/Đăng nhập
 2. **New Project** → Đặt tên `VolunteerHub`
 3. Chọn region gần nhất (Asian)
 4. Tạo password mạnh → **Lưu lại!**
-5. Đợi project tạo xong (2-3 phút)
+5. Đợi project tạo xong (2–3 phút)
 
-### 2️⃣ Lấy Connection String (1 phút)
+### Lấy Connection String
 
 1. Vào **Settings** → **Database**
-2. Scroll xuống **"Connection string"**
-3. Copy **"URI"** (dạng: `postgresql://postgres:[PASSWORD]@db.xxx.supabase.co:5432/postgres`)
-4. Thay `[YOUR-PASSWORD]` bằng password bạn đã tạo
+2. Kéo xuống **"Connection string"**
+3. Copy **"URI"** dạng:
+   `postgresql://postgres:[PASSWORD]@db.xxx.supabase.co:5432/postgres`
+4. Thay `[PASSWORD]` bằng password bạn đã tạo  
+5. Lưu lại string này để dùng cho backend (Render)
 
-### 3️⃣ Chạy Migrations trên Supabase (2 phút)
+### Chạy Migrations trên Supabase (chỉ cần làm 1 lần)
 
 **Cách nhanh nhất:**
 
 1. Vào Supabase → **SQL Editor**
-2. Copy toàn bộ nội dung từ: `backend/src/prisma/migrations/20251121095758_init_complete_volunteer_system/migration.sql`
-3. Paste vào SQL Editor → Click **Run**
+2. Mở file: `backend/src/prisma/migrations/20251121095758_init_complete_volunteer_system/migration.sql`
+3. Copy toàn bộ nội dung SQL
+4. Paste vào SQL Editor → Click **Run**
 
-✅ Database đã sẵn sàng!
+✅ Database schema đã sẵn sàng trên Supabase.
 
-### 4️⃣ Deploy lên Railway (3 phút)
+---
 
-1. Vào [railway.app](https://railway.app) → Đăng ký/Đăng nhập (GitHub)
-2. **New Project** → **Deploy from GitHub repo**
-3. Chọn repository `VolunteerHub`
-4. Railway tự detect Node.js → Click **Deploy**
+## 2️⃣ Deploy Backend lên Render (NestJS + Supabase)
 
-### 5️⃣ Cấu hình Environment Variables (2 phút)
+### Chuẩn bị repo
 
-Trong Railway dashboard → **Variables** tab → Thêm:
+Code backend đã sẵn trong thư mục `backend/` với:
+
+- `npm run build` → build NestJS
+- `npm run start:prod` → chạy server production (đọc env)
+
+Hãy đảm bảo code đã push lên GitHub (branch `main`).
+
+### Tạo Web Service trên Render
+
+1. Vào [render.com](https://render.com) → Đăng ký/Đăng nhập (GitHub)
+2. **New** → **Web Service**
+3. **Connect GitHub** → chọn repository `VolunteerHub`
+4. Branch: `main`
+
+### Cấu hình service
+
+Trong bước cấu hình service:
+
+- **Name**: `volunteerhub-backend` (tuỳ ý)
+- **Root Directory**: `backend`
+- **Environment**: `Node`
+- **Build Command**:
+
+```bash
+npm install && npm run build
+```
+
+- **Start Command**:
+
+```bash
+npm run start:prod
+```
+
+### Environment Variables trên Render
+
+Trong tab **Environment** của service, thêm:
 
 ```env
 DATABASE_URL=postgresql://postgres:[PASSWORD]@db.xxx.supabase.co:5432/postgres
 JWT_ACCESS_SECRET=your-super-secret-key-change-this
 JWT_REFRESH_SECRET=your-refresh-secret-key-change-this
 NODE_ENV=production
-PORT=3001
+PORT=3000
 ```
 
-**Lưu ý:** Thay `[PASSWORD]` bằng password Supabase của bạn!
+**Lưu ý:**
 
-### ✅ Xong! 
+- Thay `[PASSWORD]` bằng password Supabase
+- `PORT` là port Render sẽ dùng cho backend (Render tự map ra HTTP public)
 
-Railway sẽ tự động deploy và cung cấp URL: `https://your-app.railway.app`
+### Deploy
+
+1. Click **Create Web Service**
+2. Render sẽ:
+   - Clone repo
+   - Chạy `npm install --include=dev && npm run build` trong `backend/`
+   - Chạy `npm run start:prod`
+3. Sau khi xong, Render cung cấp URL dạng:
+
+```text
+https://volunteerhub-backend.onrender.com
+```
+
+Đây là **base URL cho API backend**.
 
 ---
 
-## 🧪 Test
+## 3️⃣ Deploy Frontend Angular lên Vercel/Netlify
+
+Giả sử frontend nằm trong: `frontend/volunteerhub-frontend/`
+
+### Cập nhật cấu hình API URL trong Angular
+
+Trong `frontend/volunteerhub-frontend/src/environments/environment.prod.ts`:
+
+```ts
+export const environment = {
+  production: true,
+  apiUrl: 'https://volunteerhub-backend.onrender.com', // URL backend Render
+  socketUrl: 'https://volunteerhub-backend.onrender.com', // Socket.IO nếu dùng chung domain
+};
+```
+
+Commit & push thay đổi này.
+
+### Option A: Deploy lên Vercel
+
+1. Vào [vercel.com](https://vercel.com) → Đăng ký/Đăng nhập (GitHub)
+2. **New Project** → Import repo `VolunteerHub`
+3. **Root Directory**: chọn `frontend/volunteerhub-frontend`
+4. **Framework Preset**: Angular
+5. **Build Command**:
+
+```bash
+npm install && npm run build
+```
+
+6. **Output Directory**:
+
+```text
+dist/volunteerhub-frontend
+```
+
+7. Deploy → Vercel trả URL dạng:
+
+```text
+https://volunteerhub-frontend.vercel.app
+```
+
+Frontend sẽ gọi API sang URL backend Render đã set trong `environment.prod.ts`.
+
+### Option B: Deploy lên Netlify
+
+1. Vào [netlify.com](https://www.netlify.com/) → Đăng ký/Đăng nhập
+2. **Add New Site** → **Import from Git**
+3. Chọn repo `VolunteerHub`
+4. **Base directory**: `frontend/volunteerhub-frontend`
+5. **Build command**:
+
+```bash
+npm run build
+```
+
+6. **Publish directory**:
+
+```text
+dist/volunteerhub-frontend
+```
+
+7. Deploy → Netlify trả URL dạng:
+
+```text
+https://volunteerhub-frontend.netlify.app
+```
+
+---
+
+## 4️⃣ Test nhanh
+
+### Backend (Render)
 
 ```bash
 # Health check
-curl https://your-app.railway.app
-
-# Swagger docs
-# Mở browser: https://your-app.railway.app/api
+curl https://volunteerhub-backend.onrender.com
 ```
 
+Mở Swagger:
+
+```text
+https://volunteerhub-backend.onrender.com/api
+```
+
+### Frontend (Vercel/Netlify)
+
+- Mở URL FE (Vercel/Netlify) trên browser
+- Thử login, gọi API → nếu env đã set đúng thì FE sẽ gọi được backend Render
+
 ---
 
-## 📚 Chi tiết đầy đủ
+## 5️⃣ Chi phí (tất cả đều free tier)
 
-Xem [DEPLOYMENT.md](./DEPLOYMENT.md) để biết:
-- Troubleshooting
-- Monitoring
-- Custom domain
-- Backup database
+- **Supabase**: 500MB PostgreSQL database miễn phí → đủ cho dev/test + demo
+- **Render**: Free Web Service tier → đủ cho backend NestJS nhỏ
+- **Vercel/Netlify**: Free tier cho static site (Angular build) → đủ cho đồ án / demo
 
----
+👉 Tổng thể: **deploy full FE + BE hoàn toàn miễn phí** (với giới hạn free tier).
 
-## 💰 Chi phí
-
-- **Railway**: $5 credit/tháng (miễn phí) → Đủ cho project nhỏ
-- **Supabase**: 500MB database (miễn phí) → Đủ cho dev/test
-
-**Tổng: Hoàn toàn miễn phí!** 🎉
 

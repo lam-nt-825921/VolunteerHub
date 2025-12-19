@@ -160,38 +160,8 @@ Xem `src/notifications/SOCKET_IO_GUIDE.md` để biết chi tiết.
 - **Development:** SQLite (file: `dev.db`)
 - **Production:** PostgreSQL (Supabase)
 - **ORM:** Prisma
-- **Schema Management:** Tự động chọn schema dựa trên `DATABASE_URL`
-
-### Schema Files
-
-- **`schema.sqlite.prisma`**: Schema cho SQLite (development) - `provider = "sqlite"`
-- **`schema.postgresql.prisma`**: Schema cho PostgreSQL (production) - `provider = "postgresql"`
-- **`schema.prisma`**: File được tự động tạo từ một trong hai file trên (không commit vào git)
-
-### Database Auto-Detection
-
-Hệ thống tự động detect database type từ `DATABASE_URL` và chọn schema phù hợp:
-
-- **Development** (`.env` với `DATABASE_URL="file:./dev.db"`):
-  - Script tự động copy `schema.sqlite.prisma` → `schema.prisma`
-  - Prisma Client được generate với SQLite provider
-  - Migrations chạy trên SQLite
-
-- **Production** (`.env.prod` với `DATABASE_URL="postgresql://..."`):
-  - Script tự động copy `schema.postgresql.prisma` → `schema.prisma`
-  - Prisma Client được generate với PostgreSQL provider
-  - Migrations chạy trên Supabase
-
-**Không cần thay đổi code thủ công!** Scripts tự động chọn schema đúng trước khi chạy Prisma commands.
-
-### Schema Management Scripts
-
-| Script | Mô tả |
-|--------|-------|
-| `npm run prisma:select-schema` | Chọn schema SQLite (dựa trên `.env`) |
-| `npm run prisma:select-schema:prod` | Chọn schema PostgreSQL (dựa trên `.env.prod`) |
-
-Các script Prisma khác tự động gọi `prisma:select-schema` trước khi chạy.
+- **Schema:** `src/prisma/schema.prisma`
+- **Migrations:** `src/prisma/migrations/`
 
 ### Prisma Studio
 
