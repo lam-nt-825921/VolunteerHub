@@ -151,6 +151,72 @@
                     <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
                   </div>
                   <p>{{ comment.content }}</p>
+                  <div class="comment-actions">
+                    <button
+                      class="reply-btn"
+                      (click)="startReply(comment.id)"
+                      type="button"
+                      [disabled]="isLoading()"
+                    >
+                      <mat-icon>reply</mat-icon>
+                      <span>Phản hồi</span>
+                    </button>
+                    @if (canManage || comment.author.id === authService.user()?.id) {
+                      <button
+                        class="delete-comment-btn"
+                        (click)="deleteComment(comment, post)"
+                        title="Xóa bình luận"
+                        type="button"
+                        [disabled]="isLoading()"
+                      >
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    }
+                  </div>
+                  
+                  <!-- Reply Form -->
+                  @if (isReplyingTo(comment.id)) {
+                    <div class="reply-form">
+                      <div class="reply-author-avatar">
+                        @if (authService.user()?.avatar) {
+                          <img [src]="authService.user()?.avatar" alt="Avatar">
+                        } @else {
+                          {{ (authService.user()?.name?.charAt(0) || 'U').toUpperCase() }}
+                        }
+                      </div>
+                      <div class="reply-input-wrapper">
+                        <input
+                          type="text"
+                          [value]="getReplyContent(comment.id)"
+                          (input)="setReplyContent(comment.id, $any($event.target).value)"
+                          (keyup.enter)="submitReply(post.id, comment.id)"
+                          (keyup.escape)="cancelReply(comment.id)"
+                          placeholder="Viết phản hồi..."
+                          class="reply-input"
+                          [disabled]="isLoading()"
+                        />
+                        <div class="reply-actions">
+                          <button
+                            class="reply-submit-btn"
+                            (click)="submitReply(post.id, comment.id)"
+                            [disabled]="!getReplyContent(comment.id).trim() || isLoading()"
+                            type="button"
+                          >
+                            <mat-icon>send</mat-icon>
+                          </button>
+                          <button
+                            class="reply-cancel-btn"
+                            (click)="cancelReply(comment.id)"
+                            type="button"
+                            [disabled]="isLoading()"
+                          >
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                  
                   <!-- Render replies if any -->
                   @if (comment.replies && comment.replies.length > 0) {
                     <div class="comment-replies">
@@ -186,17 +252,6 @@
                     </div>
                   }
                 </div>
-                @if (canManage || comment.author.id === authService.user()?.id) {
-                  <button
-                    class="delete-comment-btn"
-                    (click)="deleteComment(comment, post)"
-                    title="Xóa bình luận"
-                    type="button"
-                    [disabled]="isLoading()"
-                  >
-                    <mat-icon>delete</mat-icon>
-                  </button>
-                }
               </div>
             }
 

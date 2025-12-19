@@ -454,8 +454,142 @@
 .comment-content p {
   color: var(--text-primary);
   font-size: 0.9rem;
-  margin: 0;
+  margin: 0 0 0.5rem 0;
   line-height: 1.4;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.reply-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background-color: var(--bg-secondary);
+    color: var(--color-primary);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.reply-form {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.reply-author-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-accent-1), var(--color-accent-2));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.reply-input-wrapper {
+  flex: 1;
+  display: flex;
+  gap: 0.5rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 1.25rem;
+  padding: 0.5rem 0.75rem;
+  align-items: center;
+}
+
+.reply-input {
+  flex: 1;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  outline: none;
+
+  &::placeholder {
+    color: var(--text-secondary);
+  }
+}
+
+.reply-actions {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.reply-submit-btn,
+.reply-cancel-btn {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  border-radius: 0.25rem;
+
+  &:hover:not(:disabled) {
+    background-color: var(--bg-primary);
+    transform: scale(1.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.reply-cancel-btn {
+  color: var(--text-secondary);
+
+  &:hover:not(:disabled) {
+    color: var(--text-primary);
+  }
 }
 
 .delete-comment-btn {

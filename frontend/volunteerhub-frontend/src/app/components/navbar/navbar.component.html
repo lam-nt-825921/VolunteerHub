@@ -17,11 +17,11 @@
 
     <!-- Desktop Navigation -->
     <ul class="navbar-menu desktop-menu">
-      <li><a routerLink="/" class="nav-link">Trang chủ</a></li>
-      <li><a routerLink="/events" class="nav-link">Sự kiện</a></li>
+      <li><a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">Trang chủ</a></li>
+      <li><a routerLink="/events" routerLinkActive="active" class="nav-link">Sự kiện</a></li>
       @if (authService.isAuthenticated()) {
         <li>
-          <a routerLink="/dashboard" class="nav-link">Dashboard</a>
+          <a routerLink="/dashboard" routerLinkActive="active" class="nav-link">Dashboard</a>
         </li>
       }
     </ul>
@@ -76,14 +76,14 @@
   <!-- Mobile Navigation -->
   <div class="mobile-menu" [class.open]="isMenuOpen()">
     <ul class="navbar-menu mobile-menu-list">
-      <li><a routerLink="/" class="nav-link" (click)="closeMenu()">Trang chủ</a></li>
-      <li><a routerLink="/events" class="nav-link" (click)="closeMenu()">Sự kiện</a></li>
+      <li><a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link" (click)="closeMenu()">Trang chủ</a></li>
+      <li><a routerLink="/events" routerLinkActive="active" class="nav-link" (click)="closeMenu()">Sự kiện</a></li>
       @if (authService.isAuthenticated()) {
         <li>
-          <a routerLink="/dashboard" class="nav-link" (click)="closeMenu()">Dashboard</a>
+          <a routerLink="/dashboard" routerLinkActive="active" class="nav-link" (click)="closeMenu()">Dashboard</a>
         </li>
         <li class="mobile-user-info">
-          <a routerLink="/profile" class="user-profile-link-mobile" (click)="closeMenu()">
+          <a routerLink="/profile" routerLinkActive="active" class="user-profile-link-mobile" (click)="closeMenu()">
             <span class="user-name">{{ authService.user()?.name }}</span>
           </a>
         </li>

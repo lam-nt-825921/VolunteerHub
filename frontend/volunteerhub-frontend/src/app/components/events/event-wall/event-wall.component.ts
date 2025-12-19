@@ -21,6 +21,8 @@ export class EventWallComponent implements OnInit {
   posts = signal<Post[]>([]);
   newPostContent = signal('');
   newCommentContent = signal<Map<number, string>>(new Map());
+  replyingToComment = signal<Map<number, boolean>>(new Map()); // Map commentId -> isReplying
+  replyContent = signal<Map<number, string>>(new Map()); // Map commentId -> replyContent
   selectedFile: File | null = null;
   previewUrl: string | null = null;
   isLoading = signal(false);
@@ -158,7 +160,14 @@ export class EventWallComponent implements OnInit {
     }
   }
 
-  async addComment(postId: number) {
+  async addComment(postId: number, parentId?: number) {
+    if (parentId) {
+      // This is a reply
+      await this.submitReply(postId, parentId);
+      return;
+    }
+
+    // This is a top-level comment
     const contentMap = this.newCommentContent();
     const content = contentMap.get(postId)?.trim();
     if (!content) {
@@ -186,6 +195,71 @@ export class EventWallComponent implements OnInit {
     } finally {
       this.isLoading.set(false);
     }
+  }
+
+  startReply(commentId: number) {
+    const replyingMap = this.replyingToComment();
+    replyingMap.set(commentId, true);
+    this.replyingToComment.set(new Map(replyingMap));
+  }
+
+  cancelReply(commentId: number) {
+    const replyingMap = this.replyingToComment();
+    replyingMap.delete(commentId);
+    this.replyingToComment.set(new Map(replyingMap));
+    
+    const replyContentMap = this.replyContent();
+    replyContentMap.delete(commentId);
+    this.replyContent.set(new Map(replyContentMap));
+  }
+
+  async submitReply(postId: number, parentCommentId: number) {
+    const replyContentMap = this.replyContent();
+    const content = replyContentMap.get(parentCommentId)?.trim();
+    if (!content) {
+      return;
+    }
+
+    if (!this.authService.isAuthenticated()) {
+      return;
+    }
+
+    this.isLoading.set(true);
+    try {
+      await firstValueFrom(this.postsApi.createComment(postId, {
+        content,
+        parentId: parentCommentId
+      }));
+      
+      replyContentMap.delete(parentCommentId);
+      this.replyContent.set(new Map(replyContentMap));
+      
+      const replyingMap = this.replyingToComment();
+      replyingMap.delete(parentCommentId);
+      this.replyingToComment.set(new Map(replyingMap));
+      
+      // Reload comments for this post
+      await this.reloadCommentsForPost(postId);
+    } catch (error: any) {
+      console.error('Error adding reply:', error);
+      this.alertService.showError(error?.message || 'Phản hồi thất bại. Vui lòng thử lại!');
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  isReplyingTo(commentId: number): boolean {
+    return this.replyingToComment().get(commentId) || false;
+  }
+
+  getReplyContent(commentId: number): string {
+    return this.replyContent().get(commentId) || '';
+  }
+
+  setReplyContent(commentId: number, content: string) {
+    const replyContentMap = this.replyContent();
+    replyContentMap.set(commentId, content);
+    this.replyContent.set(new Map(replyContentMap));
   }
 
   async reloadCommentsForPost(postId: number) {

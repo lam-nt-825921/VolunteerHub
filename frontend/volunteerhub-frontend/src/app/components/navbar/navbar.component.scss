@@ -128,6 +128,15 @@
   &:hover::after {
     width: 100%;
   }
+
+  &.active {
+    color: var(--color-primary);
+    font-weight: 600;
+
+    &::after {
+      width: 100%;
+    }
+  }
 }
 
 .navbar-actions {
@@ -348,6 +357,14 @@
     &::after {
       display: none;
     }
+
+    &.active {
+      color: var(--color-primary);
+      font-weight: 600;
+      background-color: var(--bg-secondary);
+      padding-left: 0.5rem;
+      border-left: 3px solid var(--color-primary);
+    }
   }
 
   .mobile-user-info {
@@ -362,6 +379,14 @@
 
       &:hover {
         color: var(--color-primary);
+      }
+
+      &.active {
+        color: var(--color-primary);
+        font-weight: 600;
+        background-color: var(--bg-secondary);
+        padding-left: 0.5rem;
+        border-left: 3px solid var(--color-primary);
       }
     }
     border-bottom: 1px solid var(--border-color);
