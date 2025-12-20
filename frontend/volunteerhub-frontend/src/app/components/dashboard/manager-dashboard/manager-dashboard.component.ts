@@ -101,9 +101,15 @@ export class ManagerDashboardComponent implements OnInit {
           visibility: eventData.visibility || 'PUBLIC',
         };
         
-        // Only include coverImage if it's provided
-        if (eventData.imageUrl || eventData.coverImage) {
-          updateData.coverImage = eventData.imageUrl || eventData.coverImage;
+        // Get coverImageFile if provided, otherwise use coverImage URL
+        const coverImageFile = eventData.coverImageFile;
+        const coverImageUrl = (!coverImageFile && (eventData.imageUrl || eventData.coverImage)) 
+          ? (eventData.imageUrl || eventData.coverImage) 
+          : undefined;
+        
+        // Only include coverImage if it's provided (and no file)
+        if (coverImageUrl) {
+          updateData.coverImage = coverImageUrl;
         }
         
         // Only include categoryId if provided
@@ -111,7 +117,7 @@ export class ManagerDashboardComponent implements OnInit {
           updateData.categoryId = eventData.categoryId;
         }
         
-        const result = await this.eventsService.updateEvent(this.editingEvent()!.id, updateData);
+        const result = await this.eventsService.updateEvent(this.editingEvent()!.id, updateData, coverImageFile);
         if (result.success) {
           this.alertService.showSuccess(result.message);
           this.closeEventForm();
@@ -123,16 +129,22 @@ export class ManagerDashboardComponent implements OnInit {
         // Use categoryId from form data
         const categoryId = eventData.categoryId;
         
+        // Get coverImageFile if provided, otherwise use coverImage URL
+        const coverImageFile = eventData.coverImageFile;
+        const coverImageUrl = (!coverImageFile && (eventData.imageUrl || eventData.coverImage)) 
+          ? (eventData.imageUrl || eventData.coverImage) 
+          : undefined;
+        
         const result = await this.eventsService.createEvent({
           title: eventData.title,
           description: eventData.description,
           location: eventData.location,
           startTime: eventData.startDate || eventData.startTime,
           endTime: eventData.endDate || eventData.endTime,
-          coverImage: eventData.imageUrl || eventData.coverImage || undefined,
+          coverImage: coverImageUrl,
           visibility: eventData.visibility || 'PUBLIC',
           categoryId: categoryId
-        });
+        }, coverImageFile);
         
         if (result.success && result.event) {
           // Automatically register the manager as a participant in their own event

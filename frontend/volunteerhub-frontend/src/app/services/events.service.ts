@@ -146,9 +146,9 @@ export class EventsService {
    * Create a new event
    * Only EVENT_MANAGER and ADMIN can create events
    */
-  async createEvent(data: CreateEventRequest): Promise<{ success: boolean; message: string; event?: EventResponse }> {
+  async createEvent(data: CreateEventRequest, coverImageFile?: File): Promise<{ success: boolean; message: string; event?: EventResponse }> {
     try {
-      const event = await firstValueFrom(this.eventsApi.createEvent(data));
+      const event = await firstValueFrom(this.eventsApi.createEvent(data, coverImageFile));
       return { success: true, message: 'Tạo sự kiện thành công! Đang chờ duyệt.', event };
     } catch (error: any) {
       return { success: false, message: error?.message || 'Tạo sự kiện thất bại. Vui lòng thử lại!' };
@@ -158,9 +158,9 @@ export class EventsService {
   /**
    * Update an existing event
    */
-  async updateEvent(eventId: number, data: UpdateEventRequest): Promise<{ success: boolean; message: string; event?: EventResponse }> {
+  async updateEvent(eventId: number, data: UpdateEventRequest, coverImageFile?: File): Promise<{ success: boolean; message: string; event?: EventResponse }> {
     try {
-      const event = await firstValueFrom(this.eventsApi.updateEvent(eventId, data));
+      const event = await firstValueFrom(this.eventsApi.updateEvent(eventId, data, coverImageFile));
       return { success: true, message: 'Cập nhật sự kiện thành công!', event };
     } catch (error: any) {
       return { success: false, message: error?.message || 'Cập nhật sự kiện thất bại. Vui lòng thử lại!' };
