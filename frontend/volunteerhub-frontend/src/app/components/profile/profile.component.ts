@@ -37,6 +37,7 @@ export class ProfileComponent implements OnInit {
   };
   selectedAvatar: File | null = null;
   avatarPreview: string | null = null;
+  fileSizeWarning = signal<string | null>(null);
 
   constructor(
     public authService: AuthService,
@@ -87,6 +88,7 @@ export class ProfileComponent implements OnInit {
     this.avatarPreview = this.profile?.avatar || null;
     this.errorMessage.set('');
     this.successMessage.set('');
+    this.fileSizeWarning.set(null);
   }
 
   onAvatarSelected(event: Event) {
@@ -97,7 +99,17 @@ export class ProfileComponent implements OnInit {
       // Validate file type
       if (!file.type.startsWith('image/')) {
         this.errorMessage.set('Vui lòng chọn file ảnh hợp lệ');
+        this.fileSizeWarning.set(null);
         return;
+      }
+
+      // Check file size for warning (10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        this.fileSizeWarning.set(`Cảnh báo: ${file.name} vượt quá 10MB (${fileSizeMB}MB). Vui lòng chọn ảnh nhỏ hơn.`);
+      } else {
+        this.fileSizeWarning.set(null);
       }
 
       this.selectedAvatar = file;

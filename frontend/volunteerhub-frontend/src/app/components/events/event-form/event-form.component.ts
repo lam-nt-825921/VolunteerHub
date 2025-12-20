@@ -59,6 +59,7 @@ export class EventFormComponent implements OnInit {
 
   selectedFile: File | null = null;
   previewUrl: string | null = null;
+  fileSizeWarning: string | null = null;
 
   // Category mapping: name -> approximate ID (based on seed data order)
   // Note: This is a workaround since there's no categories API endpoint
@@ -153,12 +154,23 @@ export class EventFormComponent implements OnInit {
       // Validate file type
       if (!file.type.startsWith('image/')) {
         this.alertService.showError('Vui lòng chọn file ảnh hợp lệ');
+        this.fileSizeWarning = null;
         return;
+      }
+
+      // Check file size for warning (10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        this.fileSizeWarning = `Cảnh báo: ${file.name} vượt quá 10MB (${fileSizeMB}MB). Vui lòng chọn ảnh nhỏ hơn.`;
+      } else {
+        this.fileSizeWarning = null;
       }
 
       // Validate file size (max 30MB)
       if (file.size > 30 * 1024 * 1024) {
         this.alertService.showError('Kích thước file không được vượt quá 30MB');
+        this.fileSizeWarning = null;
         return;
       }
 
@@ -177,6 +189,7 @@ export class EventFormComponent implements OnInit {
     this.selectedFile = null;
     this.previewUrl = null;
     this.formData.coverImage = '';
+    this.fileSizeWarning = null;
   }
 
   updatePreviewFromUrl() {

@@ -54,6 +54,9 @@
                 <mat-icon>camera_alt</mat-icon>
                 <span>Đổi ảnh</span>
               </label>
+              @if (fileSizeWarning()) {
+                <p class="file-size-warning">{{ fileSizeWarning() }}</p>
+              }
             }
           </div>
         </div>
