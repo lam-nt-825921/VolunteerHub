@@ -149,6 +149,9 @@
         (change)="onFileSelected($event)"
         class="file-input-hidden"
       />
+      @if (fileSizeWarning) {
+        <p class="file-size-warning">{{ fileSizeWarning }}</p>
+      }
       <p class="file-upload-hint">Hoặc nhập URL ảnh (bắt buộc nếu muốn upload ảnh):</p>
       <input
         type="url"

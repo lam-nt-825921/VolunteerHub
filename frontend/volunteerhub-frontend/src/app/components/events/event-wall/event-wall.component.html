@@ -24,6 +24,9 @@
           </button>
         </div>
       }
+      @if (fileSizeWarning()) {
+        <p class="file-size-warning">{{ fileSizeWarning() }}</p>
+      }
       <div class="post-actions">
         <label class="file-upload-btn">
           <mat-icon>image</mat-icon>

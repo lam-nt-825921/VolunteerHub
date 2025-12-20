@@ -100,12 +100,26 @@ export class EventWallComponent implements OnInit {
   }
 
   selectedFiles: File[] = [];
+  fileSizeWarning = signal<string | null>(null);
   
   onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
+      const files = Array.from(input.files);
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      
+      // Check for files exceeding 10MB
+      const oversizedFiles = files.filter(file => file.size > maxSize);
+      if (oversizedFiles.length > 0) {
+        const fileNames = oversizedFiles.map(f => f.name).join(', ');
+        const fileSizes = oversizedFiles.map(f => (f.size / (1024 * 1024)).toFixed(2)).join(', ');
+        this.fileSizeWarning.set(`Cảnh báo: ${fileNames} vượt quá 10MB (${fileSizes}MB). Vui lòng chọn ảnh nhỏ hơn.`);
+      } else {
+        this.fileSizeWarning.set(null);
+      }
+      
       // Store all selected files (up to 10, matching backend limit)
-      this.selectedFiles = Array.from(input.files).slice(0, 10);
+      this.selectedFiles = files.slice(0, 10);
       
       // Preview the first image
       const firstFile = this.selectedFiles[0];
@@ -125,6 +139,7 @@ export class EventWallComponent implements OnInit {
   removeImage() {
     this.selectedFiles = [];
     this.previewUrl = null;
+    this.fileSizeWarning.set(null);
   }
 
   async createPost() {
