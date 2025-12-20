@@ -30,6 +30,7 @@ export interface EventFormData {
   categoryId?: number; // Category ID for backend
   visibility: string;
   coverImage?: string;
+  coverImageFile?: File; // File object for upload
 }
 
 @Component({
@@ -224,11 +225,11 @@ export class EventFormComponent implements OnInit {
       }
     }
 
-    // Handle cover image: if file is selected, convert to data URL for preview
-    // But backend only accepts URLs, so we'll only send if it's a URL
-    if (this.selectedFile && !this.formData.coverImage?.trim()) {
-      // File selected but no URL provided - set preview but don't send to backend
-      this.formData.coverImage = undefined;
+    // Handle cover image: if file is selected, send file; otherwise send URL if provided
+    if (this.selectedFile) {
+      // File selected - send file object (backend will upload to Cloudinary)
+      this.formData.coverImageFile = this.selectedFile;
+      this.formData.coverImage = undefined; // Don't send URL if file is provided
     } else if (this.formData.coverImage?.trim()) {
       // Validate that it's a proper URL format (not base64)
       if (this.formData.coverImage.startsWith('data:')) {
@@ -236,9 +237,11 @@ export class EventFormComponent implements OnInit {
         this.formData.coverImage = undefined;
       }
       // If it's a valid URL string, keep it
+      this.formData.coverImageFile = undefined;
     } else {
       // No cover image - that's fine, it's optional
       this.formData.coverImage = undefined;
+      this.formData.coverImageFile = undefined;
     }
 
     this.save.emit(this.formData);

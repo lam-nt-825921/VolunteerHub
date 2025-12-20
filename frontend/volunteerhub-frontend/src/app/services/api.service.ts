@@ -102,9 +102,9 @@ export class ApiService {
   /**
    * PATCH request
    */
-  patch<T>(url: string, body: any, includeAuth: boolean = true): Observable<T> {
+  patch<T>(url: string, body: any, includeAuth: boolean = true, isFormData: boolean = false): Observable<T> {
     return this.http.patch<T>(`${this.getBaseUrl()}${url}`, body, {
-      headers: this.getHeaders(includeAuth),
+      headers: this.getHeaders(includeAuth, isFormData),
       withCredentials: true
     }).pipe(
       catchError(this.handleError)

@@ -159,17 +159,70 @@ export class EventsApiService {
    * Only EVENT_MANAGER and ADMIN can create events
    * New events start with status: PENDING
    */
-  createEvent(data: CreateEventRequest): Observable<EventResponse> {
-    return this.apiService.post<EventResponse>(API_CONFIG.endpoints.events.base, data, true);
+  createEvent(data: CreateEventRequest, coverImageFile?: File): Observable<EventResponse> {
+    const url = API_CONFIG.endpoints.events.base;
+    
+    // If coverImageFile is provided, use FormData; otherwise use JSON
+    if (coverImageFile) {
+      const formData = new FormData();
+      formData.append('title', data.title);
+      formData.append('description', data.description);
+      formData.append('location', data.location);
+      formData.append('startTime', data.startTime);
+      formData.append('endTime', data.endTime);
+      if (data.visibility) {
+        formData.append('visibility', data.visibility);
+      }
+      if (data.categoryId) {
+        formData.append('categoryId', data.categoryId.toString());
+      }
+      // Append file with field name 'coverImage' (backend expects this)
+      formData.append('coverImage', coverImageFile);
+      return this.apiService.post<EventResponse>(url, formData, true, true);
+    } else {
+      // No file, send JSON (coverImage can be URL string)
+      return this.apiService.post<EventResponse>(url, data, true);
+    }
   }
 
   /**
    * Update an existing event
    * Only the creator or ADMIN can update
    */
-  updateEvent(eventId: number, data: UpdateEventRequest): Observable<EventResponse> {
+  updateEvent(eventId: number, data: UpdateEventRequest, coverImageFile?: File): Observable<EventResponse> {
     const url = API_CONFIG.endpoints.events.byId.replace(':id', eventId.toString());
-    return this.apiService.patch<EventResponse>(url, data, true);
+    
+    // If coverImageFile is provided, use FormData; otherwise use JSON
+    if (coverImageFile) {
+      const formData = new FormData();
+      if (data.title) {
+        formData.append('title', data.title);
+      }
+      if (data.description) {
+        formData.append('description', data.description);
+      }
+      if (data.location) {
+        formData.append('location', data.location);
+      }
+      if (data.startTime) {
+        formData.append('startTime', data.startTime);
+      }
+      if (data.endTime) {
+        formData.append('endTime', data.endTime);
+      }
+      if (data.visibility) {
+        formData.append('visibility', data.visibility);
+      }
+      if (data.categoryId !== undefined && data.categoryId !== null) {
+        formData.append('categoryId', data.categoryId.toString());
+      }
+      // Append file with field name 'coverImage' (backend expects this)
+      formData.append('coverImage', coverImageFile);
+      return this.apiService.patch<EventResponse>(url, formData, true, true);
+    } else {
+      // No file, send JSON (coverImage can be URL string or null to remove)
+      return this.apiService.patch<EventResponse>(url, data, true);
+    }
   }
 
   /**

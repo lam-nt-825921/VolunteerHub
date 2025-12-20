@@ -205,11 +205,19 @@ export class EventManagementComponent implements OnInit {
         visibility: eventData.visibility || 'PUBLIC',
       };
 
-      if (eventData.coverImage) {
-        updateData.coverImage = eventData.coverImage;
-      } else {
+      // Get coverImageFile if provided, otherwise use coverImage URL
+      const coverImageFile = eventData.coverImageFile;
+      const coverImageUrl = (!coverImageFile && eventData.coverImage) 
+        ? eventData.coverImage 
+        : undefined;
+      
+      if (coverImageUrl) {
+        updateData.coverImage = coverImageUrl;
+      } else if (!coverImageFile) {
+        // No file and no URL - set to null to remove cover image
         updateData.coverImage = null;
       }
+      // If coverImageFile is provided, don't set coverImage in updateData (file will be sent separately)
 
       // Handle category - use categoryId from form data if available
       if (eventData.categoryId) {
@@ -219,7 +227,7 @@ export class EventManagementComponent implements OnInit {
         updateData.categoryId = this.event.category.id;
       }
 
-      const result = await this.eventsService.updateEvent(this.event.id, updateData);
+      const result = await this.eventsService.updateEvent(this.event.id, updateData, coverImageFile);
       if (result.success) {
         this.closeEventForm();
         await this.loadEvent(this.event.id);

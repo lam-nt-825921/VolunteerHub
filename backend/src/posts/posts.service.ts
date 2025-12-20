@@ -917,7 +917,9 @@ export class PostsService {
   /**
    * Danh sách comments của 1 post (nested replies)
    */
-  async getCommentsForPost(postId: number, actor: Actor | null) {
+  async getCommentsForPost(postId: number, actor: Actor) {
+    logger.log(`[getCommentsForPost] Called - postId: ${postId}, actorId: ${actor.id}`);
+    
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
       select: {
@@ -927,23 +929,43 @@ export class PostsService {
           select: {
             visibility: true,
             status: true,
+            creatorId: true,
           },
         },
       },
     });
 
     if (!post) {
+      logger.warn(`[getCommentsForPost] Post ${postId} not found`);
       throw new NotFoundException('Bài đăng không tồn tại');
     }
 
-    // Check visibility
-    if (!actor) {
-      if (
-        post.event.visibility === EventVisibility.INTERNAL ||
-        post.event.visibility === EventVisibility.PRIVATE
-      ) {
-        throw new ForbiddenException('Bạn cần đăng nhập để xem bình luận');
+    logger.log(`[getCommentsForPost] Post ${postId} found, eventId: ${post.eventId}, eventVisibility: ${post.event.visibility}`);
+
+    // Kiểm tra user có tham gia event không (trừ khi là event creator)
+    const isEventCreator = post.event.creatorId === actor.id;
+    
+    if (!isEventCreator) {
+      const registration = await this.prisma.registration.findUnique({
+        where: {
+          userId_eventId: { userId: actor.id, eventId: post.eventId },
+        },
+        select: { status: true },
+      });
+
+      logger.log(`[getCommentsForPost] Registration check - userId: ${actor.id}, eventId: ${post.eventId}, found: ${!!registration}, status: ${registration?.status || 'N/A'}`);
+
+      if (!registration) {
+        // Với PUBLIC event, vẫn cho xem comments
+        if (post.event.visibility === EventVisibility.PUBLIC) {
+          logger.log(`[getCommentsForPost] Public event, allowing comment view without registration`);
+        } else {
+          logger.warn(`[getCommentsForPost] User ${actor.id} has no registration for event ${post.eventId} and event is not PUBLIC`);
+          throw new ForbiddenException('Bạn chưa tham gia sự kiện này');
+        }
       }
+    } else {
+      logger.log(`[getCommentsForPost] User ${actor.id} is event creator, allowing comment view`);
     }
 
     // Lấy tất cả comments của post (bao gồm cả nested replies)
@@ -1005,6 +1027,8 @@ export class PostsService {
    * Tạo comment/reply
    */
   async createComment(postId: number, dto: CreateCommentDto, actor: Actor) {
+    logger.log(`[createComment] Called - postId: ${postId}, actorId: ${actor.id}, parentId: ${dto.parentId || 'none'}`);
+    
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
       select: {
@@ -1013,6 +1037,7 @@ export class PostsService {
         event: {
           select: {
             status: true,
+            creatorId: true,
           },
         },
         authorId: true,
@@ -1020,32 +1045,50 @@ export class PostsService {
     });
 
     if (!post) {
+      logger.warn(`[createComment] Post ${postId} not found`);
       throw new NotFoundException('Bài đăng không tồn tại');
     }
 
+    logger.log(`[createComment] Post ${postId} found, eventId: ${post.eventId}, eventStatus: ${post.event.status}, eventCreatorId: ${post.event.creatorId}`);
+
     if (post.event.status !== EventStatus.APPROVED) {
+      logger.warn(`[createComment] Event ${post.eventId} status is ${post.event.status}, not APPROVED`);
       throw new ForbiddenException('Sự kiện chưa được duyệt');
     }
 
-    // Check user đã tham gia event chưa
-    const registration = await this.prisma.registration.findUnique({
-      where: {
-        userId_eventId: { userId: actor.id, eventId: post.eventId },
-      },
-      select: { status: true },
-    });
+    // Event creator luôn có quyền comment
+    const isEventCreator = post.event.creatorId === actor.id;
+    logger.log(`[createComment] Is event creator: ${isEventCreator}`);
 
-    if (!registration) {
-      throw new ForbiddenException('Bạn chưa tham gia sự kiện này');
-    }
+    if (!isEventCreator) {
+      // Check user đã tham gia event chưa (chỉ check nếu không phải creator)
+      const registration = await this.prisma.registration.findUnique({
+        where: {
+          userId_eventId: { userId: actor.id, eventId: post.eventId },
+        },
+        select: { status: true },
+      });
 
-    // Chấp nhận APPROVED hoặc ATTENDED (đã được duyệt hoặc đã điểm danh)
-    const isValidStatus = 
-      registration.status === RegistrationStatus.APPROVED || 
-      registration.status === RegistrationStatus.ATTENDED;
-    
-    if (!isValidStatus) {
-      throw new ForbiddenException('Bạn chưa được duyệt tham gia sự kiện hoặc chưa điểm danh');
+      logger.log(`[createComment] Registration check - userId: ${actor.id}, eventId: ${post.eventId}, found: ${!!registration}, status: ${registration?.status || 'N/A'}`);
+
+      if (!registration) {
+        logger.warn(`[createComment] User ${actor.id} has no registration for event ${post.eventId}`);
+        throw new ForbiddenException('Bạn chưa tham gia sự kiện này');
+      }
+
+      // Chấp nhận APPROVED hoặc ATTENDED (đã được duyệt hoặc đã điểm danh)
+      const isValidStatus = 
+        registration.status === RegistrationStatus.APPROVED || 
+        registration.status === RegistrationStatus.ATTENDED;
+      
+      logger.log(`[createComment] Registration status: ${registration.status}, isValidStatus: ${isValidStatus}`);
+      
+      if (!isValidStatus) {
+        logger.warn(`[createComment] Registration status ${registration.status} is not valid (must be APPROVED or ATTENDED)`);
+        throw new ForbiddenException('Bạn chưa được duyệt tham gia sự kiện hoặc chưa điểm danh');
+      }
+    } else {
+      logger.log(`[createComment] User ${actor.id} is event creator, skipping registration check`);
     }
 
     // Nếu là reply, check parent comment tồn tại và cùng post
@@ -1064,6 +1107,8 @@ export class PostsService {
       }
     }
 
+    logger.log(`[createComment] Creating comment - content length: ${dto.content.trim().length}, parentId: ${dto.parentId || 'none'}`);
+    
     const comment = await this.prisma.comment.create({
       data: {
         content: dto.content.trim(),
@@ -1088,6 +1133,8 @@ export class PostsService {
       },
     });
 
+    logger.log(`[createComment] Comment created successfully - commentId: ${comment.id}, authorId: ${comment.author.id}, postId: ${comment.postId}`);
+
     // Notification COMMENT_REPLY: nếu là reply và không phải reply vào comment của chính mình
     if (dto.parentId) {
       const parent = await this.prisma.comment.findUnique({
@@ -1106,9 +1153,13 @@ export class PostsService {
       }
     }
 
-    return plainToInstance(CommentResponseDto, comment, {
+    const response = plainToInstance(CommentResponseDto, comment, {
       excludeExtraneousValues: true,
     });
+    
+    logger.log(`[createComment] Returning comment response - commentId: ${response.id}`);
+    
+    return response;
   }
 
   /**
