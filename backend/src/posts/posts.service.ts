@@ -946,11 +946,10 @@ export class PostsService {
       }
     }
 
-    // Lấy comments gốc (parentId = null)
-    const rootComments = await this.prisma.comment.findMany({
+    // Lấy tất cả comments của post (bao gồm cả nested replies)
+    const allComments = await this.prisma.comment.findMany({
       where: {
         postId: post.id,
-        parentId: null,
       },
       orderBy: { createdAt: 'asc' },
       select: {
@@ -970,34 +969,11 @@ export class PostsService {
       },
     });
 
-    // Lấy replies cho mỗi comment gốc
-    const rootCommentIds = rootComments.map((c) => c.id);
-    const replies = rootCommentIds.length > 0
-      ? await this.prisma.comment.findMany({
-          where: {
-            postId: post.id,
-            parentId: { in: rootCommentIds },
-          },
-          orderBy: { createdAt: 'asc' },
-          select: {
-            id: true,
-            content: true,
-            createdAt: true,
-            updatedAt: true,
-            parentId: true,
-            postId: true,
-            author: {
-              select: {
-                id: true,
-                fullName: true,
-                avatar: true,
-              },
-            },
-          },
-        })
-      : [];
+    // Tách root comments và replies
+    const rootComments = allComments.filter((c) => c.parentId === null);
+    const replies = allComments.filter((c) => c.parentId !== null);
 
-    // Group replies by parentId
+    // Group replies by parentId (hỗ trợ nested replies)
     const repliesByParent = new Map<number, typeof replies>();
     replies.forEach((reply) => {
       if (reply.parentId) {
@@ -1008,11 +984,17 @@ export class PostsService {
       }
     });
 
-    // Attach replies to root comments
-    const commentsWithReplies = rootComments.map((comment) => ({
-      ...comment,
-      replies: repliesByParent.get(comment.id) || [],
-    }));
+    // Recursive function để attach nested replies
+    const attachReplies = (comment: typeof rootComments[0]): typeof rootComments[0] & { replies: any[] } => {
+      const commentReplies = repliesByParent.get(comment.id) || [];
+      return {
+        ...comment,
+        replies: commentReplies.map((reply) => attachReplies(reply as any)),
+      };
+    };
+
+    // Attach replies to root comments (recursive)
+    const commentsWithReplies = rootComments.map((comment) => attachReplies(comment));
 
     return plainToInstance(CommentResponseDto, commentsWithReplies, {
       excludeExtraneousValues: true,
