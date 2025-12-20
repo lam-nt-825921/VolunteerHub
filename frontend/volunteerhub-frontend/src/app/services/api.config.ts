@@ -54,7 +54,20 @@ export const API_CONFIG = {
       like: '/posts/:postId/like',                  // POST - like post, DELETE - unlike post
       comments: '/posts/:postId/comments',          // GET - get comments, POST - create comment
       commentById: '/comments/:commentId',          // PATCH - update comment, DELETE - delete comment
+    },
+    // Notifications endpoints
+    notifications: {
+      list: '/notifications',                       // GET - list notifications
+      unreadCount: '/notifications/unread-count',   // GET - unread count
+      markAsRead: '/notifications/:id/read',        // PATCH - mark as read
+      markAllAsRead: '/notifications/read-all',     // PATCH - mark all as read
+      delete: '/notifications/:id',                 // DELETE - delete notification
     }
+  },
+  // WebSocket configuration
+  websocket: {
+    url: 'http://localhost:3000',
+    namespace: '/notifications'
   }
 };
 

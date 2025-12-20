@@ -1,9 +1,10 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../services/auth.service';
 import { NotificationService, Notification } from '../../../services/notification.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-notification-bell',
@@ -12,33 +13,107 @@ import { NotificationService, Notification } from '../../../services/notificatio
   templateUrl: './notification-bell.component.html',
   styleUrl: './notification-bell.component.scss'
 })
-export class NotificationBellComponent implements OnInit {
+export class NotificationBellComponent implements OnInit, OnDestroy {
   showDropdown = signal(false);
   notifications: Notification[] = [];
   unreadCount = signal(0);
+  isLoading = signal(false);
+
+  private syncInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     public authService: AuthService,
     private notificationService: NotificationService,
     private router: Router
-  ) {}
-
-  ngOnInit() {
-    this.loadNotifications();
-    // Request notification permission on init
-    this.notificationService.requestPermission();
+  ) {
+    // Update notifications and unread count when user changes
+    effect(() => {
+      const user = this.authService.user();
+      if (user) {
+        // Use setTimeout to avoid writing signals inside effect
+        setTimeout(() => {
+          this.updateNotifications(user.id);
+          this.updateUnreadCount(user.id);
+          
+          // Sync periodically (every 3 seconds) as fallback to WebSocket
+          if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+          }
+          this.syncInterval = setInterval(() => {
+            this.updateNotifications(user.id);
+            this.updateUnreadCount(user.id);
+          }, 3000);
+        }, 0);
+      } else {
+        // Use setTimeout to avoid writing signals inside effect
+        setTimeout(() => {
+          this.notifications = [];
+          this.unreadCount.set(0);
+          if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+            this.syncInterval = null;
+          }
+        }, 0);
+      }
+    });
   }
 
-  loadNotifications() {
+  ngOnInit() {
+    // Request notification permission on init
+    this.notificationService.requestPermission();
+    
     const user = this.authService.user();
     if (user) {
-      this.notifications = this.notificationService.getUserNotifications(user.id);
-      this.unreadCount.set(this.notificationService.getUnreadCount(user.id));
+      this.loadNotifications(user.id);
+      this.loadUnreadCount(user.id);
     }
+  }
+
+  ngOnDestroy() {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+    }
+  }
+
+  async loadNotifications(userId: number) {
+    this.isLoading.set(true);
+    try {
+      await this.notificationService.loadNotifications(userId);
+      this.updateNotifications(userId);
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  async loadUnreadCount(userId: number) {
+    try {
+      await this.notificationService.loadUnreadCount(userId);
+      this.updateUnreadCount(userId);
+    } catch (error) {
+      console.error('Failed to load unread count:', error);
+    }
+  }
+
+  updateNotifications(userId: number) {
+    this.notifications = this.notificationService.getUserNotifications(userId);
+  }
+
+  updateUnreadCount(userId: number) {
+    this.unreadCount.set(this.notificationService.getUnreadCount(userId));
   }
 
   toggleDropdown() {
     this.showDropdown.update(v => !v);
+    
+    // Load fresh notifications when opening dropdown
+    if (!this.showDropdown()) {
+      const user = this.authService.user();
+      if (user) {
+        this.loadNotifications(user.id);
+      }
+    }
   }
 
   closeDropdown() {
@@ -52,24 +127,35 @@ export class NotificationBellComponent implements OnInit {
     }
   }
 
-  markAsRead(notification: Notification) {
+  async markAsRead(notification: Notification) {
     const user = this.authService.user();
-    if (user) {
-      this.notificationService.markAsRead(notification.id, user.id);
-      this.loadNotifications();
+    if (!user) return;
+
+    try {
+      await this.notificationService.markAsRead(notification.id, user.id);
+      this.updateNotifications(user.id);
+      this.updateUnreadCount(user.id);
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
     }
   }
 
-  markAllAsRead() {
+  async markAllAsRead() {
     const user = this.authService.user();
-    if (user) {
-      this.notificationService.markAllAsRead(user.id);
-      this.loadNotifications();
+    if (!user) return;
+
+    try {
+      await this.notificationService.markAllAsRead(user.id);
+      this.updateNotifications(user.id);
+      this.updateUnreadCount(user.id);
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
     }
   }
 
-  handleNotificationClick(notification: Notification) {
-    this.markAsRead(notification);
+  async handleNotificationClick(notification: Notification) {
+    await this.markAsRead(notification);
+    
     if (notification.link) {
       this.router.navigate([notification.link]);
       this.closeDropdown();
@@ -95,5 +181,18 @@ export class NotificationBellComponent implements OnInit {
       year: 'numeric'
     });
   }
-}
 
+  // Helper to map notification type to icon (for template)
+  getNotificationIcon(type: string): string {
+    if (type.includes('APPROVED') || type.includes('approved')) {
+      return 'check_circle';
+    } else if (type.includes('REJECTED') || type.includes('rejected')) {
+      return 'cancel';
+    } else if (type.includes('COMPLETED') || type.includes('completed')) {
+      return 'emoji_events';
+    } else if (type.includes('POST') || type.includes('COMMENT') || type.includes('post') || type.includes('comment')) {
+      return 'chat_bubble';
+    }
+    return 'info';
+  }
+}
