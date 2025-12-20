@@ -106,12 +106,12 @@ export class UsersService {
     const where: any = {};
 
     // Filter theo keyword (email hoặc fullName)
-    // SQLite không hỗ trợ case-insensitive search, nên dùng contains thông thường
+    // PostgreSQL hỗ trợ case-insensitive search với mode: 'insensitive'
     if (filter.keyword) {
-      const keyword = filter.keyword.toLowerCase();
+      const keyword = filter.keyword.trim();
       where.OR = [
-        { email: { contains: keyword } },
-        { fullName: { contains: keyword } },
+        { email: { contains: keyword, mode: 'insensitive' } },
+        { fullName: { contains: keyword, mode: 'insensitive' } },
       ];
     }
 
