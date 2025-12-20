@@ -8,10 +8,12 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
+import { IS_AUTH_OPTIONAL_KEY } from '../../common/decorators/auth-optional.decorator';
 
 /**
  * Guard JWT: Bảo vệ các route yêu cầu đăng nhập
  * Bỏ qua các route được đánh dấu @Public()
+ * Với @AuthOptional(), vẫn parse token nếu có nhưng không throw error nếu không có
  */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -26,8 +28,19 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       context.getClass(),
     ]);
 
-    // Nếu là public, cho phép truy cập luôn
-    if (isPublic) {
+    // Kiểm tra xem route có được đánh dấu là auth optional không
+    const isAuthOptional = this.reflector.getAllAndOverride<boolean>(IS_AUTH_OPTIONAL_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    // Nếu là public (không phải optional), cho phép truy cập luôn mà không parse token
+    if (isPublic && !isAuthOptional) {
+      return true;
+    }
+
+    // Nếu là auth optional, để OptionalJwtAuthGuard xử lý (không gọi ở đây)
+    if (isAuthOptional) {
       return true;
     }
 

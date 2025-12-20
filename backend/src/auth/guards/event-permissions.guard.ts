@@ -45,7 +45,7 @@ export class EventPermissionsGuard implements CanActivate {
       throw new ForbiddenException('Vui lòng đăng nhập');
     }
 
-    const eventId = this.extractEventId(request);
+    const eventId = await this.extractEventId(request);
     if (!eventId) {
       throw new ForbiddenException(
         'Không xác định được sự kiện để kiểm tra quyền',
@@ -99,8 +99,10 @@ export class EventPermissionsGuard implements CanActivate {
    * - req.params.eventId
    * - req.params.id (áp dụng cho route như /events/:id/...)
    * - req.body.eventId
+   * - req.params.postId (lấy từ post trong DB)
+   * - req.params.commentId (lấy từ comment trong DB)
    */
-  private extractEventId(request: any): number | null {
+  private async extractEventId(request: any): Promise<number | null> {
     const { params, body } = request;
 
     if (params?.eventId) {
@@ -114,6 +116,28 @@ export class EventPermissionsGuard implements CanActivate {
 
     if (body?.eventId) {
       return Number(body.eventId);
+    }
+
+    // Nếu có postId, lấy eventId từ post
+    if (params?.postId) {
+      const post = await this.prisma.post.findUnique({
+        where: { id: Number(params.postId) },
+        select: { eventId: true },
+      });
+      if (post) {
+        return post.eventId;
+      }
+    }
+
+    // Nếu có commentId, lấy eventId từ comment -> post
+    if (params?.commentId) {
+      const comment = await this.prisma.comment.findUnique({
+        where: { id: Number(params.commentId) },
+        select: { post: { select: { eventId: true } } },
+      });
+      if (comment?.post) {
+        return comment.post.eventId;
+      }
     }
 
     return null;

@@ -2,6 +2,7 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -41,6 +42,8 @@ interface Actor {
   id: number;
   role: Role;
 }
+
+const logger = new Logger('PostsService');
 
 @Injectable()
 export class PostsService {
@@ -432,13 +435,47 @@ export class PostsService {
       }
     }
 
-    const liked = actor
-      ? await this.prisma.like.findUnique({
+    // Check likedByCurrentUser - thử nhiều cách query để đảm bảo tìm được
+    logger.log(`getPostById called - actor: ${actor ? `userId=${actor.id}` : 'null'}, postId: ${post.id}`);
+    let liked = null;
+    if (actor) {
+      logger.log(`Checking like for userId: ${actor.id}, postId: ${post.id}`);
+      
+      // Thử dùng findUnique với composite key
+      try {
+        liked = await this.prisma.like.findUnique({
           where: {
-            userId_postId: { userId: actor.id, postId: post.id },
+            userId_postId: {
+              userId: actor.id,
+              postId: post.id,
+            },
           },
-        })
-      : null;
+        });
+        logger.log(`findUnique result: ${liked ? 'FOUND' : 'NOT FOUND'}`);
+      } catch (error) {
+        logger.warn(`findUnique failed, trying findFirst: ${error.message}`);
+        // Fallback: dùng findFirst
+        liked = await this.prisma.like.findFirst({
+          where: {
+            userId: actor.id,
+            postId: post.id,
+          },
+        });
+        logger.log(`findFirst result: ${liked ? 'FOUND' : 'NOT FOUND'}`);
+      }
+      
+      if (liked) {
+        logger.log(`Like record found: userId=${liked.userId}, postId=${liked.postId}`);
+      } else {
+        // Debug: kiểm tra xem có record nào trong DB không
+        const allLikes = await this.prisma.like.findMany({
+          where: { postId: post.id },
+          take: 5,
+        });
+        logger.log(`Total likes for post ${post.id}: ${allLikes.length}`);
+        logger.log(`Sample likes: ${JSON.stringify(allLikes.map(l => ({ userId: l.userId, postId: l.postId })))}`);
+      }
+    }
 
     const postWithLikes = {
       ...post,
@@ -447,6 +484,8 @@ export class PostsService {
       likesCount: post._count.likes,
       likedByCurrentUser: !!liked,
     };
+    
+    logger.log(`Final likedByCurrentUser: ${postWithLikes.likedByCurrentUser}`);
 
     return plainToInstance(PostResponseDto, postWithLikes, {
       excludeExtraneousValues: true,
@@ -644,14 +683,19 @@ export class PostsService {
   }
 
   /**
-   * Pin/Unpin post (POST_APPROVE hoặc event creator)
+   * Pin/Unpin post (toggle tự động)
+   * Tự động toggle: nếu đang true → false, nếu đang false → true
+   * Chỉ người có POST_APPROVE permission hoặc event creator mới được phép
    */
-  async pinPost(postId: number, isPinned: boolean, actor: Actor) {
+  async pinPost(postId: number, actor: Actor) {
+    logger.log(`pinPost called: postId=${postId}, actorId=${actor.id}`);
+    
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
       select: {
         id: true,
         eventId: true,
+        isPinned: true, // Lấy giá trị hiện tại để toggle
         event: {
           select: {
             creatorId: true,
@@ -661,10 +705,14 @@ export class PostsService {
     });
 
     if (!post) {
+      logger.warn(`pinPost: Post ${postId} not found`);
       throw new NotFoundException('Bài đăng không tồn tại');
     }
 
+    logger.log(`pinPost: Found post ${postId}, current isPinned=${post.isPinned}, eventId=${post.eventId}, eventCreatorId=${post.event.creatorId}`);
+
     const isEventCreator = post.event.creatorId === actor.id;
+    logger.log(`pinPost: isEventCreator=${isEventCreator}`);
 
     const registration = await this.prisma.registration.findUnique({
       where: {
@@ -672,6 +720,8 @@ export class PostsService {
       },
       select: { permissions: true },
     });
+
+    logger.log(`pinPost: registration found=${!!registration}, permissions=${registration?.permissions || 'none'}`);
 
     const hasPinPermission =
       isEventCreator ||
@@ -681,18 +731,26 @@ export class PostsService {
           EventPermission.POST_APPROVE,
         ));
 
+    logger.log(`pinPost: hasPinPermission=${hasPinPermission}`);
+
     if (!hasPinPermission) {
+      logger.warn(`pinPost: User ${actor.id} does not have pin permission for post ${postId}`);
       throw new ForbiddenException('Bạn không có quyền ghim bài đăng');
     }
 
+    // Toggle: nếu đang true → false, nếu đang false → true
+    const newIsPinned = !post.isPinned;
+    logger.log(`pinPost: Toggling post ${postId} from isPinned=${post.isPinned} to isPinned=${newIsPinned}`);
+
     const updated = await this.prisma.post.update({
       where: { id: post.id },
-      data: { isPinned },
+      data: { isPinned: newIsPinned },
       select: {
         id: true,
         content: true,
         images: true,
         type: true,
+        status: true,
         isPinned: true,
         createdAt: true,
         updatedAt: true,
@@ -714,9 +772,12 @@ export class PostsService {
       },
     });
 
-    const liked = await this.prisma.like.findUnique({
+    logger.log(`pinPost: Post updated successfully, new isPinned=${updated.isPinned}`);
+
+    const liked = await this.prisma.like.findFirst({
       where: {
-        userId_postId: { userId: actor.id, postId: updated.id },
+        userId: actor.id,
+        postId: updated.id,
       },
     });
 
@@ -727,6 +788,8 @@ export class PostsService {
       likesCount: updated._count.likes,
       likedByCurrentUser: !!liked,
     };
+
+    logger.log(`pinPost: Returning response with isPinned=${postWithLikes.isPinned}, likedByCurrentUser=${postWithLikes.likedByCurrentUser}`);
 
     return plainToInstance(PostResponseDto, postWithLikes, {
       excludeExtraneousValues: true,

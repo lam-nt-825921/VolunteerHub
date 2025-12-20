@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Logger,
   Param,
   ParseIntPipe,
   Patch,
@@ -35,6 +36,7 @@ import { EventPermissions } from '../common/decorators/event-permissions.decorat
 import { EventPermissionsGuard } from '../auth/guards/event-permissions.guard';
 import { EventPermission } from '../common/utils/event-permissions.util';
 import { Public } from '../common/decorators/public.decorator';
+import { AuthOptional } from '../common/decorators/auth-optional.decorator';
 import { PostResponseDto } from './dto/response/post-response.dto';
 import { CommentResponseDto } from './dto/response/comment-response.dto';
 
@@ -42,6 +44,8 @@ interface Actor {
   id: number;
   role: Role;
 }
+
+const logger = new Logger('PostsController');
 
 @ApiTags('posts')
 @Controller()
@@ -128,8 +132,9 @@ export class PostsController {
    * GET /posts/:postId
    */
   @Get('posts/:postId')
-  @Public()
-  @ApiOperation({ summary: 'Lấy chi tiết một post' })
+  @AuthOptional() // Cho phép xem không cần đăng nhập, nhưng nếu có token thì lấy user để check likedByCurrentUser
+  @ApiBearerAuth('JWT-auth') // Swagger sẽ hiển thị nút Authorize (optional)
+  @ApiOperation({ summary: 'Lấy chi tiết một post (có thể xem không cần đăng nhập, nhưng cần token để xem likedByCurrentUser)' })
   @ApiResponse({
     status: 200,
     description: 'Chi tiết post',
@@ -203,6 +208,9 @@ export class PostsController {
    */
   @Delete('posts/:postId')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Xóa post' })
+  @ApiResponse({ status: 200, description: 'Xóa post thành công' })
   async deletePost(
     @Param('postId', ParseIntPipe) postId: number,
     @CurrentUser() user: Actor,
@@ -211,19 +219,27 @@ export class PostsController {
   }
 
   /**
-   * Pin/Unpin post
+   * Pin/Unpin post (toggle tự động)
    * PATCH /posts/:postId/pin
+   * Tự động toggle: nếu đang true → false, nếu đang false → true
    */
   @Patch('posts/:postId/pin')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
   @UseGuards(EventPermissionsGuard)
   @EventPermissions(EventPermission.POST_APPROVE)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Toggle pin/unpin post (tự động đảo ngược trạng thái pin, chỉ người có quyền POST_APPROVE)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Toggle pin/unpin post thành công',
+    type: PostResponseDto,
+  })
   async pinPost(
     @Param('postId', ParseIntPipe) postId: number,
-    @Body('isPinned') isPinned: boolean,
     @CurrentUser() user: Actor,
   ) {
-    return this.postsService.pinPost(postId, isPinned, user);
+    logger.log(`[PostsController] pinPost called: postId=${postId}, userId=${user.id}`);
+    return this.postsService.pinPost(postId, user);
   }
 
   /**
@@ -255,6 +271,13 @@ export class PostsController {
    */
   @Post('posts/:postId/like')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Like một bài đăng' })
+  @ApiResponse({
+    status: 200,
+    description: 'Like thành công',
+    type: PostResponseDto,
+  })
   async likePost(
     @Param('postId', ParseIntPipe) postId: number,
     @CurrentUser() user: Actor,
@@ -268,6 +291,13 @@ export class PostsController {
    */
   @Delete('posts/:postId/like')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Unlike một bài đăng' })
+  @ApiResponse({
+    status: 200,
+    description: 'Unlike thành công',
+    type: PostResponseDto,
+  })
   async unlikePost(
     @Param('postId', ParseIntPipe) postId: number,
     @CurrentUser() user: Actor,
@@ -301,6 +331,13 @@ export class PostsController {
    */
   @Post('posts/:postId/comments')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Tạo comment mới' })
+  @ApiResponse({
+    status: 201,
+    description: 'Tạo comment thành công',
+    type: CommentResponseDto,
+  })
   async createComment(
     @Param('postId', ParseIntPipe) postId: number,
     @Body() dto: CreateCommentDto,
@@ -315,6 +352,13 @@ export class PostsController {
    */
   @Patch('comments/:commentId')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Cập nhật comment' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật comment thành công',
+    type: CommentResponseDto,
+  })
   async updateComment(
     @Param('commentId', ParseIntPipe) commentId: number,
     @Body() dto: UpdateCommentDto,
@@ -329,6 +373,9 @@ export class PostsController {
    */
   @Delete('comments/:commentId')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Xóa comment' })
+  @ApiResponse({ status: 200, description: 'Xóa comment thành công' })
   async deleteComment(
     @Param('commentId', ParseIntPipe) commentId: number,
     @CurrentUser() user: Actor,
