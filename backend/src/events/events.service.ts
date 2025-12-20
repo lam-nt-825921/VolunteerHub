@@ -236,41 +236,59 @@ export class EventsService {
 
   // Chi tiết sự kiện
   async findOne(id: number, actor: Actor | null) {
+    logger.log(`[findOne] Called with eventId=${id}, actor=${actor ? `id=${actor.id}, role=${actor.role}` : 'null'}`);
+    
     // Luôn dùng defaultSelect nếu có actor để có creatorId
     const event = await this.prisma.event.findUnique({
       where: { id },
       select: actor ? this.defaultSelect : this.publicSelect,
     });
 
-    if (!event) throw new NotFoundException('Sự kiện không tồn tại');
+    if (!event) {
+      logger.warn(`[findOne] Event ${id} not found`);
+      throw new NotFoundException('Sự kiện không tồn tại');
+    }
+
+    logger.log(`[findOne] Event ${id} found, visibility=${event.visibility}`);
 
     // Kiểm tra visibility nếu là INTERNAL hoặc PRIVATE
     if (!actor) {
+      logger.log(`[findOne] No actor, checking visibility...`);
       if (
         event.visibility === EventVisibility.INTERNAL ||
         event.visibility === EventVisibility.PRIVATE
       ) {
+        logger.warn(`[findOne] Guest trying to access ${event.visibility} event ${id}`);
         throw new ForbiddenException('Sự kiện này chỉ dành cho thành viên');
       }
+      logger.log(`[findOne] Returning event for guest (no registration info)`);
+      return event;
     } else {
       // Khi có actor, event sẽ có creatorId vì dùng defaultSelect
       const eventWithCreator = event as typeof event & { creatorId: number };
       
-      logger.log(`[findOne] User ${actor.id} viewing event ${id}, creatorId: ${eventWithCreator.creatorId}`);
+      logger.log(`[findOne] Actor ${actor.id} viewing event ${id}, creatorId: ${eventWithCreator.creatorId}`);
       
+      // Kiểm tra registration của user (không chỉ creator)
+      logger.log(`[findOne] Checking registration for user ${actor.id} in event ${id}...`);
+      const registration = await this.prisma.registration.findUnique({
+        where: {
+          userId_eventId: { userId: actor.id, eventId: id },
+        },
+        select: {
+          id: true,
+          status: true,
+          permissions: true,
+        },
+      });
+
+      logger.log(`[findOne] Registration for user ${actor.id} in event ${id}: ${registration ? `Found (id=${registration.id}, status=${registration.status}, permissions=${registration.permissions})` : 'NOT FOUND'}`);
+
       // Nếu là creator nhưng chưa có registration, tự động tạo
       if (eventWithCreator.creatorId === actor.id) {
-        logger.log(`[findOne] User ${actor.id} is the creator of event ${id}, checking registration...`);
+        logger.log(`[findOne] User ${actor.id} is the creator of event ${id}`);
         
-        const existingRegistration = await this.prisma.registration.findUnique({
-          where: {
-            userId_eventId: { userId: actor.id, eventId: id },
-          },
-        });
-
-        logger.log(`[findOne] Registration check result for creator ${actor.id} in event ${id}:`, existingRegistration ? `Found (id: ${existingRegistration.id}, status: ${existingRegistration.status})` : 'NOT FOUND');
-
-        if (!existingRegistration) {
+        if (!registration) {
           logger.warn(`[findOne] Creator ${actor.id} of event ${id} has no registration! Auto-creating...`);
           
           // Tự động tạo registration cho creator nếu chưa có
@@ -294,19 +312,45 @@ export class EventsService {
               },
             });
             logger.log(`[findOne] Successfully auto-created registration ${newRegistration.id} for creator ${actor.id} in event ${id}`);
+            
+            // Thêm registration info vào response
+            return {
+              ...event,
+              isMember: true,
+              registrationStatus: newRegistration.status,
+              isCreator: true,
+            };
           } catch (error) {
             logger.error(`[findOne] Failed to auto-create registration for creator ${actor.id} in event ${id}:`, error);
             // Không throw error để không làm gián đoạn việc xem event
+            return {
+              ...event,
+              isMember: false,
+              registrationStatus: null,
+              isCreator: true,
+            };
           }
         } else {
-          logger.log(`[findOne] Creator ${actor.id} already has registration ${existingRegistration.id} in event ${id}`);
+          logger.log(`[findOne] Creator ${actor.id} already has registration ${registration.id} in event ${id}`);
+          return {
+            ...event,
+            isMember: registration.status === RegistrationStatus.APPROVED || registration.status === RegistrationStatus.ATTENDED,
+            registrationStatus: registration.status,
+            isCreator: true,
+          };
         }
       } else {
         logger.log(`[findOne] User ${actor.id} is NOT the creator (creatorId: ${eventWithCreator.creatorId}) of event ${id}`);
+        
+        // Thêm registration info vào response cho user thường
+        return {
+          ...event,
+          isMember: registration ? (registration.status === RegistrationStatus.APPROVED || registration.status === RegistrationStatus.ATTENDED) : false,
+          registrationStatus: registration?.status || null,
+          isCreator: false,
+        };
       }
     }
-
-    return event;
   }
 
   // Cập nhật sự kiện

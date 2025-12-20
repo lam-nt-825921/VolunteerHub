@@ -29,6 +29,7 @@ import { FilterEventsDto } from './dto/filter-event.dto';
 
 import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { AuthOptional } from '../common/decorators/auth-optional.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { EventStatus, Role } from '../generated/prisma/enums';
 
@@ -48,11 +49,13 @@ export class EventsController {
 
   // PUBLIC: Xem chi tiết sự kiện (guest thấy ít hơn, user thấy đầy đủ)
   @Get(':id')
-  @Public()
-  @ApiOperation({ summary: 'Xem chi tiết sự kiện' })
+  @AuthOptional() // Cho phép xem không cần đăng nhập, nhưng nếu có token thì lấy user để check registration
+  @ApiBearerAuth('JWT-auth') // Swagger sẽ hiển thị nút Authorize (optional)
+  @ApiOperation({ summary: 'Xem chi tiết sự kiện (có thể xem không cần đăng nhập, nhưng cần token để xem registration status)' })
   @ApiResponse({ status: 200, description: 'Chi tiết sự kiện' })
   @ApiResponse({ status: 404, description: 'Sự kiện không tồn tại' })
   findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    console.log(`[EventsController] findOne called: eventId=${id}, user=${user ? `id=${user.id}, role=${user.role}` : 'null'}`);
     return this.eventsService.findOne(id, user);
   }
 

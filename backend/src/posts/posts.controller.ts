@@ -57,8 +57,9 @@ export class PostsController {
    * GET /events/:eventId/posts
    */
   @Get('events/:eventId/posts')
-  @Public()
-  @ApiOperation({ summary: 'Lấy danh sách posts của một sự kiện (có phân trang)' })
+  @AuthOptional() // Cho phép xem không cần đăng nhập, nhưng nếu có token thì lấy user để check likedByCurrentUser
+  @ApiBearerAuth('JWT-auth') // Swagger sẽ hiển thị nút Authorize (optional)
+  @ApiOperation({ summary: 'Lấy danh sách posts của một sự kiện (có phân trang, có thể xem không cần đăng nhập, nhưng cần token để xem likedByCurrentUser)' })
   @ApiResponse({
     status: 200,
     description:
@@ -71,6 +72,7 @@ export class PostsController {
     @Query() filter: FilterPostsDto,
     @CurrentUser() user: Actor | null,
   ) {
+    logger.log(`[PostsController] getPostsForEvent called: eventId=${eventId}, user=${user ? `id=${user.id}, role=${user.role}` : 'null'}`);
     return this.postsService.getPostsForEvent(eventId, filter, user);
   }
 
