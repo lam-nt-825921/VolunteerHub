@@ -26,7 +26,7 @@
     </div>
   </section>
 
-  <!-- Statistics Section -->
+  <!-- Statistics Section
   <section class="stats-section">
     <div class="section-container">
       <div class="stats-grid">
@@ -60,37 +60,38 @@
         </div>
       </div>
     </div>
-  </section>
+  </section> -->
 
-  <!-- About Section -->
-  <section id="about" class="about-section">
+  <!-- About Section with Background Image -->
+  <section id="about" class="about-section" [style.background-image]="'url(' + backgroundImage + ')'">
+    <div class="section-overlay"></div>
     <div class="section-container">
       <h2 class="section-title">Về VolunteerHub</h2>
       <p class="section-description">
-        VolunteerHub là một nền tảng kết nối những tình nguyện viên nhiệt huyết với các tổ chức đang tạo ra sự khác biệt. 
-        Chúng tôi tin rằng mỗi người đều có điều gì đó để cống hiến, và cùng nhau chúng ta có thể tạo ra những thay đổi tích cực lâu dài.
+        VolunteerHub là nền tảng kết nối tình nguyện viên với các sự kiện tình nguyện. 
+        Đăng ký tham gia, theo dõi hoạt động và tương tác qua bức tường sự kiện - tất cả tại một nơi.
       </p>
       <div class="features-grid">
         <div class="feature-card">
           <div class="feature-icon" style="background-color: var(--color-primary);">
-            <mat-icon>groups</mat-icon>
+            <mat-icon>event</mat-icon>
           </div>
-          <h3>Cộng đồng</h3>
-          <p>Tham gia một cộng đồng sôi động gồm các tình nguyện viên và tổ chức</p>
+          <h3>Khám phá sự kiện</h3>
+          <p>Tìm kiếm các hoạt động tình nguyện phù hợp với sở thích và kỹ năng của bạn</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon" style="background-color: var(--color-secondary);">
-            <mat-icon>verified</mat-icon>
+            <mat-icon>how_to_reg</mat-icon>
           </div>
-          <h3>Đã xác minh</h3>
-          <p>Tất cả các tổ chức đều đã được xác minh và cam kết tạo ra sự khác biệt</p>
+          <h3>Đăng ký tham gia</h3>
+          <p>Theo dõi và góp phần vào các sự kiện tình nguyện yêu thích của bạn</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon" style="background-color: var(--color-accent-1);">
-            <mat-icon>trending_up</mat-icon>
+            <mat-icon>forum</mat-icon>
           </div>
-          <h3>Tác động</h3>
-          <p>Theo dõi tác động của bạn và xem sự khác biệt bạn đang tạo ra</p>
+          <h3>Tương tác & Kết nối</h3>
+          <p>Chia sẻ khoảnh khắc, bình luận và tương tác với cộng đồng qua bức tường sự kiện</p>
         </div>
       </div>
     </div>
@@ -162,68 +163,82 @@
     </div>
   </section>
 
-  <!-- Image Gallery Section -->
+  <!-- Horizontal Image Carousel Section -->
+  <section class="carousel-section">
+    <div class="section-container">
+      <h2 class="section-title">Hoạt động tình nguyện</h2>
+      <p class="section-description">
+        Khám phá những khoảnh khắc đẹp từ các hoạt động tình nguyện của chúng ta
+      </p>
+      <div class="carousel-container">
+        <button class="carousel-btn carousel-btn-prev" (click)="previousHorizontalCarouselImage()" aria-label="Previous">
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        <div class="carousel-slide">
+          @for (image of horizontalImages; track $index) {
+            <div 
+              class="carousel-image-wrapper"
+              [class.carousel-image-prev]="$index === getPreviousHorizontalIndex()"
+              [class.carousel-image-current]="$index === currentHorizontalCarouselIndex()"
+              [class.carousel-image-next]="$index === getNextHorizontalIndex()"
+            >
+              <img 
+                [src]="image" 
+                [alt]="'Hoạt động tình nguyện ' + ($index + 1)" 
+                class="carousel-image"
+              >
+            </div>
+          }
+        </div>
+        <button class="carousel-btn carousel-btn-next" (click)="nextHorizontalCarouselImage()" aria-label="Next">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+        <div class="carousel-indicators">
+          @for (image of horizontalImages; track $index) {
+            <button 
+              class="carousel-indicator" 
+              [class.active]="$index === currentHorizontalCarouselIndex()"
+              (click)="goToHorizontalCarouselImage($index)"
+              [attr.aria-label]="'Go to slide ' + ($index + 1)"
+            ></button>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Masonry Gallery Section -->
   <section class="gallery-section">
     <div class="section-container">
       <h2 class="section-title">Khoảnh khắc tình nguyện</h2>
       <p class="section-description">
         Những hình ảnh đẹp từ các hoạt động tình nguyện của chúng ta
       </p>
-      <div class="gallery-grid">
-        <div class="gallery-item">
-          <div class="gallery-image" style="background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));">
-            <mat-icon>volunteer_activism</mat-icon>
+      <div class="masonry-gallery">
+        <!-- Mixed pattern: 3h+1v or 2v+1h in mixed order -->
+        @for (item of galleryItems; track $index) {
+          <div class="masonry-item" [class.masonry-item-horizontal]="item.type === 'h'" [class.masonry-item-vertical]="item.type === 'v'">
+            <img [src]="item.src" [alt]="item.alt" class="masonry-image">
           </div>
-        </div>
-        <div class="gallery-item">
-          <div class="gallery-image" style="background: linear-gradient(135deg, var(--color-accent-1), var(--color-accent-2));">
-            <mat-icon>groups</mat-icon>
-          </div>
-        </div>
-        <div class="gallery-item">
-          <div class="gallery-image" style="background: linear-gradient(135deg, var(--color-secondary), var(--color-accent-3));">
-            <mat-icon>celebration</mat-icon>
-          </div>
-        </div>
-        <div class="gallery-item">
-          <div class="gallery-image" style="background: linear-gradient(135deg, var(--color-accent-2), var(--color-accent-1));">
-            <mat-icon>nature_people</mat-icon>
-          </div>
-        </div>
-        <div class="gallery-item">
-          <div class="gallery-image" style="background: linear-gradient(135deg, var(--color-accent-3), var(--color-primary));">
-            <mat-icon>handshake</mat-icon>
-          </div>
-        </div>
-        <div class="gallery-item">
-          <div class="gallery-image" style="background: linear-gradient(135deg, var(--color-primary), var(--color-accent-3));">
-            <mat-icon>favorite</mat-icon>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Volunteer Section -->
-  <section id="volunteer" class="volunteer-section">
-    <div class="section-container">
-      <h2 class="section-title">Bắt đầu hành trình tình nguyện của bạn</h2>
-      <p class="section-description">
-        Dù bạn đang tìm cách đóng góp, học hỏi kỹ năng mới, hay gặp gỡ những người mới, 
-        luôn có cơ hội đang chờ đợi bạn.
-      </p>
-      <div class="cta-box">
-        <h3>Sẵn sàng tạo sự khác biệt?</h3>
-        <p>Tham gia cùng hàng nghìn tình nguyện viên đang tạo tác động ngay hôm nay</p>
-        @if (!authService.isAuthenticated()) {
-          <a routerLink="/signup" class="btn btn-primary">Đăng ký ngay</a>
-        } @else {
-          <a routerLink="/events" class="btn btn-primary">Xem sự kiện</a>
         }
       </div>
     </div>
   </section>
 
+    <!-- Quote Section with Background Image -->
+    <section class="quote-section" [style.background-image]="'url(' + backgroundImage + ')'">
+      <div class="section-overlay"></div>
+      <div class="section-container">
+        <div class="quote-content">
+          <mat-icon class="quote-icon">format_quote</mat-icon>
+          <blockquote class="quote-text">
+            "Không ai có thể làm mọi thứ, nhưng mọi người đều có thể làm một điều gì đó. 
+            Cùng nhau, chúng ta có thể tạo ra sự khác biệt."
+          </blockquote>
+          <p class="quote-author">— VolunteerHub</p>
+        </div>
+      </div>
+    </section>
 
   <!-- Register Section -->
   <section id="register" class="register-section">
@@ -296,50 +311,6 @@
               <p>Đã có tài khoản? <a (click)="openLoginModal()" class="link">Đăng nhập ngay</a></p>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Quote Section -->
-  <section class="quote-section">
-    <div class="section-container">
-      <div class="quote-content">
-        <mat-icon class="quote-icon">format_quote</mat-icon>
-        <blockquote class="quote-text">
-          "Không ai có thể làm mọi thứ, nhưng mọi người đều có thể làm một điều gì đó. 
-          Cùng nhau, chúng ta có thể tạo ra sự khác biệt."
-        </blockquote>
-        <p class="quote-author">— VolunteerHub</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Organizations Section -->
-  <section id="organizations" class="organizations-section">
-    <div class="section-container">
-      <h2 class="section-title">Dành cho tổ chức</h2>
-      <p class="section-description">
-        Kết nối với những tình nguyện viên nhiệt huyết và mở rộng tác động của bạn. 
-        VolunteerHub giúp bạn tìm đúng người cho sứ mệnh của mình.
-      </p>
-      <a href="#contact" class="btn btn-secondary">Tìm hiểu thêm</a>
-    </div>
-  </section>
-
-  <!-- Contact Section -->
-  <section id="contact" class="contact-section">
-    <div class="section-container">
-      <h2 class="section-title">Liên hệ</h2>
-      <p class="section-description">
-        Có câu hỏi? Chúng tôi rất muốn nghe từ bạn.
-      </p>
-      <div class="contact-info">
-        <div class="contact-item">
-          <div class="contact-icon" style="background-color: var(--color-accent-2);">
-            <mat-icon>email</mat-icon>
-          </div>
-          <p>contact&#64;volunteerhub.com</p>
         </div>
       </div>
     </div>

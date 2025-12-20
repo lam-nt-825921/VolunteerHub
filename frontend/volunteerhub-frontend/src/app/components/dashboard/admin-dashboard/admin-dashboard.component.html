@@ -301,13 +301,22 @@
                       </select>
                     </td>
                     <td>
-                      <button
-                        class="btn btn-icon"
-                        (click)="toggleUserActive(user)"
-                        title="Khóa/Mở khóa"
-                      >
-                        <mat-icon>lock</mat-icon>
-                      </button>
+                      <div class="action-buttons">
+                        <button
+                          class="btn btn-icon"
+                          (click)="toggleUserActive(user)"
+                          title="Khóa/Mở khóa"
+                        >
+                          <mat-icon>lock</mat-icon>
+                        </button>
+                        <button
+                          class="btn btn-icon btn-danger"
+                          (click)="deleteUser(user)"
+                          title="Xóa tài khoản"
+                        >
+                          <mat-icon>delete</mat-icon>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 }

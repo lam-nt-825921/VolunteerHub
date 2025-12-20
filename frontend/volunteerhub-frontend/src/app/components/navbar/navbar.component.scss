@@ -22,7 +22,7 @@
 }
 
 .navbar-container {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 1rem 1.5rem;
   display: flex;
@@ -96,7 +96,7 @@
 }
 
 .desktop-only {
-  @media (max-width: 1200px) {
+  @media (max-width: 1600px) {
     display: none !important;
   }
 }
@@ -172,7 +172,7 @@
   }
 
   .login-text {
-    @media (max-width: 1200px) {
+    @media (max-width: 1600px) {
       display: none;
     }
   }
@@ -203,7 +203,7 @@
     font-weight: 500;
     font-size: 0.9rem;
 
-    @media (max-width: 1200px) {
+    @media (max-width: 1600px) {
       display: none;
     }
   }

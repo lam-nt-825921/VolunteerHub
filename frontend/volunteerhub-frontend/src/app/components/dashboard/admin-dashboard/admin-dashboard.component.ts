@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { firstValueFrom } from 'rxjs';
 import { AuthService, User } from '../../../services/auth.service';
 import { EventsService, EventResponse } from '../../../services/events.service';
 import { AdminApiService } from '../../../services/admin-api.service';
@@ -285,19 +286,19 @@ export class AdminDashboardComponent implements OnInit {
     );
     if (!confirmed) return;
 
-    this.isLoading.set(true);
-    try {
-      const result = await this.eventsService.approveEvent(event.id);
-      if (result.success) {
-        await this.loadEvents();
+      this.isLoading.set(true);
+      try {
+        const result = await this.eventsService.approveEvent(event.id);
+        if (result.success) {
+          await this.loadEvents();
         // No success alert - action is visible (event status changes)
       } else {
         this.alertService.showError(result.message);
-      }
-    } catch (error: any) {
+        }
+      } catch (error: any) {
       this.alertService.showError(error?.message || 'Duyệt sự kiện thất bại. Vui lòng thử lại!');
-    } finally {
-      this.isLoading.set(false);
+      } finally {
+        this.isLoading.set(false);
     }
   }
 
@@ -308,19 +309,19 @@ export class AdminDashboardComponent implements OnInit {
     );
     if (!confirmed) return;
 
-    this.isLoading.set(true);
-    try {
-      const result = await this.eventsService.rejectEvent(event.id);
-      if (result.success) {
-        await this.loadEvents();
+      this.isLoading.set(true);
+      try {
+        const result = await this.eventsService.rejectEvent(event.id);
+        if (result.success) {
+          await this.loadEvents();
         // No success alert - action is visible (event status changes)
       } else {
         this.alertService.showError(result.message);
-      }
-    } catch (error: any) {
+        }
+      } catch (error: any) {
       this.alertService.showError(error?.message || 'Từ chối sự kiện thất bại. Vui lòng thử lại!');
-    } finally {
-      this.isLoading.set(false);
+      } finally {
+        this.isLoading.set(false);
     }
   }
 
@@ -331,19 +332,19 @@ export class AdminDashboardComponent implements OnInit {
     );
     if (!confirmed) return;
 
-    this.isLoading.set(true);
-    try {
-      const result = await this.eventsService.cancelEvent(event.id);
-      if (result.success) {
-        await this.loadEvents();
+      this.isLoading.set(true);
+      try {
+        const result = await this.eventsService.cancelEvent(event.id);
+        if (result.success) {
+          await this.loadEvents();
         // No success alert - action is visible (event status changes)
       } else {
         this.alertService.showError(result.message);
-      }
-    } catch (error: any) {
+        }
+      } catch (error: any) {
       this.alertService.showError(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
-    } finally {
-      this.isLoading.set(false);
+      } finally {
+        this.isLoading.set(false);
     }
   }
 
@@ -352,12 +353,22 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   async toggleUserActive(user: User) {
+    // Get current user status to determine action
+    const currentUser = await firstValueFrom(this.adminApi.getUserById(user.id));
+    const action = currentUser.isActive ? 'vô hiệu hóa' : 'kích hoạt';
+    
+    const confirmed = await this.confirmationService.confirm(
+      `Bạn có chắc muốn ${action} tài khoản của ${user.name}?`,
+      `Xác nhận ${action === 'vô hiệu hóa' ? 'khóa' : 'mở khóa'} tài khoản`
+    );
+    if (!confirmed) return;
+
     this.isLoading.set(true);
     try {
       const result = await this.authService.toggleUserActive(user.id);
       if (result.success) {
-        this.alertService.showSuccess(result.message);
         await this.loadUsers();
+        // No success alert - action is visible (user status changes in table)
       } else {
         this.alertService.showError(result.message);
       }
@@ -375,17 +386,40 @@ export class AdminDashboardComponent implements OnInit {
     );
     if (!confirmed) return;
 
+      this.isLoading.set(true);
+      try {
+        const result = await this.authService.changeUserRole(user.id, newRole);
+        if (result.success) {
+          await this.loadUsers();
+        // No success alert - action is visible (role changes in table)
+      } else {
+        this.alertService.showError(result.message);
+        }
+      } catch (error: any) {
+      this.alertService.showError(error?.message || 'Thay đổi vai trò thất bại. Vui lòng thử lại!');
+      } finally {
+        this.isLoading.set(false);
+      }
+  }
+
+  async deleteUser(user: User) {
+    const confirmed = await this.confirmationService.confirm(
+      `Bạn có chắc muốn xóa tài khoản của ${user.name}? Hành động này không thể hoàn tác!`,
+      'Xác nhận xóa tài khoản'
+    );
+    if (!confirmed) return;
+
     this.isLoading.set(true);
     try {
-      const result = await this.authService.changeUserRole(user.id, newRole);
+      const result = await this.authService.deleteUser(user.id);
       if (result.success) {
         await this.loadUsers();
-        // No success alert - action is visible (role changes in table)
+        // No success alert - action is visible (user disappears from table)
       } else {
         this.alertService.showError(result.message);
       }
     } catch (error: any) {
-      this.alertService.showError(error?.message || 'Thay đổi vai trò thất bại. Vui lòng thử lại!');
+      this.alertService.showError(error?.message || 'Xóa tài khoản thất bại. Vui lòng thử lại!');
     } finally {
       this.isLoading.set(false);
     }

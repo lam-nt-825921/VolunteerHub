@@ -322,5 +322,14 @@ export class AuthService {
       return { success: false, message: error?.message || 'Thay đổi vai trò thất bại. Vui lòng thử lại!' };
     }
   }
+
+  async deleteUser(userId: number): Promise<{ success: boolean; message: string }> {
+    try {
+      await firstValueFrom(this.adminApi.deleteUser(userId));
+      return { success: true, message: 'Đã xóa tài khoản thành công!' };
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Xóa tài khoản thất bại. Vui lòng thử lại!' };
+    }
+  }
 }
 

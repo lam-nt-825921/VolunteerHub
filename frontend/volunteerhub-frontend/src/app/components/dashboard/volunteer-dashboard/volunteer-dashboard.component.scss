@@ -14,7 +14,7 @@
 }
 
 .header-content {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
 
   h1 {
@@ -35,12 +35,12 @@
 }
 
 .dashboard-content {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 2rem 1.5rem;
+  padding: 2rem 0rem;
 
   @media (min-width: 768px) {
-    padding: 3rem 2rem;
+    padding: 3rem 0rem;
   }
 }
 

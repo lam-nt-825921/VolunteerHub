@@ -19,7 +19,7 @@
 }
 
 .hero-container {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   width: 100%;
   display: grid;
@@ -44,7 +44,7 @@
 
   @media (min-width: 1200px) {
     text-align: left;
-    max-width: 600px;
+    max-width: 800px;
     margin-bottom: 0;
     order: 1;
   }
@@ -68,7 +68,6 @@
   .hero-title-line1 {
     white-space: nowrap;
     display: block;
-    overflow: hidden;
     text-overflow: ellipsis;
   }
 }
@@ -127,7 +126,6 @@
   max-width: 100%;
   height: auto;
   border-radius: 1rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
   object-fit: contain;
   display: block;
 
@@ -230,7 +228,7 @@ section {
 }
 
 .section-container {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   width: 100%;
 }
@@ -256,9 +254,40 @@ section {
   line-height: 1.6;
 }
 
-// About Section
+// About Section with Background
 .about-section {
+  position: relative;
   background-color: var(--bg-secondary);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+
+  .section-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 0;
+  }
+
+  .section-container {
+    position: relative;
+    z-index: 1;
+  }
+
+  .section-title,
+  .section-description {
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .feature-card {
+    // Use backdrop filter for glass effect, background will be set below
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
 }
 
 .features-grid {
@@ -328,7 +357,6 @@ section {
 .cta-box {
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 1rem;
-  padding: 3rem 2rem;
   margin-top: 2rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
 
@@ -817,62 +845,286 @@ section {
   }
 }
 
-// Gallery Section
-.gallery-section {
-  background-color: var(--bg-secondary);
-}
-
-.gallery-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  margin-top: 3rem;
+// Carousel Section
+.carousel-section {
+  background: var(--bg-secondary);
+  padding: 4rem 1.5rem;
 
   @media (min-width: 1200px) {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.5rem;
+    padding: 6rem 2rem;
   }
 }
 
-.gallery-item {
+.carousel-container {
   position: relative;
-  overflow: hidden;
-  border-radius: 1rem;
-  aspect-ratio: 1;
-  transition: transform 0.3s ease;
+  max-width: 1000px;
+  margin: 3rem auto 0;
+  overflow: visible; // Changed from hidden to visible to show side images
+  border-radius: 1.5rem;
+}
 
-  &:hover {
-    transform: scale(1.05);
+.carousel-slide {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+}
+
+.carousel-image-wrapper {
+  position: absolute;
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+  opacity: 0;
+  pointer-events: none;
+  // No transition by default - only transition when visible
+  transition: none;
+
+  // Apply transitions only when image is in a visible position
+  &.carousel-image-prev,
+  &.carousel-image-current,
+  &.carousel-image-next {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+                width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  &.carousel-image-prev {
+    width: 20%;
+    height: 70%;
+    opacity: 0.5;
+    z-index: 1;
+    pointer-events: auto;
+    transform: translate(-300%, -50%) scale(0.95); // Position to the left
+  }
+
+  &.carousel-image-current {
+    width: 90%;
+    height: 100%;
+    opacity: 1;
+    z-index: 3;
+    pointer-events: auto;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    transform: translate(-50%, -50%) scale(1); // Center position
+  }
+
+  &.carousel-image-next {
+    width: 20%;
+    height: 70%;
+    opacity: 0.5;
+    z-index: 1;
+    pointer-events: auto;
+    transform: translate(200%, -50%) scale(0.95); // Position to the right
+  }
+
+  @media (max-width: 768px) {
+    &.carousel-image-prev {
+      width: 15%;
+      opacity: 0.3;
+      transform: translate(-350%, -50%) scale(0.95);
+    }
+
+    &.carousel-image-current {
+      width: 70%;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    &.carousel-image-next {
+      width: 15%;
+      opacity: 0.3;
+      transform: translate(250%, -50%) scale(0.95);
+    }
   }
 }
 
-.gallery-image {
+.carousel-image {
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.carousel-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 1rem;
-  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+
+  &:hover {
+    background-color: var(--color-primary);
+    color: white;
+    transform: translateY(-50%) scale(1.1);
+  }
 
   mat-icon {
-    font-size: 64px;
-    width: 64px;
-    height: 64px;
-    color: white;
-    opacity: 0.8;
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+  }
+
+  &.carousel-btn-prev {
+    left: 1rem;
+  }
+
+  &.carousel-btn-next {
+    right: 1rem;
   }
 }
 
-// Quote Section
+.carousel-indicators {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.carousel-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid white;
+  background-color: transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &.active {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    width: 32px;
+    border-radius: 6px;
+  }
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.5);
+  }
+}
+
+// Masonry Gallery Section - 3 columns with mixed patterns
+.gallery-section {
+  background-color: var(--bg-primary);
+}
+
+.masonry-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); // Mobile first: 2 columns for masonry
+  grid-auto-flow: dense;
+  --gap: 0.75rem; // CSS variable for gap
+  gap: var(--gap);
+  margin-top: 3rem;
+  
+  // Calculate row height so that: 2 * row-height + gap = vertical image height
+  // For 16/9 horizontal: height = 9/16 * column-width
+  // For 3/4 vertical: height = 4/3 * column-width  
+  // Constraint: 2 * (9/16 * W) + gap = 4/3 * W
+  // Solving gives us the relationship, but CSS Grid auto-rows should match horizontal image height
+  // We use aspect-ratio on horizontal to set natural height, grid adapts to it
+  grid-auto-rows: auto; // Let horizontal images with aspect-ratio determine row height
+  
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(3, 1fr); // Tablet: 3 columns
+    --gap: 0.75rem;
+    gap: var(--gap);
+    grid-auto-rows: auto; // Let aspect-ratio determine row height
+  }
+
+  @media (min-width: 1200px) {
+    grid-template-columns: repeat(3, 1fr); // Desktop: 3 columns
+    --gap: 1rem;
+    gap: var(--gap);
+    grid-auto-rows: auto; // Let aspect-ratio determine row height
+  }
+}
+
+.masonry-item {
+  position: relative;
+  width: 100%;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  &.masonry-item-horizontal {
+    aspect-ratio: 16/9;
+    grid-row: span 1; // Takes up 1 grid row
+    // Height determined by aspect-ratio (9/16 of width)
+    // This sets the grid row height
+  }
+
+  &.masonry-item-vertical {
+    aspect-ratio: 3/4;
+    grid-row: span 2; // Takes up 2 grid rows (includes gap between them)
+    // Height will be: 2 * (horizontal image height) + gap
+    // This satisfies the constraint: 2h + gap = 1v
+    // The grid automatically calculates this based on the row height set by horizontal images
+  }
+}
+
+.masonry-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 0.5rem;
+}
+
+// Quote Section with Background
 .quote-section {
-  background: linear-gradient(135deg, var(--color-accent-1), var(--color-accent-2));
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   color: white;
   text-align: center;
   padding: 4rem 1.5rem;
 
   @media (min-width: 1200px) {
     padding: 6rem 2rem;
+  }
+
+  .section-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(5, 219, 242, 0.8), rgba(242, 68, 5, 0.8));
+    z-index: 0;
+  }
+
+  .quote-content {
+    position: relative;
+    z-index: 1;
   }
 }
 

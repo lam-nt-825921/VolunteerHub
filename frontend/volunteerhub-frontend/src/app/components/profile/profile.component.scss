@@ -1,11 +1,6 @@
 .profile-page {
   min-height: calc(100vh - 80px);
   background-color: var(--bg-primary);
-  padding: 2rem 1rem;
-
-  @media (min-width: 1200px) {
-    padding: 3rem 2rem;
-  }
 }
 
 .profile-container {

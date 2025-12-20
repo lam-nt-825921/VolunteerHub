@@ -131,11 +131,24 @@
     border-color: var(--color-primary);
   }
 
+  &.btn-danger {
+    &:hover {
+      background-color: #d63a04;
+      border-color: #d63a04;
+    }
+  }
+
   mat-icon {
     font-size: 18px;
     width: 18px;
     height: 18px;
   }
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .users-table {

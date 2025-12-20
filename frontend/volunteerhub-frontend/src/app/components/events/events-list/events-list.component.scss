@@ -14,7 +14,7 @@
 }
 
 .header-content {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   text-align: center;
 
@@ -36,21 +36,14 @@
 }
 
 .page-content {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 2rem 1.5rem;
-
-  @media (min-width: 768px) {
-    padding: 3rem 2rem;
-  }
 }
 
 .filters-section {
   background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
   border-radius: 1rem;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
+  margin: 2rem 0;
 }
 
 .search-bar {
