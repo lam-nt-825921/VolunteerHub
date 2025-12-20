@@ -45,6 +45,7 @@ export class RegistrationsService {
         status: true,
         startTime: true,
         endTime: true,
+        creatorId: true, // Cần để gửi thông báo cho creator
       },
     });
 
@@ -107,7 +108,7 @@ export class RegistrationsService {
       data: {
         user: { connect: { id: actor.id } },
         event: { connect: { id: event.id } },
-        status: RegistrationStatus.APPROVED,
+        status: RegistrationStatus.PENDING, // Chờ duyệt thay vì tự động APPROVED
         permissions: 0,
       },
       select: {
@@ -128,14 +129,25 @@ export class RegistrationsService {
       },
     });
 
-    // Thông báo cho user (chính actor) là đã đăng ký/được duyệt
+    // Thông báo cho user (chính actor) là đã đăng ký, chờ duyệt
     await this.notificationsService.createNotification(
       actor.id,
-      'Tham gia sự kiện thành công',
-      `Bạn đã tham gia sự kiện "${event.title}".`,
-      NotificationType.REGISTRATION_APPROVED,
+      'Đăng ký tham gia sự kiện',
+      `Bạn đã đăng ký tham gia sự kiện "${event.title}". Đang chờ duyệt.`,
+      NotificationType.REGISTRATION_PENDING,
       { eventId: event.id, registrationId: registration.id },
     );
+
+    // Thông báo cho creator/event manager khi có đăng ký mới (PENDING)
+    if (event.creatorId && event.creatorId !== actor.id) {
+      await this.notificationsService.createNotification(
+        event.creatorId,
+        'Có đăng ký mới chờ duyệt',
+        `Có người đăng ký tham gia sự kiện "${event.title}" của bạn. Vui lòng duyệt đăng ký.`,
+        NotificationType.REGISTRATION_PENDING,
+        { eventId: event.id, registrationId: registration.id },
+      );
+    }
 
     return plainToInstance(RegistrationResponseDto, registration, {
       excludeExtraneousValues: true,

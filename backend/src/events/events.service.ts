@@ -433,7 +433,6 @@ export class EventsService {
       data.startTime = new Date(dto.startTime);
     if (dto.endTime !== undefined) data.endTime = new Date(dto.endTime);
     if (dto.visibility !== undefined) data.visibility = dto.visibility;
-    if (dto.status !== undefined) data.status = dto.status;
     
     // Xử lý category relation đúng cách với Prisma
     if (dto.categoryId !== undefined) {

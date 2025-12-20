@@ -165,7 +165,6 @@ export class EventsController {
         startTime: { type: 'string', format: 'date-time', example: '2025-01-15T08:00:00Z' },
         endTime: { type: 'string', format: 'date-time', example: '2025-01-15T17:00:00Z' },
         visibility: { type: 'string', enum: ['PUBLIC', 'PRIVATE', 'INTERNAL'], example: 'PUBLIC' },
-        status: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'COMPLETED'] },
         categoryId: { type: 'integer', example: 1, description: 'ID danh mục sự kiện' },
         coverImage: {
           type: 'string',

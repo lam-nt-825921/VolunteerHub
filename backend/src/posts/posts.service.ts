@@ -379,14 +379,16 @@ export class PostsService {
 
   /**
    * Sửa post (chỉ author hoặc có POST_REMOVE_OTHERS)
+   * @param files - Ảnh mới (optional). Nếu có, sẽ thay thế ảnh cũ. Nếu không, giữ nguyên ảnh cũ.
    */
-  async updatePost(postId: number, dto: UpdatePostDto, actor: Actor) {
+  async updatePost(postId: number, dto: UpdatePostDto, actor: Actor, files?: Express.Multer.File[]) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
       select: {
         id: true,
         authorId: true,
         eventId: true,
+        images: true, // Cần để xóa ảnh cũ nếu có ảnh mới
         event: {
           select: {
             creatorId: true,
@@ -444,6 +446,27 @@ export class PostsService {
       }
       updateData.isPinned = dto.isPinned;
     }
+
+    // Xử lý ảnh: nếu có files mới thì upload và xóa ảnh cũ, nếu không thì giữ nguyên
+    if (files && files.length > 0) {
+      // Xóa ảnh cũ từ Cloudinary
+      const oldImages = this.parseImages(post.images);
+      for (const oldImageUrl of oldImages) {
+        if (oldImageUrl) {
+          try {
+            await this.cloudinary.deleteImage(oldImageUrl);
+          } catch (error) {
+            // Ignore lỗi xóa ảnh (có thể ảnh đã bị xóa rồi)
+            console.warn(`Failed to delete old image: ${oldImageUrl}`, error);
+          }
+        }
+      }
+
+      // Upload ảnh mới
+      const newImageUrls = await this.cloudinary.uploadMultipleImages(files, 'volunteer-hub-posts');
+      updateData.images = JSON.stringify(newImageUrls);
+    }
+    // Nếu không có files, không cập nhật images (giữ nguyên ảnh cũ)
 
     const updated = await this.prisma.post.update({
       where: { id: post.id },

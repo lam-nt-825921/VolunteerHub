@@ -148,12 +148,53 @@ export class PostsController {
    */
   @Patch('posts/:postId')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
+  @UseInterceptors(FilesInterceptor('images', 10)) // Tối đa 10 ảnh - optional
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Cập nhật post (có thể upload ảnh mới - tùy chọn)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          example: 'Nội dung đã được cập nhật',
+          description: 'Nội dung bài đăng',
+        },
+        type: {
+          type: 'string',
+          enum: ['DISCUSSION', 'ANNOUNCEMENT', 'UPDATE'],
+          example: 'DISCUSSION',
+          description: 'Loại bài đăng',
+        },
+        isPinned: {
+          type: 'boolean',
+          example: false,
+          description: 'Ghim bài đăng (chỉ event creator hoặc có quyền POST_APPROVE)',
+        },
+        images: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+          description: 'Mảng ảnh mới (tối đa 10 ảnh) - Tùy chọn. Nếu không gửi, giữ nguyên ảnh cũ',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật post thành công',
+    type: PostResponseDto,
+  })
   async updatePost(
     @Param('postId', ParseIntPipe) postId: number,
     @Body() dto: UpdatePostDto,
+    @UploadedFiles() files: Express.Multer.File[] | undefined,
     @CurrentUser() user: Actor,
   ) {
-    return this.postsService.updatePost(postId, dto, user);
+    return this.postsService.updatePost(postId, dto, user, files);
   }
 
   /**
