@@ -26,7 +26,8 @@ export interface EventFormData {
   startTime: string;
   endTime: string;
   location: string;
-  category: string;
+  category: string; // Category name for display
+  categoryId?: number; // Category ID for backend
   visibility: string;
   coverImage?: string;
 }
@@ -59,7 +60,22 @@ export class EventFormComponent implements OnInit {
   selectedFile: File | null = null;
   previewUrl: string | null = null;
 
-  categories = ['Môi trường', 'Giáo dục', 'Y tế', 'Xã hội', 'Văn hóa', 'Thể thao'];
+  // Category mapping: name -> approximate ID (based on seed data order)
+  // Note: This is a workaround since there's no categories API endpoint
+  // In production, categories should be fetched from the backend
+  private categoryNameToIdMap: Record<string, number> = {
+    'Môi trường': 1,
+    'Giáo dục': 2,
+    'Y tế': 3,
+    'Y tế & Sức khỏe': 3,
+    'Xã hội': 4,
+    'Cứu trợ thiên tai': 4,
+    'Văn hóa': 5,
+    'Hỗ trợ người già': 5,
+    'Thể thao': 5,
+  };
+
+  categories = ['Môi trường', 'Giáo dục', 'Y tế & Sức khỏe', 'Cứu trợ thiên tai', 'Hỗ trợ người già'];
 
   fieldErrors: { [key: string]: string } = {};
 
@@ -163,22 +179,47 @@ export class EventFormComponent implements OnInit {
     this.formData.coverImage = '';
   }
 
+  updatePreviewFromUrl() {
+    // Update preview when URL is entered
+    if (this.formData.coverImage?.trim() && !this.formData.coverImage.startsWith('data:')) {
+      this.previewUrl = this.formData.coverImage;
+    }
+  }
+
   onSubmit() {
     if (!this.validateForm()) {
       return;
     }
 
-    // Cover image is optional
-    // If a file is selected, we'd need to upload it first to get a URL
-    // For now, only accept URL strings (backend validation requires valid URL format)
-    // If user selected a file, they need to provide a URL or the image will be omitted
+    // Map category name to categoryId
+    if (this.formData.category) {
+      const categoryId = this.categoryNameToIdMap[this.formData.category];
+      if (categoryId) {
+        this.formData.categoryId = categoryId;
+      } else {
+        // Fallback: try to match by partial name
+        const matchedCategory = Object.keys(this.categoryNameToIdMap).find(
+          cat => cat.toLowerCase().includes(this.formData.category.toLowerCase()) || 
+                 this.formData.category.toLowerCase().includes(cat.toLowerCase())
+        );
+        if (matchedCategory) {
+          this.formData.categoryId = this.categoryNameToIdMap[matchedCategory];
+        } else {
+          this.alertService.showError('Danh mục không hợp lệ. Vui lòng chọn lại.');
+          return;
+        }
+      }
+    }
+
+    // Handle cover image: if file is selected, convert to data URL for preview
+    // But backend only accepts URLs, so we'll only send if it's a URL
     if (this.selectedFile && !this.formData.coverImage?.trim()) {
-      // File selected but no URL provided - make coverImage optional (omit it)
+      // File selected but no URL provided - set preview but don't send to backend
       this.formData.coverImage = undefined;
     } else if (this.formData.coverImage?.trim()) {
       // Validate that it's a proper URL format (not base64)
       if (this.formData.coverImage.startsWith('data:')) {
-        this.alertService.showWarning('Backend chỉ chấp nhận URL ảnh hợp lệ. Vui lòng upload ảnh lên server và nhập URL, hoặc để trống để bỏ qua ảnh bìa.');
+        // Data URL from file selection - clear it since backend doesn't accept data URLs
         this.formData.coverImage = undefined;
       }
       // If it's a valid URL string, keep it

@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../services/auth.service';
 import { EventsService, EventResponse, DashboardEvent } from '../../../services/events.service';
 import { AlertService } from '../../../services/alert.service';
+import { ConfirmationService } from '../../../services/confirmation.service';
 import { NavbarComponent } from '../../navbar/navbar.component';
 import { FooterComponent } from '../../footer/footer.component';
 import { EventRegistrationsComponent } from '../event-registrations/event-registrations.component';
@@ -35,6 +36,7 @@ export class EventManagementComponent implements OnInit {
     public authService: AuthService,
     private eventsService: EventsService,
     private alertService: AlertService,
+    private confirmationService: ConfirmationService,
     public router: Router,
     private route: ActivatedRoute
   ) {}
@@ -209,19 +211,19 @@ export class EventManagementComponent implements OnInit {
         updateData.coverImage = null;
       }
 
-      // Handle category - use the event's existing category ID if category name matches
-      // If the category name in form matches the event's category, keep the same categoryId
-      if (eventData.category && this.event?.category && this.event.category.name === eventData.category) {
+      // Handle category - use categoryId from form data if available
+      if (eventData.categoryId) {
+        updateData.categoryId = eventData.categoryId;
+      } else if (eventData.category && this.event?.category && this.event.category.name === eventData.category) {
+        // Fallback: use existing category ID if name matches
         updateData.categoryId = this.event.category.id;
       }
-      // Note: If category is changed to a different one, we'd need to fetch categories from API
-      // For now, we only update if the category name matches the existing one
 
       const result = await this.eventsService.updateEvent(this.event.id, updateData);
       if (result.success) {
-        this.alertService.showSuccess(result.message);
         this.closeEventForm();
         await this.loadEvent(this.event.id);
+        // No success alert - changes are visible in the form/data
       } else {
         this.alertService.showError(result.message);
       }
@@ -235,21 +237,25 @@ export class EventManagementComponent implements OnInit {
   async onCancelEvent() {
     if (!this.event) return;
 
-    if (confirm(`Bạn có chắc muốn hủy sự kiện "${this.event.title}"?`)) {
-      this.isLoading.set(true);
-      try {
-        const result = await this.eventsService.cancelEvent(this.event.id);
-        if (result.success) {
-          this.alertService.showSuccess(result.message);
-          await this.loadEvent(this.event.id);
-        } else {
-          this.alertService.showError(result.message);
-        }
-      } catch (error: any) {
-        this.alertService.showError(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
-      } finally {
-        this.isLoading.set(false);
+    const confirmed = await this.confirmationService.confirm(
+      `Bạn có chắc muốn hủy sự kiện "${this.event.title}"?`,
+      'Xác nhận hủy sự kiện'
+    );
+    if (!confirmed) return;
+
+    this.isLoading.set(true);
+    try {
+      const result = await this.eventsService.cancelEvent(this.event.id);
+      if (result.success) {
+        await this.loadEvent(this.event.id);
+        // No success alert - action is visible (event status changes)
+      } else {
+        this.alertService.showError(result.message);
       }
+    } catch (error: any) {
+      this.alertService.showError(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
+    } finally {
+      this.isLoading.set(false);
     }
   }
 

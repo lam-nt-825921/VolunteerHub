@@ -36,6 +36,7 @@
     "@angular/platform-server": "^18.0.0",
     "@angular/router": "^18.0.0",
     "@angular/ssr": "^18.0.0",
+    "cloudinary-core": "^2.14.0",
     "express": "^5.1.0",
     "rxjs": "~7.8.0",
     "socket.io-client": "^4.8.1",

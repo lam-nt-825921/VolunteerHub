@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { PostsApiService, Post, Comment } from '../../../services/posts-api.service';
 import { AlertService } from '../../../services/alert.service';
+import { ConfirmationService } from '../../../services/confirmation.service';
 
 @Component({
   selector: 'app-event-wall',
@@ -31,7 +32,8 @@ export class EventWallComponent implements OnInit {
   constructor(
     public authService: AuthService,
     private postsApi: PostsApiService,
-    private alertService: AlertService
+    private alertService: AlertService,
+    private confirmationService: ConfirmationService
   ) {}
 
   async ngOnInit() {
@@ -47,12 +49,12 @@ export class EventWallComponent implements OnInit {
       // Handle both array and paginated response
       const postsArray = Array.isArray(result) ? result : (result as any).data || [];
       
-      // Sort: pinned first, then by date
+    // Sort: pinned first, then by date
       postsArray.sort((a: Post, b: Post) => {
-        if (a.isPinned && !b.isPinned) return -1;
-        if (!a.isPinned && b.isPinned) return 1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
       
       this.posts.set(postsArray);
       
@@ -127,19 +129,21 @@ export class EventWallComponent implements OnInit {
 
     this.isLoading.set(true);
     try {
-      // Note: For now, if previewUrl is a data URL, we can't use it
-      // The backend expects actual image URLs (e.g., from Cloudinary)
-      // So we'll skip images if it's a data URL, or use it if it's already a URL
+      // Backend expects image URLs, not data URLs or file uploads
+      // If user selected a file, we show preview but can't submit it without uploading first
+      // For now, we'll only send images if they're already URLs
       let images: string[] | undefined = undefined;
-      if (this.previewUrl) {
-        // Check if it's a data URL or a regular URL
-        if (this.previewUrl.startsWith('data:')) {
-          // Data URL - skip for now (would need to upload to Cloudinary first)
-          images = undefined;
-        } else {
-          // Regular URL - use it
-          images = [this.previewUrl];
-        }
+      if (this.previewUrl && !this.previewUrl.startsWith('data:')) {
+        // Only use if it's a valid URL (not a data URL from file selection)
+        images = [this.previewUrl];
+      }
+      
+      // If user selected a file but it's not a URL, show a helpful message
+      if (this.selectedFile && this.previewUrl?.startsWith('data:')) {
+        this.alertService.showWarning('Hiện tại chỉ hỗ trợ ảnh từ URL. Vui lòng upload ảnh lên dịch vụ lưu trữ (như Imgur, Cloudinary) và dán link vào, hoặc đăng bài không có ảnh.');
+        // Clear the file selection so user knows it wasn't used
+        this.selectedFile = null;
+        this.previewUrl = null;
       }
       
       await firstValueFrom(this.postsApi.createPost(this.eventId, {
@@ -147,10 +151,10 @@ export class EventWallComponent implements OnInit {
         images,
         type: 'DISCUSSION'
       }));
-      
-      this.newPostContent.set('');
-      this.selectedFile = null;
-      this.previewUrl = null;
+    
+    this.newPostContent.set('');
+    this.selectedFile = null;
+    this.previewUrl = null;
       await this.loadPosts();
     } catch (error: any) {
       console.error('Error creating post:', error);
@@ -184,8 +188,8 @@ export class EventWallComponent implements OnInit {
         content
       }));
       
-      contentMap.set(postId, '');
-      this.newCommentContent.set(new Map(contentMap));
+    contentMap.set(postId, '');
+    this.newCommentContent.set(new Map(contentMap));
       
       // Reload comments for this post
       await this.reloadCommentsForPost(postId);
@@ -308,7 +312,7 @@ export class EventWallComponent implements OnInit {
       this.alertService.showError(error?.message || 'Thao tác thất bại. Vui lòng thử lại!');
     } finally {
       this.isLoading.set(false);
-    }
+  }
   }
 
   isLiked(post: Post): boolean {
@@ -318,17 +322,13 @@ export class EventWallComponent implements OnInit {
   async pinPost(post: Post) {
     if (!this.canManage) return;
     
-    if (!confirm(`Bạn có chắc muốn ${post.isPinned ? 'bỏ ghim' : 'ghim'} bài viết này?`)) {
-      return;
-    }
-
+    // Pin/unpin doesn't need confirmation - it's a simple toggle action
     this.isLoading.set(true);
     try {
       const updatedPost = await firstValueFrom(this.postsApi.pinPost(post.id, !post.isPinned));
-      this.alertService.showSuccess(post.isPinned ? 'Đã bỏ ghim bài viết!' : 'Đã ghim bài viết!');
-      
       // Reload posts to get updated order
       await this.loadPosts();
+      // No success alert - action is visible (pin icon changes)
     } catch (error: any) {
       console.error('Error pinning post:', error);
       this.alertService.showError(error?.message || 'Thao tác thất bại. Vui lòng thử lại!');
@@ -341,15 +341,16 @@ export class EventWallComponent implements OnInit {
     const user = this.authService.user();
     if (!this.canManage && post.author.id !== user?.id) return;
     
-    if (!confirm('Bạn có chắc muốn xóa bài viết này?')) {
-      return;
-    }
+    const confirmed = await this.confirmationService.confirm(
+      'Bạn có chắc muốn xóa bài viết này?'
+    );
+    if (!confirmed) return;
 
     this.isLoading.set(true);
     try {
       await firstValueFrom(this.postsApi.deletePost(post.id));
-      this.alertService.showSuccess('Đã xóa bài viết!');
       await this.loadPosts();
+      // No success alert - action is visible (post disappears)
     } catch (error: any) {
       console.error('Error deleting post:', error);
       this.alertService.showError(error?.message || 'Xóa bài viết thất bại. Vui lòng thử lại!');
@@ -362,15 +363,16 @@ export class EventWallComponent implements OnInit {
     const user = this.authService.user();
     if (!this.canManage && comment.author.id !== user?.id) return;
     
-    if (!confirm('Bạn có chắc muốn xóa bình luận này?')) {
-      return;
-    }
+    const confirmed = await this.confirmationService.confirm(
+      'Bạn có chắc muốn xóa bình luận này?'
+    );
+    if (!confirmed) return;
 
     this.isLoading.set(true);
     try {
       await firstValueFrom(this.postsApi.deleteComment(comment.id));
-      this.alertService.showSuccess('Đã xóa bình luận!');
       await this.reloadCommentsForPost(post.id);
+      // No success alert - action is visible (comment disappears)
     } catch (error: any) {
       console.error('Error deleting comment:', error);
       this.alertService.showError(error?.message || 'Xóa bình luận thất bại. Vui lòng thử lại!');

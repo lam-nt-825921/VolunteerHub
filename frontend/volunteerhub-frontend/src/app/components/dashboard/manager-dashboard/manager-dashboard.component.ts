@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../services/auth.service';
 import { EventsService, EventResponse, DashboardEvent } from '../../../services/events.service';
 import { AlertService } from '../../../services/alert.service';
+import { ConfirmationService } from '../../../services/confirmation.service';
 import { NavbarComponent } from '../../navbar/navbar.component';
 import { FooterComponent } from '../../footer/footer.component';
 import { EventFormComponent } from '../../events/event-form/event-form.component';
@@ -30,6 +31,7 @@ export class ManagerDashboardComponent implements OnInit {
     public authService: AuthService,
     private eventsService: EventsService,
     private alertService: AlertService,
+    private confirmationService: ConfirmationService,
     private router: Router
   ) {}
 
@@ -118,9 +120,8 @@ export class ManagerDashboardComponent implements OnInit {
           this.alertService.showError(result.message);
         }
       } else {
-        // Map category name to categoryId (if category API exists, use that)
-        // For now, categoryId is optional in backend, so we'll leave it undefined
-        const categoryId = eventData.categoryId || undefined;
+        // Use categoryId from form data
+        const categoryId = eventData.categoryId;
         
         const result = await this.eventsService.createEvent({
           title: eventData.title,
@@ -144,9 +145,9 @@ export class ManagerDashboardComponent implements OnInit {
             console.warn('Could not auto-register manager for event:', regError);
           }
           
-          this.alertService.showSuccess('Tạo sự kiện thành công! Bạn đã được tự động đăng ký tham gia sự kiện này.');
           this.closeEventForm();
           await this.loadEvents();
+          // No success alert - action is visible (new event appears in list)
         } else {
           this.alertService.showError(result.message);
         }
@@ -159,21 +160,25 @@ export class ManagerDashboardComponent implements OnInit {
   }
 
   async onCancelEvent(event: DashboardEvent) {
-    if (confirm(`Bạn có chắc muốn hủy sự kiện "${event.title}"?`)) {
-      this.isLoading.set(true);
-      try {
-        const result = await this.eventsService.cancelEvent(event.id);
-        if (result.success) {
-          this.alertService.showSuccess(result.message);
-          await this.loadEvents();
-        } else {
-          this.alertService.showError(result.message);
-        }
-      } catch (error: any) {
-        this.alertService.showError(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
-      } finally {
-        this.isLoading.set(false);
+    const confirmed = await this.confirmationService.confirm(
+      `Bạn có chắc muốn hủy sự kiện "${event.title}"?`,
+      'Xác nhận hủy sự kiện'
+    );
+    if (!confirmed) return;
+
+    this.isLoading.set(true);
+    try {
+      const result = await this.eventsService.cancelEvent(event.id);
+      if (result.success) {
+        await this.loadEvents();
+        // No success alert - action is visible (event status changes)
+      } else {
+        this.alertService.showError(result.message);
       }
+    } catch (error: any) {
+      this.alertService.showError(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
+    } finally {
+      this.isLoading.set(false);
     }
   }
 

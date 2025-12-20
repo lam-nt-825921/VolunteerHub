@@ -150,6 +150,24 @@
   margin: 0.5rem 0;
 }
 
+.file-upload-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #f57c00;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background-color: rgba(245, 124, 0, 0.1);
+  border-radius: 0.25rem;
+
+  mat-icon {
+    font-size: 1rem;
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
 .image-preview {
   position: relative;
   margin-bottom: 1rem;

@@ -8,3 +8,7 @@
     (close)="alertService.close()"
   ></app-alert-modal>
 }
+
+@if (confirmationService.confirmation().show) {
+  <app-confirmation-modal></app-confirmation-modal>
+}

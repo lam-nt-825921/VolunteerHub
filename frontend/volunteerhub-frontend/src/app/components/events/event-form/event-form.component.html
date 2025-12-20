@@ -149,15 +149,21 @@
         (change)="onFileSelected($event)"
         class="file-input-hidden"
       />
-      <p class="file-upload-hint">Hoặc nhập URL ảnh:</p>
+      <p class="file-upload-hint">Hoặc nhập URL ảnh (bắt buộc nếu muốn upload ảnh):</p>
       <input
         type="url"
         id="coverImage"
         [(ngModel)]="formData.coverImage"
         name="coverImage"
         placeholder="https://example.com/image.jpg"
-        (input)="previewUrl = formData.coverImage || previewUrl"
+        (input)="updatePreviewFromUrl()"
       />
+      @if (selectedFile && !formData.coverImage?.trim()) {
+        <p class="file-upload-warning">
+          <mat-icon>info</mat-icon>
+          Bạn đã chọn ảnh nhưng cần nhập URL để lưu. Hãy upload ảnh lên dịch vụ lưu trữ và dán link vào ô trên.
+        </p>
+      }
     </div>
 
     <div class="form-actions">

@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { EventsService, RegistrationResponse } from '../../../services/events.service';
 import { AuthService } from '../../../services/auth.service';
 import { AlertService } from '../../../services/alert.service';
+import { ConfirmationService } from '../../../services/confirmation.service';
 
 @Component({
   selector: 'app-event-registrations',
@@ -29,7 +30,8 @@ export class EventRegistrationsComponent implements OnInit {
   constructor(
     private eventsService: EventsService,
     public authService: AuthService,
-    private alertService: AlertService
+    private alertService: AlertService,
+    private confirmationService: ConfirmationService
   ) {}
 
   async ngOnInit() {
@@ -114,9 +116,11 @@ export class EventRegistrationsComponent implements OnInit {
       return;
     }
 
-    if (!confirm(`Bạn có chắc muốn duyệt ${selectedIds.length} đăng ký đã chọn?`)) {
-      return;
-    }
+    const confirmed = await this.confirmationService.confirm(
+      `Bạn có chắc muốn duyệt ${selectedIds.length} đăng ký đã chọn?`,
+      'Xác nhận duyệt hàng loạt'
+    );
+    if (!confirmed) return;
 
     this.isLoading.set(true);
     try {
@@ -135,21 +139,25 @@ export class EventRegistrationsComponent implements OnInit {
   }
 
   async rejectRegistration(registrationId: number) {
-    if (confirm('Bạn có chắc muốn từ chối đăng ký này?')) {
-      this.isLoading.set(true);
-      try {
-        const result = await this.eventsService.rejectRegistration(this.eventId, registrationId);
-        if (result.success) {
-          this.alertService.showSuccess(result.message);
-          await this.loadRegistrations();
-        } else {
-          this.alertService.showError(result.message);
-        }
-      } catch (error: any) {
-        this.alertService.showError(error?.message || 'Từ chối đăng ký thất bại!');
-      } finally {
-        this.isLoading.set(false);
+    const confirmed = await this.confirmationService.confirm(
+      'Bạn có chắc muốn từ chối đăng ký này?',
+      'Xác nhận từ chối đăng ký'
+    );
+    if (!confirmed) return;
+
+    this.isLoading.set(true);
+    try {
+      const result = await this.eventsService.rejectRegistration(this.eventId, registrationId);
+      if (result.success) {
+        await this.loadRegistrations();
+        // No success alert - action is visible (registration is removed)
+      } else {
+        this.alertService.showError(result.message);
       }
+    } catch (error: any) {
+      this.alertService.showError(error?.message || 'Từ chối đăng ký thất bại!');
+    } finally {
+      this.isLoading.set(false);
     }
   }
 
@@ -160,9 +168,11 @@ export class EventRegistrationsComponent implements OnInit {
       return;
     }
 
-    if (!confirm(`Bạn có chắc muốn từ chối ${selectedIds.length} đăng ký đã chọn?`)) {
-      return;
-    }
+    const confirmed = await this.confirmationService.confirm(
+      `Bạn có chắc muốn từ chối ${selectedIds.length} đăng ký đã chọn?`,
+      'Xác nhận từ chối hàng loạt'
+    );
+    if (!confirmed) return;
 
     this.isLoading.set(true);
     try {
@@ -171,8 +181,8 @@ export class EventRegistrationsComponent implements OnInit {
       );
       const results = await Promise.all(promises);
       const successCount = results.filter(r => r.success).length;
-      this.alertService.showSuccess(`Đã từ chối thành công ${successCount}/${selectedIds.length} đăng ký!`);
       await this.loadRegistrations();
+      // No success alert - action is visible (registrations are removed)
     } catch (error: any) {
       this.alertService.showError(error?.message || 'Từ chối đăng ký thất bại!');
     } finally {
@@ -181,21 +191,25 @@ export class EventRegistrationsComponent implements OnInit {
   }
 
   async kickParticipant(registrationId: number) {
-    if (confirm('Bạn có chắc muốn xóa người tham gia này?')) {
-      this.isLoading.set(true);
-      try {
-        const result = await this.eventsService.kickParticipant(this.eventId, registrationId);
-        if (result.success) {
-          this.alertService.showSuccess(result.message);
-          await this.loadRegistrations();
-        } else {
-          this.alertService.showError(result.message);
-        }
-      } catch (error: any) {
-        this.alertService.showError(error?.message || 'Xóa người tham gia thất bại!');
-      } finally {
-        this.isLoading.set(false);
+    const confirmed = await this.confirmationService.confirm(
+      'Bạn có chắc muốn xóa người tham gia này?',
+      'Xác nhận xóa người tham gia'
+    );
+    if (!confirmed) return;
+
+    this.isLoading.set(true);
+    try {
+      const result = await this.eventsService.kickParticipant(this.eventId, registrationId);
+      if (result.success) {
+        await this.loadRegistrations();
+        // No success alert - action is visible (participant is removed)
+      } else {
+        this.alertService.showError(result.message);
       }
+    } catch (error: any) {
+      this.alertService.showError(error?.message || 'Xóa người tham gia thất bại!');
+    } finally {
+      this.isLoading.set(false);
     }
   }
 

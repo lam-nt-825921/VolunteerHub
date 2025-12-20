@@ -7,6 +7,7 @@ import { AuthService, User } from '../../../services/auth.service';
 import { EventsService, EventResponse } from '../../../services/events.service';
 import { AdminApiService } from '../../../services/admin-api.service';
 import { AlertService } from '../../../services/alert.service';
+import { ConfirmationService } from '../../../services/confirmation.service';
 import { NavbarComponent } from '../../navbar/navbar.component';
 import { FooterComponent } from '../../footer/footer.component';
 
@@ -46,6 +47,7 @@ export class AdminDashboardComponent implements OnInit {
     private eventsService: EventsService,
     private adminApi: AdminApiService,
     private alertService: AlertService,
+    private confirmationService: ConfirmationService,
     private router: Router
   ) {}
 
@@ -277,59 +279,71 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   async approveEvent(event: EventResponse) {
-    if (confirm(`Bạn có chắc muốn duyệt sự kiện "${event.title}"?`)) {
-      this.isLoading.set(true);
-      try {
-        const result = await this.eventsService.approveEvent(event.id);
-        if (result.success) {
-          this.alertService.showSuccess(result.message);
-          await this.loadEvents();
-        } else {
-          this.alertService.showError(result.message);
-        }
-      } catch (error: any) {
-        this.alertService.showError(error?.message || 'Duyệt sự kiện thất bại. Vui lòng thử lại!');
-      } finally {
-        this.isLoading.set(false);
+    const confirmed = await this.confirmationService.confirm(
+      `Bạn có chắc muốn duyệt sự kiện "${event.title}"?`,
+      'Xác nhận duyệt sự kiện'
+    );
+    if (!confirmed) return;
+
+    this.isLoading.set(true);
+    try {
+      const result = await this.eventsService.approveEvent(event.id);
+      if (result.success) {
+        await this.loadEvents();
+        // No success alert - action is visible (event status changes)
+      } else {
+        this.alertService.showError(result.message);
       }
+    } catch (error: any) {
+      this.alertService.showError(error?.message || 'Duyệt sự kiện thất bại. Vui lòng thử lại!');
+    } finally {
+      this.isLoading.set(false);
     }
   }
 
   async rejectEvent(event: EventResponse) {
-    if (confirm(`Bạn có chắc muốn từ chối sự kiện "${event.title}"?`)) {
-      this.isLoading.set(true);
-      try {
-        const result = await this.eventsService.rejectEvent(event.id);
-        if (result.success) {
-          this.alertService.showSuccess(result.message);
-          await this.loadEvents();
-        } else {
-          this.alertService.showError(result.message);
-        }
-      } catch (error: any) {
-        this.alertService.showError(error?.message || 'Từ chối sự kiện thất bại. Vui lòng thử lại!');
-      } finally {
-        this.isLoading.set(false);
+    const confirmed = await this.confirmationService.confirm(
+      `Bạn có chắc muốn từ chối sự kiện "${event.title}"?`,
+      'Xác nhận từ chối sự kiện'
+    );
+    if (!confirmed) return;
+
+    this.isLoading.set(true);
+    try {
+      const result = await this.eventsService.rejectEvent(event.id);
+      if (result.success) {
+        await this.loadEvents();
+        // No success alert - action is visible (event status changes)
+      } else {
+        this.alertService.showError(result.message);
       }
+    } catch (error: any) {
+      this.alertService.showError(error?.message || 'Từ chối sự kiện thất bại. Vui lòng thử lại!');
+    } finally {
+      this.isLoading.set(false);
     }
   }
 
   async cancelEvent(event: EventResponse) {
-    if (confirm(`Bạn có chắc muốn hủy sự kiện "${event.title}"?`)) {
-      this.isLoading.set(true);
-      try {
-        const result = await this.eventsService.cancelEvent(event.id);
-        if (result.success) {
-          this.alertService.showSuccess(result.message);
-          await this.loadEvents();
-        } else {
-          this.alertService.showError(result.message);
-        }
-      } catch (error: any) {
-        this.alertService.showError(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
-      } finally {
-        this.isLoading.set(false);
+    const confirmed = await this.confirmationService.confirm(
+      `Bạn có chắc muốn hủy sự kiện "${event.title}"?`,
+      'Xác nhận hủy sự kiện'
+    );
+    if (!confirmed) return;
+
+    this.isLoading.set(true);
+    try {
+      const result = await this.eventsService.cancelEvent(event.id);
+      if (result.success) {
+        await this.loadEvents();
+        // No success alert - action is visible (event status changes)
+      } else {
+        this.alertService.showError(result.message);
       }
+    } catch (error: any) {
+      this.alertService.showError(error?.message || 'Hủy sự kiện thất bại. Vui lòng thử lại!');
+    } finally {
+      this.isLoading.set(false);
     }
   }
 
@@ -355,21 +369,25 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   async changeUserRole(user: User, newRole: 'volunteer' | 'manager' | 'admin') {
-    if (confirm(`Bạn có chắc muốn thay đổi vai trò của ${user.name} thành ${newRole}?`)) {
-      this.isLoading.set(true);
-      try {
-        const result = await this.authService.changeUserRole(user.id, newRole);
-        if (result.success) {
-          this.alertService.showSuccess(result.message);
-          await this.loadUsers();
-        } else {
-          this.alertService.showError(result.message);
-        }
-      } catch (error: any) {
-        this.alertService.showError(error?.message || 'Thay đổi vai trò thất bại. Vui lòng thử lại!');
-      } finally {
-        this.isLoading.set(false);
+    const confirmed = await this.confirmationService.confirm(
+      `Bạn có chắc muốn thay đổi vai trò của ${user.name} thành ${newRole}?`,
+      'Xác nhận thay đổi vai trò'
+    );
+    if (!confirmed) return;
+
+    this.isLoading.set(true);
+    try {
+      const result = await this.authService.changeUserRole(user.id, newRole);
+      if (result.success) {
+        await this.loadUsers();
+        // No success alert - action is visible (role changes in table)
+      } else {
+        this.alertService.showError(result.message);
       }
+    } catch (error: any) {
+      this.alertService.showError(error?.message || 'Thay đổi vai trò thất bại. Vui lòng thử lại!');
+    } finally {
+      this.isLoading.set(false);
     }
   }
 
