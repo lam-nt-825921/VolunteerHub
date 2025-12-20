@@ -1,0 +1,178 @@
+<app-navbar></app-navbar>
+
+<main class="profile-page">
+  <div class="profile-container">
+    @if (isLoading() && !profile) {
+      <div class="loading-state">
+        <mat-icon>hourglass_empty</mat-icon>
+        <p>Đang tải thông tin...</p>
+      </div>
+    } @else if (profile) {
+      <div class="profile-header">
+        <h1>Thông tin cá nhân</h1>
+        @if (!isEditing()) {
+          <button class="btn btn-primary" (click)="startEdit()">
+            <mat-icon>edit</mat-icon>
+            <span>Chỉnh sửa</span>
+          </button>
+        }
+      </div>
+
+      @if (errorMessage()) {
+        <div class="alert alert-error">
+          <mat-icon>error</mat-icon>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      @if (successMessage()) {
+        <div class="alert alert-success">
+          <mat-icon>check_circle</mat-icon>
+          <span>{{ successMessage() }}</span>
+        </div>
+      }
+
+      <div class="profile-content">
+        <!-- Avatar Section -->
+        <div class="profile-avatar-section">
+          <div class="avatar-container">
+            @if (avatarPreview) {
+              <img [src]="avatarPreview" alt="Avatar" class="avatar-image" />
+            } @else {
+              <div class="avatar-placeholder">
+                <mat-icon>person</mat-icon>
+              </div>
+            }
+            @if (isEditing()) {
+              <label class="avatar-upload-btn">
+                <input
+                  type="file"
+                  accept="image/*"
+                  (change)="onAvatarSelected($event)"
+                  style="display: none;"
+                />
+                <mat-icon>camera_alt</mat-icon>
+                <span>Đổi ảnh</span>
+              </label>
+            }
+          </div>
+        </div>
+
+        <!-- Profile Information -->
+        <div class="profile-info">
+          @if (!isEditing()) {
+            <!-- View Mode -->
+            <div class="info-section">
+              <div class="info-item">
+                <label>Họ và tên</label>
+                <p>{{ profile.fullName || 'Chưa cập nhật' }}</p>
+              </div>
+              <div class="info-item">
+                <label>Email</label>
+                <p>{{ profile.email }}</p>
+              </div>
+              <div class="info-item">
+                <label>Số điện thoại</label>
+                <p>{{ profile.phone || 'Chưa cập nhật' }}</p>
+              </div>
+              <div class="info-item">
+                <label>Vai trò</label>
+                <p class="role-badge" [class]="'role-' + profile.role.toLowerCase()">
+                  {{ getRoleLabel(profile.role) }}
+                </p>
+              </div>
+              <div class="info-item">
+                <label>Điểm uy tín</label>
+                <p>{{ profile.reputationScore || 0 }}</p>
+              </div>
+              <div class="info-item">
+                <label>Ngày tham gia</label>
+                <p>{{ formatDate(profile.createdAt) }}</p>
+              </div>
+            </div>
+          } @else {
+            <!-- Edit Mode -->
+            <form (ngSubmit)="saveProfile()" class="edit-form">
+              <div class="form-group">
+                <label for="fullName">Họ và tên *</label>
+                <input
+                  type="text"
+                  id="fullName"
+                  [(ngModel)]="editData.fullName"
+                  name="fullName"
+                  required
+                  placeholder="Nhập họ và tên"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="email">Email</label>
+                <input
+                  type="email"
+                  id="email"
+                  [value]="profile.email"
+                  disabled
+                  class="disabled-input"
+                />
+                <small class="form-hint">Email không thể thay đổi</small>
+              </div>
+
+              <div class="form-group">
+                <label for="phone">Số điện thoại</label>
+                <input
+                  type="tel"
+                  id="phone"
+                  [(ngModel)]="editData.phone"
+                  name="phone"
+                  placeholder="Nhập số điện thoại"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="password">Mật khẩu mới</label>
+                <input
+                  type="password"
+                  id="password"
+                  [(ngModel)]="editData.password"
+                  name="password"
+                  placeholder="Để trống nếu không muốn đổi mật khẩu"
+                />
+                <small class="form-hint">Để trống nếu không muốn thay đổi mật khẩu</small>
+              </div>
+
+              <div class="form-group">
+                <label>Vai trò</label>
+                <p class="role-badge" [class]="'role-' + profile.role.toLowerCase()">
+                  {{ getRoleLabel(profile.role) }}
+                </p>
+                <small class="form-hint">Vai trò không thể thay đổi</small>
+              </div>
+
+              <div class="form-actions">
+                <button type="button" class="btn btn-secondary" (click)="cancelEdit()" [disabled]="isLoading()">
+                  Hủy
+                </button>
+                <button type="submit" class="btn btn-primary" [disabled]="isLoading()">
+                  @if (isLoading()) {
+                    <span>Đang lưu...</span>
+                  } @else {
+                    <span>Lưu thay đổi</span>
+                  }
+                </button>
+              </div>
+            </form>
+          }
+        </div>
+      </div>
+    } @else {
+      <div class="error-state">
+        <mat-icon>error_outline</mat-icon>
+        <p>Không thể tải thông tin profile</p>
+        <button class="btn btn-primary" (click)="loadProfile()">Thử lại</button>
+      </div>
+    }
+  </div>
+</main>
+
+<app-footer></app-footer>
+

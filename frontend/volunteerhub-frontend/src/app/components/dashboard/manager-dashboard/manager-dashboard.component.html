@@ -1,0 +1,166 @@
+<app-navbar></app-navbar>
+
+<div class="manager-dashboard">
+  <div class="dashboard-header">
+    <div class="header-content">
+      <h1>Dashboard Quản lý sự kiện</h1>
+      <p>Chào mừng, {{ authService.user()?.name }}!</p>
+    </div>
+  </div>
+
+  <div class="dashboard-content">
+    <!-- Create Event Button -->
+    <div class="section-header">
+      <h2>Quản lý sự kiện</h2>
+      <button class="btn btn-primary" (click)="openCreateForm()">
+        <mat-icon>add</mat-icon>
+        Tạo sự kiện mới
+      </button>
+    </div>
+
+    <!-- Event Form Modal -->
+    @if (showEventForm()) {
+      <div class="modal-overlay" (click)="closeEventForm()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <app-event-form
+            [event]="editingEvent()"
+            [managerId]="authService.user()?.id || 0"
+            [managerName]="authService.user()?.name || ''"
+            (save)="onSaveEvent($event)"
+            (cancel)="closeEventForm()"
+          ></app-event-form>
+        </div>
+      </div>
+    }
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-primary);">
+          <mat-icon>event</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ totalEvents }}</h3>
+          <p>Tổng sự kiện</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-accent-1);">
+          <mat-icon>schedule</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ pendingEvents.length }}</h3>
+          <p>Đang chờ duyệt</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-accent-2);">
+          <mat-icon>check_circle</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ approvedEvents.length }}</h3>
+          <p>Đã duyệt</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-secondary);">
+          <mat-icon>people</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ totalParticipants }}</h3>
+          <p>Tổng người tham gia</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Events -->
+    @if (pendingEvents.length > 0) {
+      <div class="section">
+        <div class="section-header">
+          <h2>Sự kiện đang chờ duyệt</h2>
+        </div>
+        <div class="events-grid">
+          @for (event of pendingEvents; track event.id) {
+            <div class="event-card">
+              <div class="event-header">
+                <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
+                <span class="event-status pending">Chờ duyệt</span>
+              </div>
+              <h3 class="event-title" (click)="viewEventDetail(event.id)">{{ event.title }}</h3>
+              <p class="event-description">{{ event.description }}</p>
+              <div class="event-details">
+                <div class="event-detail-item">
+                  <mat-icon>calendar_today</mat-icon>
+                  <span>{{ formatDate(event.startTime) }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>location_on</mat-icon>
+                  <span>{{ event.location }}</span>
+                </div>
+              </div>
+              <div class="event-actions">
+                <button class="btn-icon" (click)="openEditForm(event)" title="Sửa">
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button class="btn-icon" (click)="onCancelEvent(event)" title="Hủy">
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Approved Events -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Sự kiện đang quản lý</h2>
+      </div>
+
+      @if (approvedEvents.length > 0) {
+        <div class="events-grid">
+          @for (event of approvedEvents; track event.id) {
+            <div class="event-card">
+              <div class="event-header">
+                <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
+                <span class="event-status approved">Đã duyệt</span>
+              </div>
+              <h3 class="event-title" (click)="viewEventDetail(event.id)">{{ event.title }}</h3>
+              <p class="event-description">{{ event.description }}</p>
+              <div class="event-details">
+                <div class="event-detail-item">
+                  <mat-icon>calendar_today</mat-icon>
+                  <span>{{ formatDate(event.startTime) }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>location_on</mat-icon>
+                  <span>{{ event.location }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>people</mat-icon>
+                  <span>{{ event.registrationsCount || 0 }} đăng ký</span>
+                </div>
+              </div>
+              <div class="event-actions">
+                <button class="btn-link" (click)="viewEventDetail(event.id)" title="Xem chi tiết">
+                  Quản lý đăng ký
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <mat-icon>event_busy</mat-icon>
+          <p>Bạn chưa có sự kiện nào đã được duyệt</p>
+        </div>
+      }
+    </div>
+  </div>
+</div>
+
+<app-footer></app-footer>
+

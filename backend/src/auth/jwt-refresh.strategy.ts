@@ -8,15 +8,19 @@ import { Request } from 'express';
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
   constructor(private config: ConfigService) {
+    const secret = config.get<string>('JWT_REFRESH_SECRET');
+    if (!secret) {
+      throw new Error('JWT_REFRESH_SECRET is not configured');
+    }
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         (request: Request) => {
           return request?.cookies?.refresh_token;
         },
       ]),
-      secretOrKey: config.get<string>('JWT_REFRESH_SECRET'),
+      secretOrKey: secret,
       passReqToCallback: true,
-    });
+    } as any);
   }
 
   validate(req: Request, payload: { sub: number }) {

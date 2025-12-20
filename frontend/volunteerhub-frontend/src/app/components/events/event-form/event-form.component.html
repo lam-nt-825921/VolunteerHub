@@ -1,0 +1,175 @@
+<div class="event-form">
+  <h2>{{ event ? 'Sửa sự kiện' : 'Tạo sự kiện mới' }}</h2>
+
+  <form (ngSubmit)="onSubmit()">
+    <div class="form-group">
+      <label for="title">Tiêu đề sự kiện *</label>
+      <input
+        type="text"
+        id="title"
+        [(ngModel)]="formData.title"
+        name="title"
+        required
+        placeholder="Nhập tiêu đề sự kiện (tối thiểu 5 ký tự)"
+        minlength="5"
+        maxlength="120"
+        [class.error]="fieldErrors['title']"
+        (input)="clearFieldError('title')"
+      />
+      @if (fieldErrors['title']) {
+        <span class="error-message">{{ fieldErrors['title'] }}</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label for="description">Mô tả *</label>
+      <textarea
+        id="description"
+        [(ngModel)]="formData.description"
+        name="description"
+        required
+        rows="4"
+        placeholder="Nhập mô tả chi tiết về sự kiện (tối thiểu 20 ký tự)"
+        minlength="20"
+        maxlength="5000"
+        [class.error]="fieldErrors['description']"
+        (input)="clearFieldError('description')"
+      ></textarea>
+      @if (fieldErrors['description']) {
+        <span class="error-message">{{ fieldErrors['description'] }}</span>
+      }
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="startTime">Ngày bắt đầu *</label>
+        <input
+          type="datetime-local"
+          id="startTime"
+          [(ngModel)]="formData.startTime"
+          name="startTime"
+          required
+          [class.error]="fieldErrors['startTime']"
+          (change)="clearFieldError('startTime')"
+        />
+        @if (fieldErrors['startTime']) {
+          <span class="error-message">{{ fieldErrors['startTime'] }}</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="endTime">Ngày kết thúc *</label>
+        <input
+          type="datetime-local"
+          id="endTime"
+          [(ngModel)]="formData.endTime"
+          name="endTime"
+          required
+          [class.error]="fieldErrors['endTime']"
+          (change)="clearFieldError('endTime')"
+        />
+        @if (fieldErrors['endTime']) {
+          <span class="error-message">{{ fieldErrors['endTime'] }}</span>
+        }
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="location">Địa điểm *</label>
+      <input
+        type="text"
+        id="location"
+        [(ngModel)]="formData.location"
+        name="location"
+        required
+        placeholder="Nhập địa điểm tổ chức"
+        minlength="3"
+        [class.error]="fieldErrors['location']"
+        (input)="clearFieldError('location')"
+      />
+      @if (fieldErrors['location']) {
+        <span class="error-message">{{ fieldErrors['location'] }}</span>
+      }
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="category">Danh mục *</label>
+        <select
+          id="category"
+          [(ngModel)]="formData.category"
+          name="category"
+          required
+          [class.error]="fieldErrors['category']"
+          (change)="clearFieldError('category')"
+        >
+          <option value="">Chọn danh mục</option>
+          @for (cat of categories; track cat) {
+            <option [value]="cat">{{ cat }}</option>
+          }
+        </select>
+        @if (fieldErrors['category']) {
+          <span class="error-message">{{ fieldErrors['category'] }}</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="visibility">Mức độ hiển thị *</label>
+        <select
+          id="visibility"
+          [(ngModel)]="formData.visibility"
+          name="visibility"
+          required
+        >
+          @for (vis of visibilities; track vis.value) {
+            <option [value]="vis.value">{{ vis.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="coverImage">Ảnh bìa sự kiện (tùy chọn)</label>
+      @if (previewUrl) {
+        <div class="image-preview">
+          <img [src]="previewUrl" alt="Preview" />
+          <button type="button" class="remove-image-btn" (click)="removeImage()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      }
+      <label class="file-upload-label" for="coverImageFile">
+        <mat-icon>cloud_upload</mat-icon>
+        <span>{{ previewUrl ? 'Thay đổi ảnh' : 'Chọn ảnh từ máy tính' }}</span>
+      </label>
+      <input
+        type="file"
+        id="coverImageFile"
+        accept="image/*"
+        (change)="onFileSelected($event)"
+        class="file-input-hidden"
+      />
+      <p class="file-upload-hint">Hoặc nhập URL ảnh (bắt buộc nếu muốn upload ảnh):</p>
+      <input
+        type="url"
+        id="coverImage"
+        [(ngModel)]="formData.coverImage"
+        name="coverImage"
+        placeholder="https://example.com/image.jpg"
+        (input)="updatePreviewFromUrl()"
+      />
+      @if (selectedFile && !formData.coverImage?.trim()) {
+        <p class="file-upload-warning">
+          <mat-icon>info</mat-icon>
+          Bạn đã chọn ảnh nhưng cần nhập URL để lưu. Hãy upload ảnh lên dịch vụ lưu trữ và dán link vào ô trên.
+        </p>
+      }
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" (click)="onCancel()">Hủy</button>
+      <button type="submit" class="btn btn-primary">{{ event ? 'Cập nhật' : 'Tạo sự kiện' }}</button>
+    </div>
+  </form>
+</div>
+

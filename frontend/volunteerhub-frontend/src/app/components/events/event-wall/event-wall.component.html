@@ -1,0 +1,298 @@
+<div class="event-wall">
+  <div class="wall-header">
+    <h2>Kênh trao đổi</h2>
+    <p>Chia sẻ và tương tác với cộng đồng</p>
+  </div>
+
+  <!-- Create Post Form -->
+  <div class="create-post-card">
+    <div class="post-input">
+      <textarea
+        [(ngModel)]="newPostContent"
+        placeholder="Viết gì đó..."
+        rows="3"
+        class="post-textarea"
+      ></textarea>
+      @if (previewUrl) {
+        <div class="image-preview">
+          <img [src]="previewUrl" alt="Preview">
+          <button class="remove-image" (click)="removeImage()" type="button">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      }
+      <div class="post-actions">
+        <label class="file-upload-btn">
+          <mat-icon>image</mat-icon>
+          <span>Thêm ảnh</span>
+          <input
+            type="file"
+            accept="image/*"
+            (change)="onFileSelected($event)"
+            class="file-input-hidden"
+          />
+        </label>
+        <button
+          class="btn-post"
+          (click)="createPost()"
+          [disabled]="!newPostContent().trim()"
+          type="button"
+        >
+          Đăng
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Posts List -->
+  <div class="posts-list">
+    @if (isLoading()) {
+      <div class="loading-posts">
+        <mat-icon>refresh</mat-icon>
+        <p>Đang tải bài viết...</p>
+      </div>
+    } @else {
+      @for (post of posts(); track post.id) {
+        <div class="post-card" [class.pinned]="post.isPinned">
+          @if (post.isPinned) {
+            <div class="pinned-badge">
+              <mat-icon>push_pin</mat-icon>
+              <span>Đã ghim</span>
+            </div>
+          }
+          
+          <div class="post-header">
+            <div class="post-author">
+              <div class="author-avatar">
+                @if (post.author.avatar) {
+                  <img [src]="post.author.avatar" alt="Avatar">
+                } @else {
+                  {{ post.author.fullName.charAt(0).toUpperCase() }}
+                }
+              </div>
+              <div class="author-info">
+                <strong>{{ post.author.fullName }}</strong>
+                <span class="post-time">{{ formatDate(post.createdAt) }}</span>
+              </div>
+            </div>
+            <div class="post-actions-menu">
+              @if (canManage) {
+                <button
+                  class="icon-btn"
+                  (click)="pinPost(post)"
+                  [title]="post.isPinned ? 'Bỏ ghim' : 'Ghim bài'"
+                  type="button"
+                  [disabled]="isLoading()"
+                >
+                  <mat-icon>{{ post.isPinned ? 'push_pin' : 'push_pin' }}</mat-icon>
+                </button>
+                <button
+                  class="icon-btn"
+                  (click)="deletePost(post)"
+                  title="Xóa bài"
+                  type="button"
+                  [disabled]="isLoading()"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              } @else if (post.author.id === authService.user()?.id) {
+                <button
+                  class="icon-btn"
+                  (click)="deletePost(post)"
+                  title="Xóa bài"
+                  type="button"
+                  [disabled]="isLoading()"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="post-content">
+            <p>{{ post.content }}</p>
+            @if (post.images && post.images.length > 0) {
+              <div class="post-images">
+                @for (imageUrl of post.images; track imageUrl) {
+                  <img [src]="imageUrl" alt="Post image" class="post-image">
+                }
+              </div>
+            }
+          </div>
+
+          <div class="post-stats">
+            <button
+              class="like-btn"
+              [class.liked]="isLiked(post)"
+              (click)="toggleLike(post)"
+              type="button"
+              [disabled]="isLoading()"
+            >
+              <mat-icon>{{ isLiked(post) ? 'favorite' : 'favorite_border' }}</mat-icon>
+              <span>{{ post.likesCount }}</span>
+            </button>
+            <span class="comment-count">{{ post.commentsCount }} bình luận</span>
+          </div>
+
+          <!-- Comments Section -->
+          <div class="comments-section">
+            @for (comment of getCommentsForPost(post.id); track comment.id) {
+              <div class="comment-item">
+                <div class="comment-author-avatar">
+                  @if (comment.author.avatar) {
+                    <img [src]="comment.author.avatar" alt="Avatar">
+                  } @else {
+                    {{ comment.author.fullName.charAt(0).toUpperCase() }}
+                  }
+                </div>
+                <div class="comment-content">
+                  <div class="comment-header">
+                    <strong>{{ comment.author.fullName }}</strong>
+                    <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
+                  </div>
+                  <p>{{ comment.content }}</p>
+                  <div class="comment-actions">
+                    <button
+                      class="reply-btn"
+                      (click)="startReply(comment.id)"
+                      type="button"
+                      [disabled]="isLoading()"
+                    >
+                      <mat-icon>reply</mat-icon>
+                      <span>Phản hồi</span>
+                    </button>
+                    @if (canManage || comment.author.id === authService.user()?.id) {
+                      <button
+                        class="delete-comment-btn"
+                        (click)="deleteComment(comment, post)"
+                        title="Xóa bình luận"
+                        type="button"
+                        [disabled]="isLoading()"
+                      >
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    }
+                  </div>
+                  
+                  <!-- Reply Form -->
+                  @if (isReplyingTo(comment.id)) {
+                    <div class="reply-form">
+                      <div class="reply-author-avatar">
+                        @if (authService.user()?.avatar) {
+                          <img [src]="authService.user()?.avatar" alt="Avatar">
+                        } @else {
+                          {{ (authService.user()?.name?.charAt(0) || 'U').toUpperCase() }}
+                        }
+                      </div>
+                      <div class="reply-input-wrapper">
+                        <input
+                          type="text"
+                          [value]="getReplyContent(comment.id)"
+                          (input)="setReplyContent(comment.id, $any($event.target).value)"
+                          (keyup.enter)="submitReply(post.id, comment.id)"
+                          (keyup.escape)="cancelReply(comment.id)"
+                          placeholder="Viết phản hồi..."
+                          class="reply-input"
+                          [disabled]="isLoading()"
+                        />
+                        <div class="reply-actions">
+                          <button
+                            class="reply-submit-btn"
+                            (click)="submitReply(post.id, comment.id)"
+                            [disabled]="!getReplyContent(comment.id).trim() || isLoading()"
+                            type="button"
+                          >
+                            <mat-icon>send</mat-icon>
+                          </button>
+                          <button
+                            class="reply-cancel-btn"
+                            (click)="cancelReply(comment.id)"
+                            type="button"
+                            [disabled]="isLoading()"
+                          >
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                  
+                  <!-- Render replies if any -->
+                  @if (comment.replies && comment.replies.length > 0) {
+                    <div class="comment-replies">
+                      @for (reply of comment.replies; track reply.id) {
+                        <div class="reply-item">
+                          <div class="reply-author-avatar">
+                            @if (reply.author.avatar) {
+                              <img [src]="reply.author.avatar" alt="Avatar">
+                            } @else {
+                              {{ reply.author.fullName.charAt(0).toUpperCase() }}
+                            }
+                          </div>
+                          <div class="reply-content">
+                            <div class="reply-header">
+                              <strong>{{ reply.author.fullName }}</strong>
+                              <span class="reply-time">{{ formatDate(reply.createdAt) }}</span>
+                            </div>
+                            <p>{{ reply.content }}</p>
+                          </div>
+                          @if (canManage || reply.author.id === authService.user()?.id) {
+                            <button
+                              class="delete-comment-btn"
+                              (click)="deleteComment(reply, post)"
+                              title="Xóa bình luận"
+                              type="button"
+                              [disabled]="isLoading()"
+                            >
+                              <mat-icon>delete</mat-icon>
+                            </button>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Add Comment Form -->
+            <div class="add-comment">
+              <div class="comment-author-avatar">
+                @if (authService.user()?.avatar) {
+                  <img [src]="authService.user()?.avatar" alt="Avatar">
+                } @else {
+                  {{ (authService.user()?.name?.charAt(0) || 'U').toUpperCase() }}
+                }
+              </div>
+              <div class="comment-input-wrapper">
+                <input
+                  type="text"
+                  [value]="getCommentContent(post.id)"
+                  (input)="setCommentContent(post.id, $any($event.target).value)"
+                  (keyup.enter)="addComment(post.id)"
+                  placeholder="Viết bình luận..."
+                  class="comment-input"
+                  [disabled]="isLoading()"
+                />
+                <button
+                  class="comment-submit-btn"
+                  (click)="addComment(post.id)"
+                  [disabled]="!getCommentContent(post.id).trim() || isLoading()"
+                  type="button"
+                >
+                  <mat-icon>send</mat-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-wall">
+          <mat-icon>forum</mat-icon>
+          <p>Chưa có bài viết nào. Hãy là người đầu tiên chia sẻ!</p>
+        </div>
+      }
+    }
+  </div>
+</div>
+

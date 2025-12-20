@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "volunteerhub",
   "private": true,
   "workspaces": [
@@ -12,6 +12,8 @@
     "build:backend": "cd backend && npm run build"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "find-up": "^6.3.0",
+    "globby": "^14.1.0"
   }
 }

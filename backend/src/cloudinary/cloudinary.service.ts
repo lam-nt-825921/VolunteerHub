@@ -1,8 +1,9 @@
 // src/cloudinary/cloudinary.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import * as streamifier from 'streamifier';
 import { UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
+import { ConfigService } from '@nestjs/config';
 
 /**
  * Service để xử lý upload ảnh lên Cloudinary
