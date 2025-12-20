@@ -112,16 +112,32 @@ export class PostsApiService {
   getPostsForEvent(eventId: number, filter?: FilterPostsRequest): Observable<Post[] | PaginatedPostsResponse> {
     const url = API_CONFIG.endpoints.posts.forEvent.replace(':eventId', eventId.toString());
     const queryString = this.buildQueryString(filter);
-    return this.apiService.get<Post[] | PaginatedPostsResponse>(`${url}${queryString}`, false);
+    // Pass true to include auth token so backend can populate likedByCurrentUser correctly
+    return this.apiService.get<Post[] | PaginatedPostsResponse>(`${url}${queryString}`, true);
   }
 
   /**
    * Create a new post in an event
    * POST /events/:eventId/posts
    */
-  createPost(eventId: number, data: CreatePostRequest): Observable<Post> {
+  createPost(eventId: number, data: CreatePostRequest, files?: File[]): Observable<Post> {
     const url = API_CONFIG.endpoints.posts.forEvent.replace(':eventId', eventId.toString());
-    return this.apiService.post<Post>(url, data, true);
+    
+    // If files are provided, use FormData; otherwise use JSON
+    if (files && files.length > 0) {
+      const formData = new FormData();
+      formData.append('content', data.content);
+      if (data.type) {
+        formData.append('type', data.type);
+      }
+      // Append each file with the field name 'images' (backend expects this)
+      files.forEach(file => {
+        formData.append('images', file);
+      });
+      return this.apiService.post<Post>(url, formData, true, true);
+    } else {
+      return this.apiService.post<Post>(url, data, true);
+    }
   }
 
   /**

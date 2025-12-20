@@ -2,6 +2,7 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -42,6 +43,8 @@ interface Actor {
   role: Role;
 }
 
+const logger = new Logger('PostsService');
+
 @Injectable()
 export class PostsService {
   constructor(
@@ -58,6 +61,8 @@ export class PostsService {
     filter: FilterPostsDto,
     actor: Actor | null,
   ) {
+    logger.log(`[getPostsForEvent] Called: eventId=${eventId}, actor=${actor ? `id=${actor.id}, role=${actor.role}` : 'null'}`);
+    
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
       select: {
@@ -69,18 +74,24 @@ export class PostsService {
     });
 
     if (!event) {
+      logger.warn(`[getPostsForEvent] Event ${eventId} not found`);
       throw new NotFoundException('Sự kiện không tồn tại');
     }
 
+    logger.log(`[getPostsForEvent] Event ${eventId} found: visibility=${event.visibility}, status=${event.status}, creatorId=${event.creatorId}`);
+
     // Check visibility
     if (!actor) {
+      logger.log(`[getPostsForEvent] No actor, checking visibility...`);
       if (
         event.visibility === EventVisibility.INTERNAL ||
         event.visibility === EventVisibility.PRIVATE
       ) {
+        logger.warn(`[getPostsForEvent] Guest trying to access ${event.visibility} event ${eventId}`);
         throw new ForbiddenException('Bạn cần đăng nhập để xem bài đăng');
       }
     } else {
+      logger.log(`[getPostsForEvent] Actor ${actor.id} checking registration for event ${eventId}...`);
       // Check user đã tham gia event chưa (nếu là PRIVATE hoặc INTERNAL)
       if (
         event.visibility === EventVisibility.PRIVATE ||
@@ -90,9 +101,16 @@ export class PostsService {
           where: {
             userId_eventId: { userId: actor.id, eventId: event.id },
           },
+          select: {
+            id: true,
+            status: true,
+          },
         });
 
+        logger.log(`[getPostsForEvent] Registration for user ${actor.id} in event ${eventId}: ${registration ? `Found (id=${registration.id}, status=${registration.status})` : 'NOT FOUND'}`);
+
         if (!registration) {
+          logger.warn(`[getPostsForEvent] User ${actor.id} not registered in ${event.visibility} event ${eventId}`);
           throw new ForbiddenException('Bạn chưa tham gia sự kiện này');
         }
       }
@@ -101,6 +119,7 @@ export class PostsService {
     // Kiểm tra quyền của actor
     let canViewPending = false;
     if (actor) {
+      logger.log(`[getPostsForEvent] Checking permissions for actor ${actor.id}...`);
       const registration = await this.prisma.registration.findUnique({
         where: {
           userId_eventId: { userId: actor.id, eventId: event.id },
@@ -108,11 +127,18 @@ export class PostsService {
         select: { permissions: true },
       });
       
+      logger.log(`[getPostsForEvent] Registration for permissions check: ${registration ? `Found (permissions=${registration.permissions})` : 'NOT FOUND'}`);
+      logger.log(`[getPostsForEvent] Is creator: ${actor.id === event.creatorId}`);
+      
       canViewPending = Boolean(
         actor.id === event.creatorId ||
         (registration &&
           hasPermission(registration.permissions, EventPermission.POST_APPROVE))
       );
+      
+      logger.log(`[getPostsForEvent] canViewPending=${canViewPending}`);
+    } else {
+      logger.log(`[getPostsForEvent] No actor, canViewPending=false`);
     }
 
     const where: any = {
@@ -186,6 +212,8 @@ export class PostsService {
     ]);
 
     // Check likedByCurrentUser cho mỗi post
+    logger.log(`[getPostsForEvent] Found ${posts.length} posts, checking likes for actor ${actor ? actor.id : 'null'}...`);
+    
     const postIds = posts.map((p) => p.id);
     const userLikes =
       actor && postIds.length > 0
@@ -198,6 +226,9 @@ export class PostsService {
           })
         : [];
 
+    logger.log(`[getPostsForEvent] User likes found: ${userLikes.length} likes for ${postIds.length} posts`);
+    logger.log(`[getPostsForEvent] Liked postIds: [${userLikes.map(l => l.postId).join(', ')}]`);
+
     const likedPostIds = new Set(userLikes.map((l) => l.postId));
 
     const postsWithLikes = posts.map((post) => ({
@@ -207,6 +238,8 @@ export class PostsService {
       likesCount: post._count.likes,
       likedByCurrentUser: actor ? likedPostIds.has(post.id) : false,
     }));
+    
+    logger.log(`[getPostsForEvent] Returning ${postsWithLikes.length} posts with likedByCurrentUser info`);
 
     return {
       data: plainToInstance(PostResponseDto, postsWithLikes, {
@@ -254,8 +287,13 @@ export class PostsService {
       throw new ForbiddenException('Bạn chưa tham gia sự kiện này');
     }
 
-    if (registration.status !== RegistrationStatus.APPROVED) {
-      throw new ForbiddenException('Bạn chưa được duyệt tham gia sự kiện');
+    // Chấp nhận APPROVED hoặc ATTENDED (đã được duyệt hoặc đã điểm danh)
+    const isValidStatus = 
+      registration.status === RegistrationStatus.APPROVED || 
+      registration.status === RegistrationStatus.ATTENDED;
+    
+    if (!isValidStatus) {
+      throw new ForbiddenException('Bạn chưa được duyệt tham gia sự kiện hoặc chưa điểm danh');
     }
 
     const hasPostCreate =
@@ -432,13 +470,47 @@ export class PostsService {
       }
     }
 
-    const liked = actor
-      ? await this.prisma.like.findUnique({
+    // Check likedByCurrentUser - thử nhiều cách query để đảm bảo tìm được
+    logger.log(`getPostById called - actor: ${actor ? `userId=${actor.id}` : 'null'}, postId: ${post.id}`);
+    let liked = null;
+    if (actor) {
+      logger.log(`Checking like for userId: ${actor.id}, postId: ${post.id}`);
+      
+      // Thử dùng findUnique với composite key
+      try {
+        liked = await this.prisma.like.findUnique({
           where: {
-            userId_postId: { userId: actor.id, postId: post.id },
+            userId_postId: {
+              userId: actor.id,
+              postId: post.id,
+            },
           },
-        })
-      : null;
+        });
+        logger.log(`findUnique result: ${liked ? 'FOUND' : 'NOT FOUND'}`);
+      } catch (error) {
+        logger.warn(`findUnique failed, trying findFirst: ${error.message}`);
+        // Fallback: dùng findFirst
+        liked = await this.prisma.like.findFirst({
+          where: {
+            userId: actor.id,
+            postId: post.id,
+          },
+        });
+        logger.log(`findFirst result: ${liked ? 'FOUND' : 'NOT FOUND'}`);
+      }
+      
+      if (liked) {
+        logger.log(`Like record found: userId=${liked.userId}, postId=${liked.postId}`);
+      } else {
+        // Debug: kiểm tra xem có record nào trong DB không
+        const allLikes = await this.prisma.like.findMany({
+          where: { postId: post.id },
+          take: 5,
+        });
+        logger.log(`Total likes for post ${post.id}: ${allLikes.length}`);
+        logger.log(`Sample likes: ${JSON.stringify(allLikes.map(l => ({ userId: l.userId, postId: l.postId })))}`);
+      }
+    }
 
     const postWithLikes = {
       ...post,
@@ -447,6 +519,8 @@ export class PostsService {
       likesCount: post._count.likes,
       likedByCurrentUser: !!liked,
     };
+    
+    logger.log(`Final likedByCurrentUser: ${postWithLikes.likedByCurrentUser}`);
 
     return plainToInstance(PostResponseDto, postWithLikes, {
       excludeExtraneousValues: true,
@@ -644,14 +718,19 @@ export class PostsService {
   }
 
   /**
-   * Pin/Unpin post (POST_APPROVE hoặc event creator)
+   * Pin/Unpin post (toggle tự động)
+   * Tự động toggle: nếu đang true → false, nếu đang false → true
+   * Chỉ người có POST_APPROVE permission hoặc event creator mới được phép
    */
-  async pinPost(postId: number, isPinned: boolean, actor: Actor) {
+  async pinPost(postId: number, actor: Actor) {
+    logger.log(`pinPost called: postId=${postId}, actorId=${actor.id}`);
+    
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
       select: {
         id: true,
         eventId: true,
+        isPinned: true, // Lấy giá trị hiện tại để toggle
         event: {
           select: {
             creatorId: true,
@@ -661,10 +740,14 @@ export class PostsService {
     });
 
     if (!post) {
+      logger.warn(`pinPost: Post ${postId} not found`);
       throw new NotFoundException('Bài đăng không tồn tại');
     }
 
+    logger.log(`pinPost: Found post ${postId}, current isPinned=${post.isPinned}, eventId=${post.eventId}, eventCreatorId=${post.event.creatorId}`);
+
     const isEventCreator = post.event.creatorId === actor.id;
+    logger.log(`pinPost: isEventCreator=${isEventCreator}`);
 
     const registration = await this.prisma.registration.findUnique({
       where: {
@@ -672,6 +755,8 @@ export class PostsService {
       },
       select: { permissions: true },
     });
+
+    logger.log(`pinPost: registration found=${!!registration}, permissions=${registration?.permissions || 'none'}`);
 
     const hasPinPermission =
       isEventCreator ||
@@ -681,18 +766,26 @@ export class PostsService {
           EventPermission.POST_APPROVE,
         ));
 
+    logger.log(`pinPost: hasPinPermission=${hasPinPermission}`);
+
     if (!hasPinPermission) {
+      logger.warn(`pinPost: User ${actor.id} does not have pin permission for post ${postId}`);
       throw new ForbiddenException('Bạn không có quyền ghim bài đăng');
     }
 
+    // Toggle: nếu đang true → false, nếu đang false → true
+    const newIsPinned = !post.isPinned;
+    logger.log(`pinPost: Toggling post ${postId} from isPinned=${post.isPinned} to isPinned=${newIsPinned}`);
+
     const updated = await this.prisma.post.update({
       where: { id: post.id },
-      data: { isPinned },
+      data: { isPinned: newIsPinned },
       select: {
         id: true,
         content: true,
         images: true,
         type: true,
+        status: true,
         isPinned: true,
         createdAt: true,
         updatedAt: true,
@@ -714,9 +807,12 @@ export class PostsService {
       },
     });
 
-    const liked = await this.prisma.like.findUnique({
+    logger.log(`pinPost: Post updated successfully, new isPinned=${updated.isPinned}`);
+
+    const liked = await this.prisma.like.findFirst({
       where: {
-        userId_postId: { userId: actor.id, postId: updated.id },
+        userId: actor.id,
+        postId: updated.id,
       },
     });
 
@@ -727,6 +823,8 @@ export class PostsService {
       likesCount: updated._count.likes,
       likedByCurrentUser: !!liked,
     };
+
+    logger.log(`pinPost: Returning response with isPinned=${postWithLikes.isPinned}, likedByCurrentUser=${postWithLikes.likedByCurrentUser}`);
 
     return plainToInstance(PostResponseDto, postWithLikes, {
       excludeExtraneousValues: true,
@@ -848,11 +946,10 @@ export class PostsService {
       }
     }
 
-    // Lấy comments gốc (parentId = null)
-    const rootComments = await this.prisma.comment.findMany({
+    // Lấy tất cả comments của post (bao gồm cả nested replies)
+    const allComments = await this.prisma.comment.findMany({
       where: {
         postId: post.id,
-        parentId: null,
       },
       orderBy: { createdAt: 'asc' },
       select: {
@@ -872,34 +969,11 @@ export class PostsService {
       },
     });
 
-    // Lấy replies cho mỗi comment gốc
-    const rootCommentIds = rootComments.map((c) => c.id);
-    const replies = rootCommentIds.length > 0
-      ? await this.prisma.comment.findMany({
-          where: {
-            postId: post.id,
-            parentId: { in: rootCommentIds },
-          },
-          orderBy: { createdAt: 'asc' },
-          select: {
-            id: true,
-            content: true,
-            createdAt: true,
-            updatedAt: true,
-            parentId: true,
-            postId: true,
-            author: {
-              select: {
-                id: true,
-                fullName: true,
-                avatar: true,
-              },
-            },
-          },
-        })
-      : [];
+    // Tách root comments và replies
+    const rootComments = allComments.filter((c) => c.parentId === null);
+    const replies = allComments.filter((c) => c.parentId !== null);
 
-    // Group replies by parentId
+    // Group replies by parentId (hỗ trợ nested replies)
     const repliesByParent = new Map<number, typeof replies>();
     replies.forEach((reply) => {
       if (reply.parentId) {
@@ -910,11 +984,17 @@ export class PostsService {
       }
     });
 
-    // Attach replies to root comments
-    const commentsWithReplies = rootComments.map((comment) => ({
-      ...comment,
-      replies: repliesByParent.get(comment.id) || [],
-    }));
+    // Recursive function để attach nested replies
+    const attachReplies = (comment: typeof rootComments[0]): typeof rootComments[0] & { replies: any[] } => {
+      const commentReplies = repliesByParent.get(comment.id) || [];
+      return {
+        ...comment,
+        replies: commentReplies.map((reply) => attachReplies(reply as any)),
+      };
+    };
+
+    // Attach replies to root comments (recursive)
+    const commentsWithReplies = rootComments.map((comment) => attachReplies(comment));
 
     return plainToInstance(CommentResponseDto, commentsWithReplies, {
       excludeExtraneousValues: true,
@@ -952,10 +1032,20 @@ export class PostsService {
       where: {
         userId_eventId: { userId: actor.id, eventId: post.eventId },
       },
+      select: { status: true },
     });
 
     if (!registration) {
       throw new ForbiddenException('Bạn chưa tham gia sự kiện này');
+    }
+
+    // Chấp nhận APPROVED hoặc ATTENDED (đã được duyệt hoặc đã điểm danh)
+    const isValidStatus = 
+      registration.status === RegistrationStatus.APPROVED || 
+      registration.status === RegistrationStatus.ATTENDED;
+    
+    if (!isValidStatus) {
+      throw new ForbiddenException('Bạn chưa được duyệt tham gia sự kiện hoặc chưa điểm danh');
     }
 
     // Nếu là reply, check parent comment tồn tại và cùng post

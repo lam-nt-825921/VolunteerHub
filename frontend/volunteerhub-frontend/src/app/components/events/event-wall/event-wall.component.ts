@@ -24,7 +24,6 @@ export class EventWallComponent implements OnInit {
   newCommentContent = signal<Map<number, string>>(new Map());
   replyingToComment = signal<Map<number, boolean>>(new Map()); // Map commentId -> isReplying
   replyContent = signal<Map<number, string>>(new Map()); // Map commentId -> replyContent
-  selectedFile: File | null = null;
   previewUrl: string | null = null;
   isLoading = signal(false);
   commentsMap = signal<Map<number, Comment[]>>(new Map()); // Map postId -> comments
@@ -100,20 +99,31 @@ export class EventWallComponent implements OnInit {
     return result;
   }
 
+  selectedFiles: File[] = [];
+  
   onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
-    if (input.files && input.files[0]) {
-      this.selectedFile = input.files[0];
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        this.previewUrl = e.target?.result as string;
-      };
-      reader.readAsDataURL(this.selectedFile);
+    if (input.files && input.files.length > 0) {
+      // Store all selected files (up to 10, matching backend limit)
+      this.selectedFiles = Array.from(input.files).slice(0, 10);
+      
+      // Preview the first image
+      const firstFile = this.selectedFiles[0];
+      if (firstFile && firstFile.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          this.previewUrl = e.target?.result as string;
+        };
+        reader.readAsDataURL(firstFile);
+      }
+      
+      // Clear the input so user can select the same file again if needed
+      input.value = '';
     }
   }
 
   removeImage() {
-    this.selectedFile = null;
+    this.selectedFiles = [];
     this.previewUrl = null;
   }
 
@@ -129,32 +139,15 @@ export class EventWallComponent implements OnInit {
 
     this.isLoading.set(true);
     try {
-      // Backend expects image URLs, not data URLs or file uploads
-      // If user selected a file, we show preview but can't submit it without uploading first
-      // For now, we'll only send images if they're already URLs
-      let images: string[] | undefined = undefined;
-      if (this.previewUrl && !this.previewUrl.startsWith('data:')) {
-        // Only use if it's a valid URL (not a data URL from file selection)
-        images = [this.previewUrl];
-      }
-      
-      // If user selected a file but it's not a URL, show a helpful message
-      if (this.selectedFile && this.previewUrl?.startsWith('data:')) {
-        this.alertService.showWarning('Hiện tại chỉ hỗ trợ ảnh từ URL. Vui lòng upload ảnh lên dịch vụ lưu trữ (như Imgur, Cloudinary) và dán link vào, hoặc đăng bài không có ảnh.');
-        // Clear the file selection so user knows it wasn't used
-        this.selectedFile = null;
-        this.previewUrl = null;
-      }
-      
-      await firstValueFrom(this.postsApi.createPost(this.eventId, {
-        content,
-        images,
-        type: 'DISCUSSION'
-      }));
+      await firstValueFrom(this.postsApi.createPost(
+        this.eventId, 
+        { content, type: 'DISCUSSION' as const },
+        this.selectedFiles.length > 0 ? this.selectedFiles : undefined
+      ));
     
-    this.newPostContent.set('');
-    this.selectedFile = null;
-    this.previewUrl = null;
+      this.newPostContent.set('');
+      this.selectedFiles = [];
+      this.previewUrl = null;
       await this.loadPosts();
     } catch (error: any) {
       console.error('Error creating post:', error);
@@ -302,8 +295,8 @@ export class EventWallComponent implements OnInit {
       }
       
       // Reload the post to get updated like status
-      const isAuthenticated = this.authService.isAuthenticated();
-      const updatedPost = await firstValueFrom(this.postsApi.getPostById(post.id, isAuthenticated));
+      // Always pass true since user must be authenticated to like/unlike
+      const updatedPost = await firstValueFrom(this.postsApi.getPostById(post.id, true));
       const currentPosts = this.posts();
       const updatedPosts = currentPosts.map(p => p.id === post.id ? updatedPost : p);
       this.posts.set(updatedPosts);

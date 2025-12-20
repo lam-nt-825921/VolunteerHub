@@ -4,8 +4,9 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthController } from './health.controller';
-import { APP_GUARD } from '@nestjs/core/constants';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { RefreshTokenInterceptor } from './auth/interceptors/refresh-token.interceptor';
 import { EventsModule } from './events/events.module';
 import { UsersModule } from './users/users.module';
 import { RegistrationsModule } from './registrations/registrations.module';
@@ -23,7 +24,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
       ignoreEnvFile: false,
     }),
     PrismaModule,
-    AuthModule,
+    AuthModule, // AuthModule phải được import để các guard/interceptor có thể inject AuthService
     EventsModule,
     UsersModule,
     RegistrationsModule,
@@ -37,7 +38,10 @@ import { DashboardModule } from './dashboard/dashboard.module';
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
-  
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RefreshTokenInterceptor,
+    },
   ],
 })
 export class AppModule {}

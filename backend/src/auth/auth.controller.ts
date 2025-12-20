@@ -61,7 +61,7 @@ export class AuthController {
 
     return plainToInstance(AuthResponseDto, {
       accessToken: tokens.accessToken,
-      expiresIn: 15 * 60, // 15 phút
+      expiresIn: 2 * 60 * 60, // 2 giờ (7200 giây)
       user: plainToInstance(UserProfileDto, tokens.user),
     });
   }
@@ -90,7 +90,7 @@ export class AuthController {
 
   return {
     accessToken: tokens.accessToken,
-    expiresIn: 15 * 60, // 15 phút
+    expiresIn: 2 * 60 * 60, // 2 giờ (7200 giây)
   };
 }
 

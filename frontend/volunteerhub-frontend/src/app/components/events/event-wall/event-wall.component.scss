@@ -72,6 +72,7 @@
       justify-content: center;
       cursor: pointer;
       transition: background-color 0.3s ease;
+      z-index: 2;
 
       &:hover {
         background-color: rgba(0, 0, 0, 0.9);
@@ -82,6 +83,18 @@
         width: 18px;
         height: 18px;
       }
+    }
+
+    .image-count {
+      position: absolute;
+      bottom: 0.5rem;
+      right: 0.5rem;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.875rem;
+      font-weight: 500;
     }
   }
 }

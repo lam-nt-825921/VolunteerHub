@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -148,14 +149,13 @@ export class RegistrationsController {
     return this.registrationsService.checkIn(eventId, registrationId, user);
   }
 
-  // Người tham gia tự rời khỏi sự kiện
-  @Post(':eventId/leave')
+  // Người tham gia tự rời khỏi sự kiện (xóa registration để có thể đăng ký lại)
+  @Delete(':eventId/leave')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
-  @ApiOperation({ summary: 'Người tham gia tự rời khỏi sự kiện' })
+  @ApiOperation({ summary: 'Người tham gia tự rời khỏi sự kiện (xóa registration để có thể đăng ký lại)' })
   @ApiResponse({
     status: 200,
-    description: 'Rời khỏi sự kiện thành công, trả về thông tin registration đã cập nhật',
-    type: RegistrationResponseDto,
+    description: 'Rời khỏi sự kiện thành công, registration đã được xóa',
   })
   async leaveEvent(
     @Param('eventId', ParseIntPipe) eventId: number,

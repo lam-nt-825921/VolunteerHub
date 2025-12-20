@@ -16,6 +16,9 @@
       @if (previewUrl) {
         <div class="image-preview">
           <img [src]="previewUrl" alt="Preview">
+          @if (selectedFiles.length > 1) {
+            <span class="image-count">+{{ selectedFiles.length - 1 }}</span>
+          }
           <button class="remove-image" (click)="removeImage()" type="button">
             <mat-icon>close</mat-icon>
           </button>
@@ -28,6 +31,7 @@
           <input
             type="file"
             accept="image/*"
+            multiple
             (change)="onFileSelected($event)"
             class="file-input-hidden"
           />

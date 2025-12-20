@@ -19,6 +19,8 @@
     "prisma:studio:prod": "node scripts/run-prisma.js studio .env.prod",
     "prisma:seed": "node scripts/run-prisma.js seed .env",
     "prisma:seed:prod": "node scripts/run-prisma.js seed .env.prod",
+    "prisma:cleanup:prod": "node scripts/cleanup-neon.js",
+    "reset:category-ids": "node scripts/reset-category-ids.js",
     "setup": "npm install && npm run prisma:generate && npm run prisma:migrate",
     "setup:prod": "npm install && npm run prisma:generate && npm run prisma:migrate:prod",
     "dev": "npm run start:dev",

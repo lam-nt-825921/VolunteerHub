@@ -24,10 +24,13 @@ export class ApiService {
   /**
    * Get default headers with authentication token if available
    */
-  private getHeaders(includeAuth: boolean = true): HttpHeaders {
-    let headers = new HttpHeaders({
-      'Content-Type': 'application/json',
-    });
+  private getHeaders(includeAuth: boolean = true, isFormData: boolean = false): HttpHeaders {
+    let headers = new HttpHeaders();
+
+    // Don't set Content-Type for FormData, let browser set it with boundary
+    if (!isFormData) {
+      headers = headers.set('Content-Type', 'application/json');
+    }
 
     if (includeAuth) {
       const token = this.getAccessToken();
@@ -75,9 +78,9 @@ export class ApiService {
   /**
    * POST request
    */
-  post<T>(url: string, body: any, includeAuth: boolean = false): Observable<T> {
+  post<T>(url: string, body: any, includeAuth: boolean = false, isFormData: boolean = false): Observable<T> {
     return this.http.post<T>(`${this.getBaseUrl()}${url}`, body, {
-      headers: this.getHeaders(includeAuth),
+      headers: this.getHeaders(includeAuth, isFormData),
       withCredentials: true
     }).pipe(
       catchError(this.handleError)

@@ -519,12 +519,25 @@ export class RegistrationsService {
   }
 
   /**
-   * Người tham gia tự rời khỏi sự kiện
+   * Người tham gia tự rời khỏi sự kiện (xóa registration để có thể đăng ký lại)
    */
   async leaveEvent(eventId: number, actor: Actor) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: { id: true, title: true },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Sự kiện không tồn tại');
+    }
+
     const registration = await this.prisma.registration.findUnique({
       where: {
-        userId_eventId: { userId: actor.id, eventId },
+        userId_eventId: { userId: actor.id, eventId: event.id },
+      },
+      select: {
+        id: true,
+        status: true,
       },
     });
 
@@ -532,39 +545,34 @@ export class RegistrationsService {
       throw new NotFoundException('Bạn chưa tham gia sự kiện này');
     }
 
+    // Không cho phép rời nếu đã bị KICKED hoặc REJECTED (cần admin/event manager xử lý)
     if (
       registration.status === RegistrationStatus.KICKED ||
       registration.status === RegistrationStatus.REJECTED
     ) {
       throw new ForbiddenException(
-        'Bạn không thể thay đổi trạng thái đăng ký này',
+        'Bạn không thể rời khỏi sự kiện với trạng thái này. Vui lòng liên hệ quản trị viên.',
       );
     }
 
-    const updated = await this.prisma.registration.update({
+    // Xóa registration để user có thể đăng ký lại sau này
+    await this.prisma.registration.delete({
       where: { id: registration.id },
-      data: { status: RegistrationStatus.LEFT },
-      select: {
-        id: true,
-        status: true,
-        permissions: true,
-        registeredAt: true,
-        attendedAt: true,
-        eventId: true,
-        user: {
-          select: {
-            id: true,
-            fullName: true,
-            avatar: true,
-            reputationScore: true,
-          },
-        },
-      },
     });
 
-    return plainToInstance(RegistrationResponseDto, updated, {
-      excludeExtraneousValues: true,
-    });
+    // Thông báo cho user
+    await this.notificationsService.createNotification(
+      actor.id,
+      'Rời khỏi sự kiện',
+      `Bạn đã rời khỏi sự kiện "${event.title}". Bạn có thể đăng ký lại sau này.`,
+      NotificationType.REGISTRATION_REJECTED, // Dùng type này vì không có type riêng cho leave
+      { eventId: event.id },
+    );
+
+    return {
+      message: 'Bạn đã rời khỏi sự kiện thành công. Bạn có thể đăng ký lại sau này.',
+      eventId: event.id,
+    };
   }
 }
 
