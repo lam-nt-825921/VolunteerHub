@@ -310,10 +310,12 @@ export class PostsController {
   /**
    * Danh sách comments của 1 post
    * GET /posts/:postId/comments
+   * Yêu cầu đăng nhập
    */
   @Get('posts/:postId/comments')
-  @Public()
-  @ApiOperation({ summary: 'Lấy danh sách comments của một post' })
+  @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Lấy danh sách comments của một post (yêu cầu đăng nhập)' })
   @ApiResponse({
     status: 200,
     description: 'Danh sách comments của post',
@@ -322,7 +324,7 @@ export class PostsController {
   })
   async getCommentsForPost(
     @Param('postId', ParseIntPipe) postId: number,
-    @CurrentUser() user: Actor | null,
+    @CurrentUser() user: Actor,
   ) {
     return this.postsService.getCommentsForPost(postId, user);
   }
