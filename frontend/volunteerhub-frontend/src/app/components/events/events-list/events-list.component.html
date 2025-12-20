@@ -1,0 +1,129 @@
+<app-navbar></app-navbar>
+
+<div class="events-list-page">
+  <div class="page-header">
+    <div class="header-content">
+      <h1>Tất cả sự kiện</h1>
+      <p>Khám phá các cơ hội tình nguyện đang chờ bạn</p>
+    </div>
+  </div>
+
+  <div class="page-content">
+    <!-- Filters -->
+    <div class="filters-section">
+      <div class="search-bar">
+        <mat-icon>search</mat-icon>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          (input)="onSearch()"
+          placeholder="Tìm kiếm sự kiện..."
+          class="search-input"
+        />
+      </div>
+
+      <div class="filters-row">
+        <select
+          [(ngModel)]="selectedCategory"
+          (change)="onCategoryChange()"
+          class="filter-select"
+        >
+          <option value="">Tất cả danh mục</option>
+          @for (category of categories; track category) {
+            <option [value]="category">{{ category }}</option>
+          }
+        </select>
+
+        <select
+          [(ngModel)]="selectedLocation"
+          (change)="onLocationChange()"
+          class="filter-select"
+        >
+          <option value="">Tất cả địa điểm</option>
+          @for (location of locations; track location) {
+            <option [value]="location">{{ location }}</option>
+          }
+        </select>
+
+        <button class="btn-clear" (click)="clearFilters()">
+          <mat-icon>clear</mat-icon>
+          Xóa bộ lọc
+        </button>
+      </div>
+
+      <div class="results-count">
+        <p>Tìm thấy <strong>{{ filteredEvents.length }}</strong> sự kiện</p>
+      </div>
+    </div>
+
+    <!-- Events Grid -->
+    @if (filteredEvents.length > 0) {
+      <div class="events-grid">
+        @for (event of paginatedEvents; track event.id) {
+          <div class="event-card" (click)="viewEventDetail(event.id)">
+            <div class="event-header">
+              <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
+              <span class="event-status" [class]="getStatusClass(event.status)">{{ getStatusText(event.status) }}</span>
+            </div>
+            <h3 class="event-title">{{ event.title }}</h3>
+            <p class="event-description">{{ event.description }}</p>
+            <div class="event-details">
+              <div class="event-detail-item">
+                <mat-icon>calendar_today</mat-icon>
+                <span>{{ formatDate(event.startTime) }}</span>
+              </div>
+              <div class="event-detail-item">
+                <mat-icon>location_on</mat-icon>
+                <span>{{ event.location }}</span>
+              </div>
+              <div class="event-detail-item">
+                <mat-icon>people</mat-icon>
+                <span>{{ event._count?.registrations || 0 }} đăng ký</span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Pagination -->
+      @if (totalPages > 1) {
+        <div class="pagination">
+          <button
+            class="pagination-btn"
+            [disabled]="currentPage === 1"
+            (click)="goToPage(currentPage - 1)"
+          >
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+
+          @for (page of [].constructor(totalPages); track $index) {
+            <button
+              class="pagination-btn"
+              [class.active]="currentPage === $index + 1"
+              (click)="goToPage($index + 1)"
+            >
+              {{ $index + 1 }}
+            </button>
+          }
+
+          <button
+            class="pagination-btn"
+            [disabled]="currentPage === totalPages"
+            (click)="goToPage(currentPage + 1)"
+          >
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+        </div>
+      }
+    } @else {
+      <div class="empty-state">
+        <mat-icon>event_busy</mat-icon>
+        <p>Không tìm thấy sự kiện nào</p>
+        <button class="btn btn-primary" (click)="clearFilters()">Xóa bộ lọc</button>
+      </div>
+    }
+  </div>
+</div>
+
+<app-footer></app-footer>
+

@@ -1,11 +1,20 @@
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+import { AlertModalComponent } from './components/common/alert-modal/alert-modal.component';
+import { ConfirmationModalComponent } from './components/common/confirmation-modal/confirmation-modal.component';
+import { AlertService } from './services/alert.service';
+import { ConfirmationService } from './services/confirmation.service';
 
 @Component({
   selector: 'app-root',
-  imports: [],
+  standalone: true,
+  imports: [RouterOutlet, AlertModalComponent, ConfirmationModalComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
 export class App {
-  protected readonly title = signal('volunteerhub-frontend');
+  constructor(
+    public alertService: AlertService,
+    public confirmationService: ConfirmationService
+  ) {}
 }

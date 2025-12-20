@@ -1,0 +1,154 @@
+<app-navbar></app-navbar>
+
+@if (event) {
+  <div class="event-detail-page">
+    <div class="event-header-section">
+      <div class="header-content">
+        <button class="back-button" (click)="router.navigate(['/events'])" type="button">
+          <mat-icon>arrow_back</mat-icon>
+          Quay lại
+        </button>
+        <div class="event-badge">
+          <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
+          <span class="event-status" [class]="event.status.toLowerCase()">
+            {{ getStatusText(event.status) }}
+          </span>
+        </div>
+        <h1>{{ event.title }}</h1>
+      </div>
+    </div>
+
+    <div class="event-content">
+      <div class="content-main">
+        <div class="section">
+          <h2>Mô tả sự kiện</h2>
+          <p class="description">{{ event.description }}</p>
+        </div>
+
+        <!-- Registration Management - Only for event creators/managers -->
+        @if (canManageRegistrations()) {
+          <div class="section">
+            <app-event-registrations [eventId]="event.id" [canManage]="true"></app-event-registrations>
+          </div>
+        }
+
+        <!-- Wall Tab - Only for approved events and authenticated users -->
+        <!-- Managers/admins can access without registering, volunteers need to be registered and approved for INTERNAL/PRIVATE events -->
+        <!-- For PUBLIC events, all authenticated users can access -->
+        @if (event.status === 'APPROVED' && authService.isAuthenticated() && (canManageWall() || canAccessWall())) {
+          <div class="section">
+            <app-event-wall [eventId]="event.id" [canManage]="canManageWall()"></app-event-wall>
+          </div>
+        }
+      </div>
+
+      <div class="content-sidebar">
+        <div class="info-card">
+          <h3>Thông tin sự kiện</h3>
+          <div class="info-item">
+            <mat-icon>calendar_today</mat-icon>
+            <div>
+              <strong>Ngày bắt đầu</strong>
+              <p>{{ formatDate(event.startTime) }}</p>
+            </div>
+          </div>
+          <div class="info-item">
+            <mat-icon>schedule</mat-icon>
+            <div>
+              <strong>Ngày kết thúc</strong>
+              <p>{{ formatDate(event.endTime) }}</p>
+            </div>
+          </div>
+          <div class="info-item">
+            <mat-icon>location_on</mat-icon>
+            <div>
+              <strong>Địa điểm</strong>
+              <p>{{ event.location }}</p>
+            </div>
+          </div>
+          <div class="info-item">
+            <mat-icon>people</mat-icon>
+            <div>
+              <strong>Số đăng ký</strong>
+              <p>{{ event._count?.registrations || 0 }} người</p>
+            </div>
+          </div>
+          @if (event.creator?.fullName) {
+          <div class="info-item">
+            <mat-icon>person</mat-icon>
+            <div>
+              <strong>Người tổ chức</strong>
+                <p>{{ event.creator?.fullName }}</p>
+            </div>
+          </div>
+          }
+        </div>
+
+        <!-- Registration Card -->
+        @if (event.status === 'APPROVED') {
+          <div class="action-card">
+            @if (!authService.isAuthenticated()) {
+              <div class="login-prompt">
+                <mat-icon>lock</mat-icon>
+                <p>Đăng nhập để đăng ký tham gia</p>
+                <button class="btn btn-primary" (click)="goToLogin()">Đăng nhập</button>
+              </div>
+            } @else if (!isRegistered) {
+              <button class="btn btn-primary btn-full" (click)="onRegister()">
+                <mat-icon>how_to_reg</mat-icon>
+                Đăng ký tham gia
+              </button>
+            } @else {
+              <div class="registration-status">
+                @if (registrationStatus === 'PENDING') {
+                  <div class="status-message pending">
+                    <mat-icon>schedule</mat-icon>
+                    <p>Đang chờ duyệt</p>
+                  </div>
+                  @if (canCancel) {
+                    <button class="btn btn-secondary btn-full" (click)="onCancelRegistration()">
+                      Hủy đăng ký
+                    </button>
+                  }
+                } @else if (registrationStatus === 'APPROVED' || registrationStatus === 'ATTENDED') {
+                  <div class="status-message approved">
+                    <mat-icon>check_circle</mat-icon>
+                    <p>{{ registrationStatus === 'ATTENDED' ? 'Đã tham gia' : 'Đã được duyệt' }}</p>
+                  </div>
+                  @if (canCancel) {
+                    <button class="btn btn-secondary btn-full" (click)="onCancelRegistration()">
+                      Rời sự kiện
+                    </button>
+                  }
+                } @else if (registrationStatus === 'REJECTED') {
+                  <div class="status-message rejected">
+                    <mat-icon>cancel</mat-icon>
+                    <p>Đã bị từ chối</p>
+                  </div>
+                } @else if (registrationStatus === 'LEFT') {
+                  <div class="status-message">
+                    <mat-icon>exit_to_app</mat-icon>
+                    <p>Đã rời sự kiện</p>
+                  </div>
+                } @else if (registrationStatus === 'KICKED') {
+                  <div class="status-message rejected">
+                    <mat-icon>block</mat-icon>
+                    <p>Đã bị xóa khỏi sự kiện</p>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="error-page">
+    <p>Sự kiện không tồn tại</p>
+    <button class="btn btn-primary" (click)="router.navigate(['/events'])">Quay lại danh sách</button>
+  </div>
+}
+
+<app-footer></app-footer>
+

@@ -1,0 +1,23 @@
+<div class="modal-overlay" (click)="onOverlayClick()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <button class="close-button" (click)="onCancel()" aria-label="Đóng">
+      <mat-icon>close</mat-icon>
+    </button>
+    
+    <div class="modal-body">
+      <div class="confirmation-icon">
+        <mat-icon>help_outline</mat-icon>
+      </div>
+      
+      <h2 class="confirmation-title">{{ confirmationService.confirmation().title }}</h2>
+      
+      <p class="confirmation-message">{{ confirmationService.confirmation().message }}</p>
+      
+      <div class="confirmation-actions">
+        <button class="btn btn-secondary" (click)="onCancel()">Hủy</button>
+        <button class="btn btn-primary" (click)="onAccept()">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+</div>
+

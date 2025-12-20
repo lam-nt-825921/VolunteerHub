@@ -15,7 +15,6 @@ import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
-
     ConfigModule.forRoot({
       isGlobal: true,
       // Tự động load .env.prod nếu NODE_ENV=production, ngược lại load .env
@@ -31,7 +30,6 @@ import { DashboardModule } from './dashboard/dashboard.module';
     PostsModule,
     NotificationsModule,
     DashboardModule,
-
   ],
   controllers: [HealthController],
   providers: [

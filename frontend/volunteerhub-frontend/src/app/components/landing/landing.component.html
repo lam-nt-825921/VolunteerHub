@@ -1,0 +1,329 @@
+<app-navbar></app-navbar>
+
+<main class="landing-page">
+  <!-- Hero Section -->
+  <section id="home" class="hero-section">
+    <div class="hero-container">
+      <div class="hero-content">
+        <h1 class="hero-title">
+          <span class="hero-title-line1">Kết nối. Tình nguyện.</span>
+          <span class="gradient-text">Tạo sự khác biệt.</span>
+        </h1>
+        <p class="hero-description">
+          Tham gia cùng hàng nghìn tình nguyện viên và tổ chức đang làm việc cùng nhau để tạo ra những thay đổi tích cực trong cộng đồng của chúng ta.
+        </p>
+        <div class="hero-actions">
+          <a routerLink="/signup" class="btn btn-primary">Tham gia tình nguyện</a>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <img 
+          src="/landing_page/hero_image.jpg" 
+          alt="Tình nguyện viên VolunteerHub" 
+          class="hero-image"
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- Statistics Section
+  <section class="stats-section">
+    <div class="section-container">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background-color: var(--color-primary);">
+            <mat-icon>people</mat-icon>
+          </div>
+          <div class="stat-number">10,000+</div>
+          <div class="stat-label">Tình nguyện viên</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background-color: var(--color-secondary);">
+            <mat-icon>event</mat-icon>
+          </div>
+          <div class="stat-number">500+</div>
+          <div class="stat-label">Sự kiện</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background-color: var(--color-accent-1);">
+            <mat-icon>access_time</mat-icon>
+          </div>
+          <div class="stat-number">50,000+</div>
+          <div class="stat-label">Giờ tình nguyện</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background-color: var(--color-accent-2);">
+            <mat-icon>business</mat-icon>
+          </div>
+          <div class="stat-number">200+</div>
+          <div class="stat-label">Tổ chức</div>
+        </div>
+      </div>
+    </div>
+  </section> -->
+
+  <!-- About Section with Background Image -->
+  <section id="about" class="about-section" [style.background-image]="'url(' + backgroundImage + ')'">
+    <div class="section-overlay"></div>
+    <div class="section-container">
+      <h2 class="section-title">Về VolunteerHub</h2>
+      <p class="section-description">
+        VolunteerHub là nền tảng kết nối tình nguyện viên với các sự kiện tình nguyện. 
+        Đăng ký tham gia, theo dõi hoạt động và tương tác qua bức tường sự kiện - tất cả tại một nơi.
+      </p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon" style="background-color: var(--color-primary);">
+            <mat-icon>event</mat-icon>
+          </div>
+          <h3>Khám phá sự kiện</h3>
+          <p>Tìm kiếm các hoạt động tình nguyện phù hợp với sở thích và kỹ năng của bạn</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background-color: var(--color-secondary);">
+            <mat-icon>how_to_reg</mat-icon>
+          </div>
+          <h3>Đăng ký tham gia</h3>
+          <p>Theo dõi và góp phần vào các sự kiện tình nguyện yêu thích của bạn</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background-color: var(--color-accent-1);">
+            <mat-icon>forum</mat-icon>
+          </div>
+          <h3>Tương tác & Kết nối</h3>
+          <p>Chia sẻ khoảnh khắc, bình luận và tương tác với cộng đồng qua bức tường sự kiện</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials Section -->
+  <section class="testimonials-section">
+    <div class="section-container">
+      <h2 class="section-title">Những câu chuyện truyền cảm hứng</h2>
+      <p class="section-description">
+        Lắng nghe từ những tình nguyện viên đã tạo ra sự khác biệt
+      </p>
+      <div class="testimonials-grid">
+        <div class="testimonial-card">
+          <div class="testimonial-quote">
+            <mat-icon>format_quote</mat-icon>
+          </div>
+          <p class="testimonial-text">
+            "VolunteerHub đã giúp tôi tìm thấy những cơ hội tình nguyện phù hợp với đam mê của mình. 
+            Mỗi sự kiện đều mang lại cho tôi những trải nghiệm quý giá và những người bạn mới."
+          </p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background-color: var(--color-primary);">
+              <mat-icon>person</mat-icon>
+            </div>
+            <div class="author-info">
+              <strong>Nguyễn Thị Lan</strong>
+              <span>Tình nguyện viên</span>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <div class="testimonial-quote">
+            <mat-icon>format_quote</mat-icon>
+          </div>
+          <p class="testimonial-text">
+            "Là một tổ chức phi lợi nhuận, chúng tôi rất biết ơn VolunteerHub đã kết nối chúng tôi 
+            với những tình nguyện viên tận tâm. Nền tảng này thực sự tạo ra sự khác biệt."
+          </p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background-color: var(--color-secondary);">
+              <mat-icon>person</mat-icon>
+            </div>
+            <div class="author-info">
+              <strong>Trần Văn Minh</strong>
+              <span>Quản lý tổ chức</span>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <div class="testimonial-quote">
+            <mat-icon>format_quote</mat-icon>
+          </div>
+          <p class="testimonial-text">
+            "Tham gia các hoạt động tình nguyện qua VolunteerHub đã thay đổi cách nhìn của tôi về cộng đồng. 
+            Tôi cảm thấy mình đang góp phần tạo ra những thay đổi tích cực."
+          </p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background-color: var(--color-accent-1);">
+              <mat-icon>person</mat-icon>
+            </div>
+            <div class="author-info">
+              <strong>Lê Thị Hương</strong>
+              <span>Tình nguyện viên</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Horizontal Image Carousel Section -->
+  <section class="carousel-section">
+    <div class="section-container">
+      <h2 class="section-title">Hoạt động tình nguyện</h2>
+      <p class="section-description">
+        Khám phá những khoảnh khắc đẹp từ các hoạt động tình nguyện của chúng ta
+      </p>
+      <div class="carousel-container">
+        <button class="carousel-btn carousel-btn-prev" (click)="previousHorizontalCarouselImage()" aria-label="Previous">
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        <div class="carousel-slide">
+          @for (image of horizontalImages; track $index) {
+            <div 
+              class="carousel-image-wrapper"
+              [class.carousel-image-prev]="$index === getPreviousHorizontalIndex()"
+              [class.carousel-image-current]="$index === currentHorizontalCarouselIndex()"
+              [class.carousel-image-next]="$index === getNextHorizontalIndex()"
+            >
+              <img 
+                [src]="image" 
+                [alt]="'Hoạt động tình nguyện ' + ($index + 1)" 
+                class="carousel-image"
+              >
+            </div>
+          }
+        </div>
+        <button class="carousel-btn carousel-btn-next" (click)="nextHorizontalCarouselImage()" aria-label="Next">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+        <div class="carousel-indicators">
+          @for (image of horizontalImages; track $index) {
+            <button 
+              class="carousel-indicator" 
+              [class.active]="$index === currentHorizontalCarouselIndex()"
+              (click)="goToHorizontalCarouselImage($index)"
+              [attr.aria-label]="'Go to slide ' + ($index + 1)"
+            ></button>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Masonry Gallery Section -->
+  <section class="gallery-section">
+    <div class="section-container">
+      <h2 class="section-title">Khoảnh khắc tình nguyện</h2>
+      <p class="section-description">
+        Những hình ảnh đẹp từ các hoạt động tình nguyện của chúng ta
+      </p>
+      <div class="masonry-gallery">
+        <!-- Mixed pattern: 3h+1v or 2v+1h in mixed order -->
+        @for (item of galleryItems; track $index) {
+          <div class="masonry-item" [class.masonry-item-horizontal]="item.type === 'h'" [class.masonry-item-vertical]="item.type === 'v'">
+            <img [src]="item.src" [alt]="item.alt" class="masonry-image">
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+    <!-- Quote Section with Background Image -->
+    <section class="quote-section" [style.background-image]="'url(' + backgroundImage + ')'">
+      <div class="section-overlay"></div>
+      <div class="section-container">
+        <div class="quote-content">
+          <mat-icon class="quote-icon">format_quote</mat-icon>
+          <blockquote class="quote-text">
+            "Không ai có thể làm mọi thứ, nhưng mọi người đều có thể làm một điều gì đó. 
+            Cùng nhau, chúng ta có thể tạo ra sự khác biệt."
+          </blockquote>
+          <p class="quote-author">— VolunteerHub</p>
+        </div>
+      </div>
+    </section>
+
+  <!-- Register Section -->
+  <section id="register" class="register-section">
+    <div class="section-container">
+      <div class="register-layout">
+        <!-- Left Panel: Steps -->
+        <div class="register-steps">
+          <div class="steps-header">
+            <span class="steps-label">3 Bước Đơn Giản</span>
+            <h2 class="steps-title">Bắt Đầu Hành Trình<br>Tình Nguyện Của Bạn</h2>
+          </div>
+          <div class="steps-list">
+            <div class="step-item">
+              <div class="step-number">1</div>
+              <div class="step-content">
+                <h3>Đăng Ký Tài Khoản</h3>
+                <p>Tạo tài khoản của bạn chỉ trong vài phút với thông tin cơ bản</p>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-number">2</div>
+              <div class="step-content">
+                <h3>Khám Phá Sự Kiện</h3>
+                <p>Duyệt qua các cơ hội tình nguyện phù hợp với sở thích và kỹ năng của bạn</p>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-number">3</div>
+              <div class="step-content">
+                <h3>Tham Gia & Tạo Tác Động</h3>
+                <p>Đăng ký tham gia sự kiện và bắt đầu tạo ra sự khác biệt trong cộng đồng</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Panel: Initial Info Form -->
+        <div class="register-form-wrapper">
+          <div class="register-form-container">
+            <div class="form-header">
+              <h2>Bắt đầu đăng ký</h2>
+              <p>Nhập thông tin cơ bản của bạn</p>
+            </div>
+            <form (ngSubmit)="onInitialInfoSubmit({ name: initialName(), email: initialEmail() })" class="register-form">
+              <div class="form-group">
+                <label for="initial-name">Họ và tên *</label>
+                <input
+                  type="text"
+                  id="initial-name"
+                  [(ngModel)]="initialName"
+                  name="initialName"
+                  required
+                  placeholder="Nhập họ và tên của bạn"
+                />
+              </div>
+              <div class="form-group">
+                <label for="initial-email">Email *</label>
+                <input
+                  type="email"
+                  id="initial-email"
+                  [(ngModel)]="initialEmail"
+                  name="initialEmail"
+                  required
+                  placeholder="Nhập email của bạn"
+                />
+              </div>
+              <button type="submit" class="btn btn-primary">Tiếp tục</button>
+            </form>
+            <div class="form-footer">
+              <p>Đã có tài khoản? <a (click)="openLoginModal()" class="link">Đăng nhập ngay</a></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<app-footer></app-footer>
+
+@if (showLoginModal()) {
+  <app-login-modal
+    (close)="closeLoginModal()"
+    (loginSuccess)="onLoginSuccess()"
+  ></app-login-modal>
+}
+
+

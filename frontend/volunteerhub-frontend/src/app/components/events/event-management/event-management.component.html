@@ -1,0 +1,99 @@
+<app-navbar></app-navbar>
+
+@if (event) {
+  <div class="event-management-page">
+    <div class="management-header">
+      <div class="header-content">
+        <button class="back-button" (click)="router.navigate(['/dashboard'])" type="button">
+          <mat-icon>arrow_back</mat-icon>
+          Quay lại Dashboard
+        </button>
+        <div class="header-actions">
+          <button class="btn btn-secondary" (click)="goToEventDetail()">
+            <mat-icon>visibility</mat-icon>
+            Xem chi tiết công khai
+          </button>
+          @if (event.status !== 'CANCELLED' && event.status !== 'COMPLETED') {
+            <button class="btn btn-primary" (click)="openEditForm()">
+              <mat-icon>edit</mat-icon>
+              Sửa sự kiện
+            </button>
+            <button class="btn btn-danger" (click)="onCancelEvent()">
+              <mat-icon>cancel</mat-icon>
+              Hủy sự kiện
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="event-info-section">
+      <div class="event-badge">
+        <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
+        <span class="event-status" [class]="event.status.toLowerCase()">
+          {{ getStatusText(event.status) }}
+        </span>
+      </div>
+      <h1>{{ event.title }}</h1>
+      
+      <div class="event-meta">
+        <div class="meta-item">
+          <mat-icon>calendar_today</mat-icon>
+          <span>{{ formatDate(event.startTime) }}</span>
+        </div>
+        <div class="meta-item">
+          <mat-icon>location_on</mat-icon>
+          <span>{{ event.location }}</span>
+        </div>
+        <div class="meta-item">
+          <mat-icon>people</mat-icon>
+          <span>{{ event._count?.registrations || 0 }} người đăng ký</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="management-content">
+      <!-- Event Description -->
+      <div class="section">
+        <h2>Mô tả sự kiện</h2>
+        <p class="description">{{ event.description }}</p>
+      </div>
+
+      <!-- Event Form Modal -->
+      @if (showEventForm()) {
+        <div class="modal-overlay" (click)="closeEventForm()">
+          <div class="modal-content" (click)="$event.stopPropagation()">
+            <app-event-form
+              [event]="editingEvent()"
+              [managerId]="authService.user()?.id || 0"
+              [managerName]="authService.user()?.name || ''"
+              (save)="onSaveEvent($event)"
+              (cancel)="closeEventForm()"
+            ></app-event-form>
+          </div>
+        </div>
+      }
+
+      <!-- Participant Management -->
+      <div class="section">
+        <app-event-registrations 
+          [eventId]="event.id" 
+          [canManage]="true"
+        ></app-event-registrations>
+      </div>
+    </div>
+  </div>
+} @else if (isLoading()) {
+  <div class="loading-page">
+    <mat-icon>refresh</mat-icon>
+    <p>Đang tải...</p>
+  </div>
+} @else {
+  <div class="error-page">
+    <p>Sự kiện không tồn tại</p>
+    <button class="btn btn-primary" (click)="router.navigate(['/events'])">Quay lại danh sách</button>
+  </div>
+}
+
+<app-footer></app-footer>
+

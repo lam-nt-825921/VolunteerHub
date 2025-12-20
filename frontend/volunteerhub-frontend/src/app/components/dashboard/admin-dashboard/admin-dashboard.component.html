@@ -1,0 +1,378 @@
+<app-navbar></app-navbar>
+
+<div class="admin-dashboard">
+  <div class="dashboard-header">
+    <div class="header-content">
+      <h1>Dashboard Quản trị viên</h1>
+      <p>Chào mừng, {{ authService.user()?.name }}!</p>
+    </div>
+  </div>
+
+  <div class="dashboard-content">
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-primary);">
+          <mat-icon>event</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ totalEvents }}</h3>
+          <p>Tổng sự kiện</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-accent-1);">
+          <mat-icon>schedule</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ pendingEvents.length }}</h3>
+          <p>Chờ duyệt</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-accent-2);">
+          <mat-icon>check_circle</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ approvedEvents.length }}</h3>
+          <p>Đã duyệt</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="background-color: var(--color-accent-3);">
+          <mat-icon>people</mat-icon>
+        </div>
+        <div class="stat-info">
+          <h3>{{ totalUsers }}</h3>
+          <p>Tổng người dùng</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Events -->
+    @if (pendingEvents.length > 0) {
+      <div class="section">
+        <div class="section-header">
+          <h2>Sự kiện chờ duyệt</h2>
+        </div>
+        <div class="events-grid">
+          @for (event of pendingEvents; track event.id) {
+            <div class="event-card">
+              <div class="event-header">
+                <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
+                <span class="event-status pending">Chờ duyệt</span>
+              </div>
+              <h3 class="event-title" (click)="viewEventDetail(event.id)">{{ event.title }}</h3>
+              <p class="event-description">{{ event.description }}</p>
+              <div class="event-details">
+                <div class="event-detail-item">
+                  <mat-icon>calendar_today</mat-icon>
+                  <span>{{ formatDate(event.startTime) }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>location_on</mat-icon>
+                  <span>{{ event.location }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>person</mat-icon>
+                  <span>{{ event.creator?.fullName || 'Unknown' }}</span>
+                </div>
+              </div>
+              <div class="event-actions">
+                <button class="btn btn-success" (click)="approveEvent(event)">
+                  <mat-icon>check</mat-icon>
+                  Duyệt
+                </button>
+                <button class="btn btn-danger" (click)="rejectEvent(event)">
+                  <mat-icon>close</mat-icon>
+                  Từ chối
+                </button>
+                <button class="btn btn-icon" (click)="cancelEvent(event)" title="Hủy">
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button
+        class="tab-btn"
+        [class.active]="!showUsersTab()"
+        (click)="showUsersTab.set(false)"
+      >
+        Sự kiện
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="showUsersTab()"
+        (click)="toggleUsersTab()"
+      >
+        Người dùng
+      </button>
+    </div>
+
+    <!-- Events Tab -->
+    @if (!showUsersTab()) {
+      <div class="section">
+        <div class="section-header">
+          <h2>Tất cả sự kiện</h2>
+          <div class="header-actions">
+            <button class="btn btn-secondary" (click)="exportEvents()">
+              <mat-icon>download</mat-icon>
+              Export CSV
+            </button>
+            <a routerLink="/events" class="btn-link">Xem tất cả</a>
+          </div>
+        </div>
+
+      @if (allEvents.length > 0) {
+        <div class="events-grid">
+          @for (event of allEvents.slice(0, 6); track event.id) {
+            <div class="event-card" (click)="viewEventDetail(event.id)">
+              <div class="event-header">
+                <span class="event-category">{{ event.category?.name || 'Chưa phân loại' }}</span>
+                <span class="event-status" [class]="getStatusClass(event.status)">
+                  {{ getStatusText(event.status) }}
+                </span>
+              </div>
+              <h3 class="event-title">{{ event.title }}</h3>
+              <p class="event-description">{{ event.description }}</p>
+              <div class="event-details">
+                <div class="event-detail-item">
+                  <mat-icon>calendar_today</mat-icon>
+                  <span>{{ formatDate(event.startTime) }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>location_on</mat-icon>
+                  <span>{{ event.location }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>person</mat-icon>
+                  <span>{{ event.creator?.fullName || 'Unknown' }}</span>
+                </div>
+                <div class="event-detail-item">
+                  <mat-icon>group</mat-icon>
+                  <span>{{ event._count?.registrations || 0 }} đăng ký</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <mat-icon>event_busy</mat-icon>
+          <p>Chưa có sự kiện nào</p>
+        </div>
+      }
+      </div>
+    }
+
+    <!-- Users Tab -->
+    @if (showUsersTab()) {
+      <div class="section">
+        <div class="section-header">
+          <h2>Quản lý người dùng</h2>
+        </div>
+
+        <!-- Filters and Search -->
+        <div class="users-filters">
+          <div class="filter-group">
+            <div class="search-box">
+              <mat-icon>search</mat-icon>
+              <input
+                type="text"
+                placeholder="Tìm kiếm theo tên hoặc email..."
+                [value]="userSearchKeyword()"
+                (input)="userSearchKeyword.set($any($event.target).value); onSearchChange()"
+                class="search-input"
+              />
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <select
+              [value]="userRoleFilter()"
+              (change)="userRoleFilter.set($any($event.target).value); onRoleFilterChange()"
+              class="filter-select"
+            >
+              <option value="">Tất cả vai trò</option>
+              <option value="VOLUNTEER">Tình nguyện viên</option>
+              <option value="EVENT_MANAGER">Quản lý</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <select
+              [value]="userStatusFilter()"
+              (change)="userStatusFilter.set($any($event.target).value); onStatusFilterChange()"
+              class="filter-select"
+            >
+              <option value="all">Tất cả trạng thái</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Đã khóa</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <select
+              [value]="pageSize()"
+              (change)="pageSize.set(+$any($event.target).value); currentPage.set(1); loadUsers()"
+              class="filter-select"
+            >
+              <option value="5">5 / trang</option>
+              <option value="10">10 / trang</option>
+              <option value="20">20 / trang</option>
+              <option value="50">50 / trang</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="users-table">
+          <table>
+            <thead>
+              <tr>
+                <th (click)="onSortChange('id')" class="sortable">
+                  ID
+                  @if (userSortField() === 'id') {
+                    <mat-icon>{{ userSortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                  }
+                </th>
+                <th (click)="onSortChange('name')" class="sortable">
+                  Tên
+                  @if (userSortField() === 'name') {
+                    <mat-icon>{{ userSortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                  }
+                </th>
+                <th (click)="onSortChange('email')" class="sortable">
+                  Email
+                  @if (userSortField() === 'email') {
+                    <mat-icon>{{ userSortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                  }
+                </th>
+                <th (click)="onSortChange('role')" class="sortable">
+                  Vai trò
+                  @if (userSortField() === 'role') {
+                    <mat-icon>{{ userSortDirection() === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+                  }
+                </th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (isLoading()) {
+                <tr>
+                  <td colspan="5" class="loading-cell">
+                    <div class="loading-spinner">Đang tải...</div>
+                  </td>
+                </tr>
+              } @else if (paginatedUsers().length === 0) {
+                <tr>
+                  <td colspan="5" class="empty-cell">
+                    <div class="empty-state">
+                      <mat-icon>people_outline</mat-icon>
+                      <p>Không tìm thấy người dùng nào</p>
+                    </div>
+                  </td>
+                </tr>
+              } @else {
+                @for (user of paginatedUsers(); track user.id) {
+                  <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.name }}</td>
+                    <td>{{ user.email }}</td>
+                    <td>
+                      <select
+                        [value]="user.role"
+                        (change)="changeUserRole(user, $any($event.target).value)"
+                        class="role-select"
+                      >
+                        <option value="volunteer">Tình nguyện viên</option>
+                        <option value="manager">Quản lý</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </td>
+                    <td>
+                      <div class="action-buttons">
+                        <button
+                          class="btn btn-icon"
+                          (click)="toggleUserActive(user)"
+                          title="Khóa/Mở khóa"
+                        >
+                          <mat-icon>lock</mat-icon>
+                        </button>
+                        <button
+                          class="btn btn-icon btn-danger"
+                          (click)="deleteUser(user)"
+                          title="Xóa tài khoản"
+                        >
+                          <mat-icon>delete</mat-icon>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        @if (totalPages() > 1) {
+          <div class="pagination">
+            <button
+              class="pagination-btn"
+              (click)="previousPage()"
+              [disabled]="currentPage() === 1"
+            >
+              <mat-icon>chevron_left</mat-icon>
+              Trước
+            </button>
+
+            <div class="pagination-numbers">
+              @for (page of getPaginationPages(); track $index) {
+                @if (page === '...') {
+                  <span class="pagination-ellipsis">...</span>
+                } @else if (isNumber(page)) {
+                  <button
+                    class="pagination-number"
+                    [class.active]="currentPage() === page"
+                    (click)="goToPage(page)"
+                  >
+                    {{ page }}
+                  </button>
+                }
+              }
+            </div>
+
+            <button
+              class="pagination-btn"
+              (click)="nextPage()"
+              [disabled]="currentPage() === totalPages()"
+            >
+              Sau
+              <mat-icon>chevron_right</mat-icon>
+            </button>
+          </div>
+        }
+
+        <!-- Pagination Info -->
+        <div class="pagination-info">
+          Hiển thị {{ (currentPage() - 1) * pageSize() + 1 }} - {{ Math.min(currentPage() * pageSize(), totalUsers) }} 
+          trong tổng số {{ totalUsers }} người dùng
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<app-footer></app-footer>
+

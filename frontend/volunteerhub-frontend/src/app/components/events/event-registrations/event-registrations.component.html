@@ -1,0 +1,181 @@
+<div class="event-registrations">
+  <div class="registrations-header">
+    <h3>Quản lý người tham gia</h3>
+    @if (canManage) {
+      <button class="btn btn-secondary" (click)="exportToCSV()">
+        <mat-icon>download</mat-icon>
+        Export CSV
+      </button>
+    }
+  </div>
+
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="loading-state">
+      <mat-icon>refresh</mat-icon>
+      <p>Đang tải...</p>
+    </div>
+  } @else {
+    <!-- Pending Registrations Table (Only for Managers) -->
+    @if (canManage && pendingRegistrations.length > 0) {
+      <div class="registration-section">
+      <div class="section-header">
+        <h4>Danh sách đăng ký chờ duyệt ({{ pendingRegistrations.length }})</h4>
+        @if (selectedPendingCount > 0) {
+          <div class="bulk-actions">
+            <span class="selected-count">{{ selectedPendingCount }} đã chọn</span>
+            <button class="btn btn-success" (click)="bulkApprovePending()">
+              <mat-icon>check</mat-icon>
+              Duyệt tất cả đã chọn
+            </button>
+            <button class="btn btn-danger" (click)="bulkRejectPending()">
+              <mat-icon>close</mat-icon>
+              Từ chối tất cả đã chọn
+            </button>
+          </div>
+        }
+      </div>
+      <div class="table-container">
+        <table class="registrations-table">
+          <thead>
+            <tr>
+              <th class="checkbox-column">
+                <label class="checkbox-label">
+                  <input 
+                    type="checkbox" 
+                    [checked]="selectAllPending()"
+                    (change)="toggleSelectAllPending()"
+                    [attr.aria-label]="'Chọn tất cả'"
+                  />
+                  <span class="sr-only">Chọn tất cả</span>
+                </label>
+              </th>
+              <th>Người đăng ký</th>
+              <th>Ngày đăng ký</th>
+              <th class="actions-column">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (reg of pendingRegistrations; track reg.id) {
+              <tr [class.selected]="isPendingSelected(reg.id)">
+                <td class="checkbox-column">
+                  <label class="checkbox-label">
+                    <input 
+                      type="checkbox" 
+                      [checked]="isPendingSelected(reg.id)"
+                      (change)="toggleSelectPending(reg.id)"
+                      [attr.aria-label]="'Chọn ' + reg.user.fullName"
+                    />
+                    <span class="sr-only">Chọn {{ reg.user.fullName }}</span>
+                  </label>
+                </td>
+                <td>
+                  <div class="user-cell">
+                    <div class="user-avatar">
+                      {{ getInitials(reg.user.fullName) }}
+                    </div>
+                    <div class="user-info">
+                      <strong>{{ reg.user.fullName }}</strong>
+                      @if (reg.user.reputationScore !== undefined) {
+                        <span class="reputation-score">⭐ {{ reg.user.reputationScore }}</span>
+                      }
+                    </div>
+                  </div>
+                </td>
+                <td>{{ formatDate(reg.registeredAt) }}</td>
+                <td class="actions-column">
+                  <div class="table-actions">
+                    <button class="btn-icon btn-success" (click)="approveRegistration(reg.id)" title="Duyệt">
+                      <mat-icon>check</mat-icon>
+                    </button>
+                    <button class="btn-icon btn-danger" (click)="rejectRegistration(reg.id)" title="Từ chối">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+    }
+
+    <!-- Current Participants Table -->
+    @if (currentParticipants.length > 0) {
+      <div class="registration-section">
+      <div class="section-header">
+        <h4>Danh sách người tham gia hiện tại ({{ currentParticipants.length }})</h4>
+      </div>
+      <div class="table-container">
+        <table class="registrations-table">
+          <thead>
+            <tr>
+              <th>Người tham gia</th>
+              <th>Trạng thái</th>
+              <th>Ngày đăng ký</th>
+              <th>Ngày điểm danh</th>
+              @if (canManage) {
+                <th class="actions-column">Thao tác</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (reg of currentParticipants; track reg.id) {
+              <tr>
+                <td>
+                  <div class="user-cell">
+                    <div class="user-avatar">
+                      {{ getInitials(reg.user.fullName) }}
+                    </div>
+                    <div class="user-info">
+                      <strong>{{ reg.user.fullName }}</strong>
+                      @if (reg.user.reputationScore !== undefined) {
+                        <span class="reputation-score">⭐ {{ reg.user.reputationScore }}</span>
+                      }
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="status-badge" [class]="reg.status.toLowerCase()">
+                    {{ getStatusText(reg.status) }}
+                  </span>
+                </td>
+                <td>{{ formatDate(reg.registeredAt) }}</td>
+                <td>
+                  @if (reg.attendedAt) {
+                    {{ formatDate(reg.attendedAt) }}
+                  } @else {
+                    <span class="text-muted">Chưa điểm danh</span>
+                  }
+                </td>
+                @if (canManage) {
+                  <td class="actions-column">
+                    <div class="table-actions">
+                      @if (reg.status === 'APPROVED') {
+                        <button class="btn-icon btn-primary" (click)="checkIn(reg.id)" title="Điểm danh">
+                          <mat-icon>check_circle</mat-icon>
+                        </button>
+                      }
+                      <button class="btn-icon btn-danger" (click)="kickParticipant(reg.id)" title="Xóa">
+                        <mat-icon>person_remove</mat-icon>
+                      </button>
+                    </div>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+    }
+
+    @if (registrations.length === 0) {
+      <div class="empty-state">
+        <mat-icon>people_outline</mat-icon>
+        <p>Chưa có đăng ký nào</p>
+      </div>
+    }
+  }
+</div>
