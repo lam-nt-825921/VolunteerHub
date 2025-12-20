@@ -1,6 +1,6 @@
 // src/posts/dto/response/post-response.dto.ts
 import { Expose, Type } from 'class-transformer';
-import { PostType } from '../../../generated/prisma/enums';
+import { PostType, PostStatus } from '../../../generated/prisma/enums';
 
 /**
  * DTO cho thông tin user trong post (nested)
@@ -34,6 +34,9 @@ export class PostResponseDto {
 
   @Expose()
   type: PostType;
+
+  @Expose()
+  status: PostStatus;
 
   @Expose()
   isPinned: boolean;

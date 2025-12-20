@@ -30,7 +30,7 @@ import { CreateCommentDto } from './dto/request/create-comment.dto';
 import { UpdateCommentDto } from './dto/request/update-comment.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '../generated/prisma/enums';
+import { Role, PostStatus } from '../generated/prisma/enums';
 import { EventPermissions } from '../common/decorators/event-permissions.decorator';
 import { EventPermissionsGuard } from '../auth/guards/event-permissions.guard';
 import { EventPermission } from '../common/utils/event-permissions.util';
@@ -224,6 +224,29 @@ export class PostsController {
     @CurrentUser() user: Actor,
   ) {
     return this.postsService.pinPost(postId, isPinned, user);
+  }
+
+  /**
+   * Duyệt hoặc từ chối post
+   * PATCH /posts/:postId/approve
+   */
+  @Patch('posts/:postId/approve')
+  @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
+  @UseGuards(EventPermissionsGuard)
+  @EventPermissions(EventPermission.POST_APPROVE)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Duyệt bài đăng (chỉ người có quyền POST_APPROVE)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Đã duyệt bài đăng thành công',
+    type: PostResponseDto,
+  })
+  async approvePost(
+    @Param('postId', ParseIntPipe) postId: number,
+    @Body('status') status: 'APPROVED' | 'REJECTED',
+    @CurrentUser() user: Actor,
+  ) {
+    return this.postsService.approvePost(postId, status, user);
   }
 
   /**

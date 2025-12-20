@@ -26,6 +26,7 @@ import {
   EventStatus,
   EventVisibility,
   RegistrationStatus,
+  PostStatus,
   Role,
 } from '../generated/prisma/enums';
 import {
@@ -97,9 +98,45 @@ export class PostsService {
       }
     }
 
+    // Kiểm tra quyền của actor
+    let canViewPending = false;
+    if (actor) {
+      const registration = await this.prisma.registration.findUnique({
+        where: {
+          userId_eventId: { userId: actor.id, eventId: event.id },
+        },
+        select: { permissions: true },
+      });
+      
+      canViewPending = Boolean(
+        actor.id === event.creatorId ||
+        (registration &&
+          hasPermission(registration.permissions, EventPermission.POST_APPROVE))
+      );
+    }
+
     const where: any = {
       eventId: event.id,
     };
+
+    // Chỉ hiển thị APPROVED posts, trừ khi là người có quyền duyệt hoặc tác giả
+    if (!canViewPending) {
+      where.status = PostStatus.APPROVED;
+    } else {
+      // Người có quyền có thể xem tất cả posts (APPROVED, PENDING, REJECTED)
+      // Nhưng có thể filter theo status nếu cần
+      if (filter.status) {
+        where.status = filter.status;
+      }
+    }
+
+    // Nếu là tác giả, có thể xem post của mình dù ở trạng thái nào
+    if (actor && !canViewPending) {
+      where.OR = [
+        { status: PostStatus.APPROVED },
+        { authorId: actor.id }, // Tác giả có thể xem post của mình
+      ];
+    }
 
     if (filter.type) {
       where.type = filter.type;
@@ -124,6 +161,7 @@ export class PostsService {
           content: true,
           images: true,
           type: true,
+          status: true,
           isPinned: true,
           createdAt: true,
           updatedAt: true,
@@ -228,6 +266,11 @@ export class PostsService {
       throw new ForbiddenException('Bạn không có quyền đăng bài trong sự kiện này');
     }
 
+    // Kiểm tra nếu người đăng có quyền POST_APPROVE thì tự động approved
+    const hasPostApprove =
+      actor.id === event.creatorId ||
+      hasPermission(registration.permissions, EventPermission.POST_APPROVE);
+
     // Upload ảnh lên Cloudinary nếu có
     let imageUrls: string[] = [];
     if (files && files.length > 0) {
@@ -239,6 +282,7 @@ export class PostsService {
         content: dto.content.trim(),
         images: imageUrls.length > 0 ? JSON.stringify(imageUrls) : '[]',
         type: dto.type || 'DISCUSSION',
+        status: hasPostApprove ? PostStatus.APPROVED : PostStatus.PENDING,
         author: { connect: { id: actor.id } },
         event: { connect: { id: event.id } },
       },
@@ -315,10 +359,12 @@ export class PostsService {
         content: true,
         images: true,
         type: true,
+        status: true,
         isPinned: true,
         createdAt: true,
         updatedAt: true,
         eventId: true,
+        authorId: true,
         author: {
           select: {
             id: true,
@@ -331,6 +377,7 @@ export class PostsService {
           select: {
             visibility: true,
             status: true,
+            creatorId: true,
           },
         },
         _count: {
@@ -353,6 +400,35 @@ export class PostsService {
         post.event.visibility === EventVisibility.PRIVATE
       ) {
         throw new ForbiddenException('Bạn cần đăng nhập để xem bài đăng');
+      }
+      // Guest chỉ xem được APPROVED posts
+      if (post.status !== PostStatus.APPROVED) {
+        throw new ForbiddenException('Bài đăng không tồn tại hoặc chưa được duyệt');
+      }
+    } else {
+      // Kiểm tra quyền xem post
+      const isAuthor = post.authorId === actor.id;
+      const isCreator = post.event.creatorId === actor.id;
+      
+      let canViewPending = isAuthor || isCreator;
+      
+      if (!canViewPending) {
+        const registration = await this.prisma.registration.findUnique({
+          where: {
+            userId_eventId: { userId: actor.id, eventId: post.eventId },
+          },
+          select: { permissions: true },
+        });
+        
+        canViewPending = Boolean(
+          registration &&
+          hasPermission(registration.permissions, EventPermission.POST_APPROVE)
+        );
+      }
+      
+      // Chỉ hiển thị APPROVED posts, trừ khi có quyền hoặc là tác giả
+      if (post.status !== PostStatus.APPROVED && !canViewPending) {
+        throw new ForbiddenException('Bài đăng không tồn tại hoặc chưa được duyệt');
       }
     }
 
@@ -1047,6 +1123,135 @@ export class PostsService {
     });
 
     return { message: 'Đã xóa bình luận thành công' };
+  }
+
+  /**
+   * Duyệt hoặc từ chối post (chỉ người có quyền POST_APPROVE)
+   */
+  async approvePost(postId: number, status: 'APPROVED' | 'REJECTED', actor: Actor) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: {
+        id: true,
+        status: true,
+        authorId: true,
+        eventId: true,
+        event: {
+          select: {
+            creatorId: true,
+          },
+        },
+      },
+    });
+
+    if (!post) {
+      throw new NotFoundException('Bài đăng không tồn tại');
+    }
+
+    // Kiểm tra quyền POST_APPROVE
+    const isCreator = post.event.creatorId === actor.id;
+    const registration = await this.prisma.registration.findUnique({
+      where: {
+        userId_eventId: { userId: actor.id, eventId: post.eventId },
+      },
+      select: { permissions: true },
+    });
+
+    const hasApprovePermission =
+      isCreator ||
+      (registration &&
+        hasPermission(registration.permissions, EventPermission.POST_APPROVE));
+
+    if (!hasApprovePermission) {
+      throw new ForbiddenException('Bạn không có quyền duyệt bài đăng này');
+    }
+
+    // Chỉ có thể duyệt/từ chối post đang ở trạng thái PENDING
+    if (post.status !== 'PENDING') {
+      throw new ForbiddenException(
+        `Không thể thay đổi trạng thái bài đăng. Bài đăng hiện tại ở trạng thái: ${post.status}`,
+      );
+    }
+
+    const updated = await this.prisma.post.update({
+      where: { id: postId },
+      data: { status: status as PostStatus },
+      select: {
+        id: true,
+        content: true,
+        images: true,
+        type: true,
+        status: true,
+        isPinned: true,
+        createdAt: true,
+        updatedAt: true,
+        eventId: true,
+        author: {
+          select: {
+            id: true,
+            fullName: true,
+            avatar: true,
+            reputationScore: true,
+          },
+        },
+        _count: {
+          select: {
+            comments: true,
+            likes: true,
+          },
+        },
+      },
+    });
+
+    const postWithLikes = {
+      ...updated,
+      images: this.parseImages(updated.images),
+      commentsCount: updated._count.comments,
+      likesCount: updated._count.likes,
+      likedByCurrentUser: false,
+    };
+
+    // Gửi thông báo cho tác giả
+    await this.notificationsService.createNotification(
+      post.authorId,
+      status === 'APPROVED'
+        ? 'Bài đăng đã được duyệt'
+        : 'Bài đăng bị từ chối',
+      status === 'APPROVED'
+        ? `Bài đăng của bạn trong sự kiện đã được duyệt.`
+        : `Bài đăng của bạn trong sự kiện đã bị từ chối.`,
+      NotificationType.POST_STATUS_CHANGED,
+      { eventId: post.eventId, postId: post.id, status },
+    );
+
+    // Nếu được duyệt, gửi thông báo cho các thành viên khác
+    if (status === 'APPROVED') {
+      const registrations = await this.prisma.registration.findMany({
+        where: {
+          eventId: post.eventId,
+          userId: { not: post.authorId },
+          status: RegistrationStatus.APPROVED,
+        },
+        select: { userId: true },
+      });
+
+      const notifiedUserIds = new Set<number>();
+      for (const reg of registrations) {
+        if (notifiedUserIds.has(reg.userId)) continue;
+        notifiedUserIds.add(reg.userId);
+        await this.notificationsService.createNotification(
+          reg.userId,
+          'Bài đăng mới trong sự kiện',
+          `Sự kiện bạn tham gia có bài đăng mới.`,
+          NotificationType.NEW_POST,
+          { eventId: post.eventId, postId: post.id },
+        );
+      }
+    }
+
+    return plainToInstance(PostResponseDto, postWithLikes, {
+      excludeExtraneousValues: true,
+    });
   }
 
   /**

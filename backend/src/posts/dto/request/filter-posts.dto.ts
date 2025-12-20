@@ -2,7 +2,7 @@
 import { IsOptional, IsInt, Min, IsEnum, IsBoolean } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { PostType } from '../../../generated/prisma/enums';
+import { PostType, PostStatus } from '../../../generated/prisma/enums';
 
 export class FilterPostsDto {
   @ApiProperty({
@@ -25,6 +25,16 @@ export class FilterPostsDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   isPinned?: boolean;
+
+  @ApiProperty({
+    example: PostStatus.APPROVED,
+    description: 'Lọc theo trạng thái bài đăng (chỉ người có quyền POST_APPROVE mới có thể filter)',
+    enum: PostStatus,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(PostStatus)
+  status?: PostStatus;
 
   @ApiProperty({
     example: 1,

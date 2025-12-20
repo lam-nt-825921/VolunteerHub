@@ -16,6 +16,8 @@ import { generateInviteCode } from '../common/utils/invite-code.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/types/notification-type.enum';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { EventPermission, buildPermissions } from '../common/utils/event-permissions.util';
+import { RegistrationStatus } from '../generated/prisma/enums';
 
 const logger = new Logger('EventsService');
 
@@ -105,10 +107,45 @@ export class EventsService {
         : undefined,
     };
 
-    return this.prisma.event.create({
-      data,
-      select: this.defaultSelect,
+    const creatorPermissions = buildPermissions([
+      EventPermission.POST_CREATE,
+      EventPermission.POST_APPROVE,
+      EventPermission.POST_REMOVE_OTHERS,
+      EventPermission.COMMENT_DELETE_OTHERS,
+      EventPermission.REGISTRATION_APPROVE,
+      EventPermission.REGISTRATION_KICK,
+      EventPermission.MANAGE_DELEGATION,
+    ]);
+
+    // Tạo event và registration trong cùng một transaction
+    const event = await this.prisma.$transaction(async (tx) => {
+      const newEvent = await tx.event.create({
+        data,
+        select: this.defaultSelect,
+      });
+
+      logger.log(`Creating registration for creator ${actor.id} in event ${newEvent.id}`);
+
+      // Tự động tạo registration cho creator với quyền đầy đủ
+      try {
+        await tx.registration.create({
+          data: {
+            userId: actor.id,
+            eventId: newEvent.id,
+            status: RegistrationStatus.APPROVED,
+            permissions: creatorPermissions,
+          },
+        });
+        logger.log(`Successfully created registration for creator ${actor.id} in event ${newEvent.id}`);
+      } catch (error) {
+        logger.error(`Failed to create registration for creator ${actor.id} in event ${newEvent.id}:`, error);
+        throw error;
+      }
+
+      return newEvent;
     });
+
+    return event;
   }
 
   /**
@@ -199,6 +236,7 @@ export class EventsService {
 
   // Chi tiết sự kiện
   async findOne(id: number, actor: Actor | null) {
+    // Luôn dùng defaultSelect nếu có actor để có creatorId
     const event = await this.prisma.event.findUnique({
       where: { id },
       select: actor ? this.defaultSelect : this.publicSelect,
@@ -213,6 +251,58 @@ export class EventsService {
         event.visibility === EventVisibility.PRIVATE
       ) {
         throw new ForbiddenException('Sự kiện này chỉ dành cho thành viên');
+      }
+    } else {
+      // Khi có actor, event sẽ có creatorId vì dùng defaultSelect
+      const eventWithCreator = event as typeof event & { creatorId: number };
+      
+      logger.log(`[findOne] User ${actor.id} viewing event ${id}, creatorId: ${eventWithCreator.creatorId}`);
+      
+      // Nếu là creator nhưng chưa có registration, tự động tạo
+      if (eventWithCreator.creatorId === actor.id) {
+        logger.log(`[findOne] User ${actor.id} is the creator of event ${id}, checking registration...`);
+        
+        const existingRegistration = await this.prisma.registration.findUnique({
+          where: {
+            userId_eventId: { userId: actor.id, eventId: id },
+          },
+        });
+
+        logger.log(`[findOne] Registration check result for creator ${actor.id} in event ${id}:`, existingRegistration ? `Found (id: ${existingRegistration.id}, status: ${existingRegistration.status})` : 'NOT FOUND');
+
+        if (!existingRegistration) {
+          logger.warn(`[findOne] Creator ${actor.id} of event ${id} has no registration! Auto-creating...`);
+          
+          // Tự động tạo registration cho creator nếu chưa có
+          const creatorPermissions = buildPermissions([
+            EventPermission.POST_CREATE,
+            EventPermission.POST_APPROVE,
+            EventPermission.POST_REMOVE_OTHERS,
+            EventPermission.COMMENT_DELETE_OTHERS,
+            EventPermission.REGISTRATION_APPROVE,
+            EventPermission.REGISTRATION_KICK,
+            EventPermission.MANAGE_DELEGATION,
+          ]);
+
+          try {
+            const newRegistration = await this.prisma.registration.create({
+              data: {
+                userId: actor.id,
+                eventId: id,
+                status: RegistrationStatus.APPROVED,
+                permissions: creatorPermissions,
+              },
+            });
+            logger.log(`[findOne] Successfully auto-created registration ${newRegistration.id} for creator ${actor.id} in event ${id}`);
+          } catch (error) {
+            logger.error(`[findOne] Failed to auto-create registration for creator ${actor.id} in event ${id}:`, error);
+            // Không throw error để không làm gián đoạn việc xem event
+          }
+        } else {
+          logger.log(`[findOne] Creator ${actor.id} already has registration ${existingRegistration.id} in event ${id}`);
+        }
+      } else {
+        logger.log(`[findOne] User ${actor.id} is NOT the creator (creatorId: ${eventWithCreator.creatorId}) of event ${id}`);
       }
     }
 

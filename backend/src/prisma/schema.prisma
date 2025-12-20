@@ -49,6 +49,13 @@ enum PostType {
   DISCUSSION     // Thảo luận bình thường
 }
 
+// Trạng thái bài đăng
+enum PostStatus {
+  PENDING     // Đang chờ duyệt
+  APPROVED    // Đã được duyệt
+  REJECTED    // Bị từ chối
+}
+
 // ==================== MODELS ====================
 
 model User {
@@ -152,25 +159,26 @@ model Registration {
 }
 
 model Post {
-  id          Int       @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   content     String
-  images      String?   @default("[]") // Lưu JSON mảng URL ảnh: ["url1", "url2"]
-  type        PostType  @default(DISCUSSION)
+  images      String?     @default("[]") // Lưu JSON mảng URL ảnh: ["url1", "url2"]
+  type        PostType    @default(DISCUSSION)
+  status      PostStatus  @default(PENDING) // Trạng thái kiểm duyệt
   
-  isPinned    Boolean   @default(false) // Ghim bài (cho thông báo quan trọng)
+  isPinned    Boolean     @default(false) // Ghim bài (cho thông báo quan trọng)
   
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   authorId    Int
   eventId     Int
-  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   comments    Comment[]
   likes       Like[]
 
-  @@index([eventId, createdAt]) // Tối ưu load feed bài đăng
+  @@index([eventId, status, createdAt]) // Tối ưu load feed bài đăng (lọc theo status)
   @@map("posts")
 }
 

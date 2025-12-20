@@ -23,6 +23,7 @@ export enum NotificationType {
   // Post related
   NEW_POST = 'NEW_POST',
   POST_LIKED = 'POST_LIKED',
+  POST_STATUS_CHANGED = 'POST_STATUS_CHANGED', // Post được duyệt/từ chối
 
   // Comment related
   COMMENT_REPLY = 'COMMENT_REPLY',
