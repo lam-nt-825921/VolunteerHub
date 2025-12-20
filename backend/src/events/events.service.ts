@@ -90,6 +90,16 @@ export class EventsService {
       coverImageUrl = uploadResult.secure_url;
     }
 
+    // Kiểm tra category có tồn tại không nếu có categoryId
+    if (dto.categoryId) {
+      const category = await this.prisma.category.findUnique({
+        where: { id: dto.categoryId },
+      });
+      if (!category) {
+        throw new NotFoundException(`Danh mục với ID ${dto.categoryId} không tồn tại`);
+      }
+    }
+
     const data: Prisma.EventCreateInput = {
       title: dto.title.trim(),
       description: dto.description.trim(),
