@@ -40,7 +40,7 @@
   padding: 2rem 0.75rem;
 
   @media (min-width: 768px) {
-    padding: 3rem 0.75rem;
+    padding: 3rem 2rem;
   }
 }
 
@@ -218,9 +218,11 @@
   margin: 0 0 1rem 0;
   line-height: 1.5;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .event-details {

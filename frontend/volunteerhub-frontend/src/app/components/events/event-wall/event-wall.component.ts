@@ -152,9 +152,8 @@ export class EventWallComponent implements OnInit {
       return;
     }
 
-    this.isLoading.set(true);
     try {
-      await firstValueFrom(this.postsApi.createPost(
+      const newPost = await firstValueFrom(this.postsApi.createPost(
         this.eventId, 
         { content, type: 'DISCUSSION' as const },
         this.selectedFiles.length > 0 ? this.selectedFiles : undefined
@@ -163,12 +162,22 @@ export class EventWallComponent implements OnInit {
       this.newPostContent.set('');
       this.selectedFiles = [];
       this.previewUrl = null;
-      await this.loadPosts();
+      this.fileSizeWarning.set(null);
+      
+      // Add the new post to the beginning of the list (after pinned posts)
+      const currentPosts = this.posts();
+      const pinnedPosts = currentPosts.filter(p => p.isPinned);
+      const unpinnedPosts = currentPosts.filter(p => !p.isPinned);
+      const updatedPosts = [...pinnedPosts, newPost, ...unpinnedPosts];
+      this.posts.set(updatedPosts);
+      
+      // Initialize empty comments for the new post
+      const commentsMap = new Map(this.commentsMap());
+      commentsMap.set(newPost.id, []);
+      this.commentsMap.set(commentsMap);
     } catch (error: any) {
       console.error('Error creating post:', error);
       this.alertService.showError(error?.message || 'Đăng bài thất bại. Vui lòng thử lại!');
-    } finally {
-      this.isLoading.set(false);
     }
   }
 
@@ -190,22 +199,19 @@ export class EventWallComponent implements OnInit {
       return;
     }
 
-    this.isLoading.set(true);
     try {
       await firstValueFrom(this.postsApi.createComment(postId, {
         content
       }));
       
-    contentMap.set(postId, '');
-    this.newCommentContent.set(new Map(contentMap));
+      contentMap.set(postId, '');
+      this.newCommentContent.set(new Map(contentMap));
       
-      // Reload comments for this post
+      // Reload comments for this post (only comments, not all posts)
       await this.reloadCommentsForPost(postId);
     } catch (error: any) {
       console.error('Error adding comment:', error);
       this.alertService.showError(error?.message || 'Bình luận thất bại. Vui lòng thử lại!');
-    } finally {
-      this.isLoading.set(false);
     }
   }
 
@@ -236,7 +242,6 @@ export class EventWallComponent implements OnInit {
       return;
     }
 
-    this.isLoading.set(true);
     try {
       await firstValueFrom(this.postsApi.createComment(postId, {
         content,
@@ -250,13 +255,11 @@ export class EventWallComponent implements OnInit {
       replyingMap.delete(parentCommentId);
       this.replyingToComment.set(new Map(replyingMap));
       
-      // Reload comments for this post
+      // Reload comments for this post (only comments, not all posts)
       await this.reloadCommentsForPost(postId);
     } catch (error: any) {
       console.error('Error adding reply:', error);
       this.alertService.showError(error?.message || 'Phản hồi thất bại. Vui lòng thử lại!');
-    } finally {
-      this.isLoading.set(false);
     }
   }
 
@@ -301,7 +304,6 @@ export class EventWallComponent implements OnInit {
       return;
     }
 
-    this.isLoading.set(true);
     try {
       if (post.likedByCurrentUser) {
         await firstValueFrom(this.postsApi.unlikePost(post.id));
@@ -309,18 +311,23 @@ export class EventWallComponent implements OnInit {
         await firstValueFrom(this.postsApi.likePost(post.id));
       }
       
-      // Reload the post to get updated like status
-      // Always pass true since user must be authenticated to like/unlike
-      const updatedPost = await firstValueFrom(this.postsApi.getPostById(post.id, true));
+      // Update the post locally to reflect like status change
       const currentPosts = this.posts();
-      const updatedPosts = currentPosts.map(p => p.id === post.id ? updatedPost : p);
+      const updatedPosts = currentPosts.map(p => {
+        if (p.id === post.id) {
+          return {
+            ...p,
+            likedByCurrentUser: !p.likedByCurrentUser,
+            likesCount: p.likedByCurrentUser ? (p.likesCount || 1) - 1 : (p.likesCount || 0) + 1
+          };
+        }
+        return p;
+      });
       this.posts.set(updatedPosts);
     } catch (error: any) {
       console.error('Error toggling like:', error);
       this.alertService.showError(error?.message || 'Thao tác thất bại. Vui lòng thử lại!');
-    } finally {
-      this.isLoading.set(false);
-  }
+    }
   }
 
   isLiked(post: Post): boolean {
@@ -331,17 +338,25 @@ export class EventWallComponent implements OnInit {
     if (!this.canManage) return;
     
     // Pin/unpin doesn't need confirmation - it's a simple toggle action
-    this.isLoading.set(true);
     try {
       const updatedPost = await firstValueFrom(this.postsApi.pinPost(post.id, !post.isPinned));
-      // Reload posts to get updated order
-      await this.loadPosts();
+      
+      // Update the post locally
+      const currentPosts = this.posts();
+      const updatedPosts = currentPosts.map(p => p.id === post.id ? updatedPost : p);
+      
+      // Re-sort: pinned first, then by date
+      updatedPosts.sort((a: Post, b: Post) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      
+      this.posts.set(updatedPosts);
       // No success alert - action is visible (pin icon changes)
     } catch (error: any) {
       console.error('Error pinning post:', error);
       this.alertService.showError(error?.message || 'Thao tác thất bại. Vui lòng thử lại!');
-    } finally {
-      this.isLoading.set(false);
     }
   }
 
@@ -354,16 +369,23 @@ export class EventWallComponent implements OnInit {
     );
     if (!confirmed) return;
 
-    this.isLoading.set(true);
     try {
       await firstValueFrom(this.postsApi.deletePost(post.id));
-      await this.loadPosts();
+      
+      // Remove the post from local state
+      const currentPosts = this.posts();
+      const updatedPosts = currentPosts.filter(p => p.id !== post.id);
+      this.posts.set(updatedPosts);
+      
+      // Also remove comments for this post
+      const commentsMap = new Map(this.commentsMap());
+      commentsMap.delete(post.id);
+      this.commentsMap.set(commentsMap);
+      
       // No success alert - action is visible (post disappears)
     } catch (error: any) {
       console.error('Error deleting post:', error);
       this.alertService.showError(error?.message || 'Xóa bài viết thất bại. Vui lòng thử lại!');
-    } finally {
-      this.isLoading.set(false);
     }
   }
 
@@ -376,16 +398,15 @@ export class EventWallComponent implements OnInit {
     );
     if (!confirmed) return;
 
-    this.isLoading.set(true);
     try {
       await firstValueFrom(this.postsApi.deleteComment(comment.id));
+      
+      // Reload comments for this post (only comments, not all posts)
       await this.reloadCommentsForPost(post.id);
       // No success alert - action is visible (comment disappears)
     } catch (error: any) {
       console.error('Error deleting comment:', error);
       this.alertService.showError(error?.message || 'Xóa bình luận thất bại. Vui lòng thử lại!');
-    } finally {
-      this.isLoading.set(false);
     }
   }
 

@@ -84,6 +84,14 @@ export class EventRegistrationsComponent implements OnInit {
     );
   }
 
+  updateRegistrationLists() {
+    // Update filtered lists based on current registrations
+    this.pendingRegistrations = this.registrations.filter(r => r.status === 'PENDING');
+    this.approvedRegistrations = this.registrations.filter(r => r.status === 'APPROVED');
+    this.attendedRegistrations = this.registrations.filter(r => r.status === 'ATTENDED');
+    this.currentParticipants = [...this.approvedRegistrations, ...this.attendedRegistrations];
+  }
+
   isPendingSelected(registrationId: number): boolean {
     return this.selectedPendingIds().has(registrationId);
   }
@@ -93,19 +101,23 @@ export class EventRegistrationsComponent implements OnInit {
   }
 
   async approveRegistration(registrationId: number) {
-    this.isLoading.set(true);
     try {
       const result = await this.eventsService.approveRegistration(this.eventId, registrationId);
       if (result.success) {
+        // Update local state: move from pending to approved
+        const registration = this.registrations.find(r => r.id === registrationId);
+        if (registration) {
+          registration.status = 'APPROVED';
+          this.updateRegistrationLists();
+          this.selectedPendingIds.set(new Set());
+          this.selectAllPending.set(false);
+        }
         this.alertService.showSuccess(result.message);
-        await this.loadRegistrations();
       } else {
         this.alertService.showError(result.message);
       }
     } catch (error: any) {
       this.alertService.showError(error?.message || 'Duyệt đăng ký thất bại!');
-    } finally {
-      this.isLoading.set(false);
     }
   }
 
@@ -122,19 +134,29 @@ export class EventRegistrationsComponent implements OnInit {
     );
     if (!confirmed) return;
 
-    this.isLoading.set(true);
     try {
       const promises = selectedIds.map(id => 
         this.eventsService.approveRegistration(this.eventId, id)
       );
       const results = await Promise.all(promises);
       const successCount = results.filter(r => r.success).length;
+      
+      // Update local state for successful approvals
+      results.forEach((result, index) => {
+        if (result.success) {
+          const registration = this.registrations.find(r => r.id === selectedIds[index]);
+          if (registration) {
+            registration.status = 'APPROVED';
+          }
+        }
+      });
+      
+      this.updateRegistrationLists();
+      this.selectedPendingIds.set(new Set());
+      this.selectAllPending.set(false);
       this.alertService.showSuccess(`Đã duyệt thành công ${successCount}/${selectedIds.length} đăng ký!`);
-      await this.loadRegistrations();
     } catch (error: any) {
       this.alertService.showError(error?.message || 'Duyệt đăng ký thất bại!');
-    } finally {
-      this.isLoading.set(false);
     }
   }
 
@@ -145,19 +167,20 @@ export class EventRegistrationsComponent implements OnInit {
     );
     if (!confirmed) return;
 
-    this.isLoading.set(true);
     try {
       const result = await this.eventsService.rejectRegistration(this.eventId, registrationId);
       if (result.success) {
-        await this.loadRegistrations();
+        // Update local state: remove from registrations
+        this.registrations = this.registrations.filter(r => r.id !== registrationId);
+        this.updateRegistrationLists();
+        this.selectedPendingIds.set(new Set());
+        this.selectAllPending.set(false);
         // No success alert - action is visible (registration is removed)
       } else {
         this.alertService.showError(result.message);
       }
     } catch (error: any) {
       this.alertService.showError(error?.message || 'Từ chối đăng ký thất bại!');
-    } finally {
-      this.isLoading.set(false);
     }
   }
 
@@ -174,19 +197,24 @@ export class EventRegistrationsComponent implements OnInit {
     );
     if (!confirmed) return;
 
-    this.isLoading.set(true);
     try {
       const promises = selectedIds.map(id => 
         this.eventsService.rejectRegistration(this.eventId, id)
       );
       const results = await Promise.all(promises);
       const successCount = results.filter(r => r.success).length;
-      await this.loadRegistrations();
+      
+      // Update local state: remove successful rejections
+      const rejectedIds = new Set(
+        results.map((result, index) => result.success ? selectedIds[index] : null).filter(id => id !== null) as number[]
+      );
+      this.registrations = this.registrations.filter(r => !rejectedIds.has(r.id));
+      this.updateRegistrationLists();
+      this.selectedPendingIds.set(new Set());
+      this.selectAllPending.set(false);
       // No success alert - action is visible (registrations are removed)
     } catch (error: any) {
       this.alertService.showError(error?.message || 'Từ chối đăng ký thất bại!');
-    } finally {
-      this.isLoading.set(false);
     }
   }
 
@@ -197,36 +225,41 @@ export class EventRegistrationsComponent implements OnInit {
     );
     if (!confirmed) return;
 
-    this.isLoading.set(true);
     try {
       const result = await this.eventsService.kickParticipant(this.eventId, registrationId);
       if (result.success) {
-        await this.loadRegistrations();
+        // Update local state: change status to KICKED or remove
+        const registration = this.registrations.find(r => r.id === registrationId);
+        if (registration) {
+          registration.status = 'KICKED';
+          this.updateRegistrationLists();
+        }
         // No success alert - action is visible (participant is removed)
       } else {
         this.alertService.showError(result.message);
       }
     } catch (error: any) {
       this.alertService.showError(error?.message || 'Xóa người tham gia thất bại!');
-    } finally {
-      this.isLoading.set(false);
     }
   }
 
   async checkIn(registrationId: number) {
-    this.isLoading.set(true);
     try {
       const result = await this.eventsService.checkInParticipant(this.eventId, registrationId);
       if (result.success) {
+        // Update local state: change status to ATTENDED and set attendedAt
+        const registration = this.registrations.find(r => r.id === registrationId);
+        if (registration) {
+          registration.status = 'ATTENDED';
+          registration.attendedAt = new Date().toISOString();
+          this.updateRegistrationLists();
+        }
         this.alertService.showSuccess(result.message);
-        await this.loadRegistrations();
       } else {
         this.alertService.showError(result.message);
       }
     } catch (error: any) {
       this.alertService.showError(error?.message || 'Điểm danh thất bại!');
-    } finally {
-      this.isLoading.set(false);
     }
   }
 

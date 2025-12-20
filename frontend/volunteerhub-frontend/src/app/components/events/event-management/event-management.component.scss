@@ -53,6 +53,7 @@
 
 .event-info-section {
   max-width: 1600px;
+  padding: 0 2rem;
   margin: 0 auto;
 
   .event-badge {
@@ -139,12 +140,12 @@
 }
 
 .management-content {
+  padding: 0 2rem;
   max-width: 1600px;
   margin: 0 auto;
 }
 
 .section {
-  background-color: var(--bg-secondary);
   border-radius: 0.75rem;
   margin-bottom: 2rem;
 

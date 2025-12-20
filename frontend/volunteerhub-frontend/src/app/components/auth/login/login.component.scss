@@ -171,34 +171,3 @@
   }
 }
 
-.mock-accounts {
-  margin-top: 2rem;
-  padding: 1.5rem;
-  background-color: var(--bg-secondary);
-  border-radius: 0.5rem;
-  border: 1px solid var(--border-color);
-
-  .mock-title {
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0 0 1rem 0;
-    font-size: 0.9rem;
-  }
-
-  .mock-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .mock-item {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    line-height: 1.5;
-
-    strong {
-      color: var(--text-primary);
-    }
-  }
-}
-
