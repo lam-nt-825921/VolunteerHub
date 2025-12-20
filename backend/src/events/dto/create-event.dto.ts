@@ -10,6 +10,7 @@ import {
   IsEnum,
   IsUrl,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { EventVisibility } from '../../generated/prisma/enums';
 
@@ -59,14 +60,6 @@ export class CreateEventDto {
   @IsDateString()
   endTime: string;
 
-  @ApiProperty({
-    example: 'https://example.com/cover.jpg',
-    description: 'URL ảnh bìa sự kiện',
-    required: false,
-  })
-  @IsOptional()
-  @IsUrl()
-  coverImage?: string;
 
   @ApiProperty({
     example: EventVisibility.PUBLIC,
@@ -83,8 +76,10 @@ export class CreateEventDto {
     example: 1,
     description: 'ID danh mục sự kiện',
     required: false,
+    type: 'integer',
   })
   @IsOptional()
+  @Transform(({ value }) => (value ? Number(value) : undefined))
   @IsInt()
   @Min(1)
   categoryId?: number;

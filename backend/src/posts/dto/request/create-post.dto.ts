@@ -22,16 +22,6 @@ export class CreatePostDto {
   @MaxLength(5000)
   content: string;
 
-  @ApiProperty({
-    example: ['https://res.cloudinary.com/example/image1.jpg', 'https://res.cloudinary.com/example/image2.jpg'],
-    description: 'Mảng URL ảnh từ Cloudinary',
-    type: [String],
-    required: false,
-  })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  images?: string[]; // Mảng URL ảnh từ Cloudinary
 
   @ApiProperty({
     example: PostType.DISCUSSION,

@@ -31,11 +31,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       logger.error('💡 Solution: Use PostgreSQL DATABASE_URL OR change schema.prisma to "sqlite" for development');
       throw new Error('Schema provider (postgresql) does not match DATABASE_URL (SQLite). Please use PostgreSQL DATABASE_URL for production or change schema.prisma to "sqlite" for development.');
     } else {
-      // Production: Dùng PostgreSQL (Supabase) với adapter pg
+      // Dùng PostgreSQL (Neon hoặc Supabase) với adapter pg
       const pool = new Pool({ connectionString: databaseUrl });
       const adapter = new PrismaPg(pool);
       super({ adapter });
-      logger.log('✅ PrismaService initialized with PostgreSQL adapter (Production mode)');
+      const mode = process.env.NODE_ENV === 'production' ? 'Production' : 'Development';
+      logger.log(`✅ PrismaService initialized with PostgreSQL adapter (${mode} mode)`);
     }
   }
 
@@ -43,7 +44,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     try {
       await this.$queryRaw`SELECT 1`;  
       const databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
-      const dbType = databaseUrl.startsWith('file:') ? 'SQLite (dev.db)' : 'PostgreSQL (Supabase)';
+      const dbType = databaseUrl.startsWith('file:') 
+        ? 'SQLite (dev.db)' 
+        : databaseUrl.includes('neon.tech') 
+          ? 'PostgreSQL (Neon)' 
+          : 'PostgreSQL';
       logger.log(`✅ Prisma connected to ${dbType} - Ready for events, registrations, posts!`);
     } catch (error) {
         logger.error('❌ Prisma connection failed:', error);

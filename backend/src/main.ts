@@ -72,8 +72,8 @@ async function bootstrap() {
     },
   });
 
-  // === 4. Lấy PORT từ .env, fallback 3001 (Railway tự động set PORT env variable) ===
-  const port = configService.get<number>('PORT') || process.env.PORT || 3001;
+  // === 4. Lấy PORT từ .env, fallback 3000 cho dev ===
+  const port = configService.get<number>('PORT') || process.env.PORT || 3000;
 
   await app.listen(port);
 

@@ -10,13 +10,18 @@ import {
   Post,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/request/create-post.dto';
 import { UpdatePostDto } from './dto/request/update-post.dto';
@@ -73,8 +78,37 @@ export class PostsController {
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
   @UseGuards(EventPermissionsGuard)
   @EventPermissions(EventPermission.POST_CREATE)
+  @UseInterceptors(FilesInterceptor('images', 10)) // Tối đa 10 ảnh
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Tạo post mới trong sự kiện' })
+  @ApiOperation({ summary: 'Tạo post mới trong sự kiện (có thể upload nhiều ảnh)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          example: 'Hôm nay sự kiện diễn ra rất thành công! Cảm ơn tất cả mọi người đã tham gia.',
+          description: 'Nội dung bài đăng',
+        },
+        type: {
+          type: 'string',
+          enum: ['DISCUSSION', 'ANNOUNCEMENT', 'UPDATE'],
+          example: 'DISCUSSION',
+          description: 'Loại bài đăng',
+        },
+        images: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+          description: 'Mảng ảnh (tối đa 10 ảnh) - JPG, PNG',
+        },
+      },
+      required: ['content'],
+    },
+  })
   @ApiResponse({
     status: 201,
     description: 'Tạo post thành công, trả về thông tin post',
@@ -83,9 +117,10 @@ export class PostsController {
   async createPost(
     @Param('eventId', ParseIntPipe) eventId: number,
     @Body() dto: CreatePostDto,
+    @UploadedFiles() files: Express.Multer.File[],
     @CurrentUser() user: Actor,
   ) {
-    return this.postsService.createPost(eventId, dto, user);
+    return this.postsService.createPost(eventId, dto, user, files);
   }
 
   /**

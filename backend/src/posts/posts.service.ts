@@ -34,6 +34,7 @@ import {
 } from '../common/utils/event-permissions.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/types/notification-type.enum';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 interface Actor {
   id: number;
@@ -45,6 +46,7 @@ export class PostsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly cloudinary: CloudinaryService,
   ) {}
 
   /**
@@ -184,7 +186,7 @@ export class PostsService {
   /**
    * Tạo post mới trong event
    */
-  async createPost(eventId: number, dto: CreatePostDto, actor: Actor) {
+  async createPost(eventId: number, dto: CreatePostDto, actor: Actor, files?: Express.Multer.File[]) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
       select: {
@@ -226,10 +228,16 @@ export class PostsService {
       throw new ForbiddenException('Bạn không có quyền đăng bài trong sự kiện này');
     }
 
+    // Upload ảnh lên Cloudinary nếu có
+    let imageUrls: string[] = [];
+    if (files && files.length > 0) {
+      imageUrls = await this.cloudinary.uploadMultipleImages(files, 'volunteer-hub-posts');
+    }
+
     const post = await this.prisma.post.create({
       data: {
         content: dto.content.trim(),
-        images: dto.images ? JSON.stringify(dto.images) : '[]',
+        images: imageUrls.length > 0 ? JSON.stringify(imageUrls) : '[]',
         type: dto.type || 'DISCUSSION',
         author: { connect: { id: actor.id } },
         event: { connect: { id: event.id } },
@@ -418,9 +426,6 @@ export class PostsService {
     const updateData: any = {};
     if (update.content !== undefined) {
       updateData.content = update.content.trim();
-    }
-    if (update.images !== undefined) {
-      updateData.images = JSON.stringify(update.images);
     }
     if (update.type !== undefined) {
       updateData.type = update.type;

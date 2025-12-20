@@ -35,13 +35,24 @@ export class UsersService {
   async updateProfile(userId: number, dto: UpdateProfileDto, file?: Express.Multer.File) {
     let avatarUrl = undefined;
 
-    // 1. Nếu có file ảnh, upload lên Cloudinary
+    // 1. Lấy thông tin user hiện tại để có avatar cũ
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatar: true },
+    });
+
+    // 2. Nếu có file ảnh, xóa ảnh cũ và upload ảnh mới lên Cloudinary
     if (file) {
+      // Xóa ảnh cũ trước khi upload ảnh mới
+      if (currentUser?.avatar) {
+        await this.cloudinary.deleteImage(currentUser.avatar);
+      }
+      
       const uploadResult = await this.cloudinary.uploadImage(file);
       avatarUrl = uploadResult.secure_url;
     }
 
-    // 2. Cập nhật vào Database
+    // 3. Cập nhật vào Database
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -50,7 +61,7 @@ export class UsersService {
       },
     });
 
-    // 3. Trả về kết quả (đã lọc password)
+    // 4. Trả về kết quả (đã lọc password)
     return plainToInstance(UserProfileDto, updatedUser);
   }
 

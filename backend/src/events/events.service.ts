@@ -15,6 +15,7 @@ import { UpdateEventStatusDto } from './dto/update-status.dto';
 import { generateInviteCode } from '../common/utils/invite-code.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/types/notification-type.enum';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 const logger = new Logger('EventsService');
 
@@ -28,6 +29,7 @@ export class EventsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly cloudinary: CloudinaryService,
   ) {}
 
   private readonly defaultSelect = {
@@ -77,14 +79,22 @@ export class EventsService {
   };
 
   // Tạo sự kiện
-  async create(dto: CreateEventDto, actor: Actor) {
+  async create(dto: CreateEventDto, actor: Actor, file?: Express.Multer.File) {
+    let coverImageUrl: string | null = null;
+
+    // Upload ảnh bìa lên Cloudinary nếu có
+    if (file) {
+      const uploadResult = await this.cloudinary.uploadImage(file, 'volunteer-hub-events');
+      coverImageUrl = uploadResult.secure_url;
+    }
+
     const data: Prisma.EventCreateInput = {
       title: dto.title.trim(),
       description: dto.description.trim(),
       location: dto.location.trim(),
       startTime: new Date(dto.startTime),
       endTime: new Date(dto.endTime),
-      coverImage: dto.coverImage?.trim() || null,
+      coverImage: coverImageUrl,
       visibility: dto.visibility ?? EventVisibility.PUBLIC,
       status: EventStatus.PENDING,
       viewCount: 0,
@@ -210,10 +220,10 @@ export class EventsService {
   }
 
   // Cập nhật sự kiện
-  async update(id: number, dto: UpdateEventDto, actor: Actor) {
+  async update(id: number, dto: UpdateEventDto, actor: Actor, file?: Express.Multer.File) {
     const event = await this.prisma.event.findUnique({
       where: { id },
-      select: { creatorId: true },
+      select: { creatorId: true, coverImage: true },
     });
 
     if (!event) throw new NotFoundException();
@@ -224,6 +234,17 @@ export class EventsService {
     }
 
     const data = this.mapUpdateData(dto);
+
+    // Upload ảnh bìa mới lên Cloudinary nếu có
+    if (file) {
+      // Xóa ảnh cũ trước khi upload ảnh mới
+      if (event.coverImage) {
+        await this.cloudinary.deleteImage(event.coverImage);
+      }
+      
+      const uploadResult = await this.cloudinary.uploadImage(file, 'volunteer-hub-events');
+      data.coverImage = uploadResult.secure_url;
+    }
 
     return this.prisma.event.update({
       where: { id },
@@ -411,8 +432,6 @@ export class EventsService {
     if (dto.startTime !== undefined)
       data.startTime = new Date(dto.startTime);
     if (dto.endTime !== undefined) data.endTime = new Date(dto.endTime);
-    if (dto.coverImage !== undefined)
-      data.coverImage = dto.coverImage?.trim() || null;
     if (dto.visibility !== undefined) data.visibility = dto.visibility;
     if (dto.status !== undefined) data.status = dto.status;
     

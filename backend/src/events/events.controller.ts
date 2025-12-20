@@ -8,6 +8,8 @@ import {
   Param,
   Query,
   ParseIntPipe,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,7 +17,10 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiQuery,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -109,27 +114,76 @@ export class EventsController {
   // Tạo sự kiện - chỉ EVENT_MANAGER & ADMIN
   @Post()
   @Roles(Role.EVENT_MANAGER, Role.ADMIN)
+  @UseInterceptors(FileInterceptor('coverImage'))
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Tạo sự kiện mới' })
+  @ApiOperation({ summary: 'Tạo sự kiện mới (có thể upload ảnh bìa)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', example: 'Ngày hội tình nguyện 2025' },
+        description: { type: 'string', example: 'Sự kiện tình nguyện lớn nhất năm...' },
+        location: { type: 'string', example: 'Công viên Lê Văn Tám, Quận 1, TP.HCM' },
+        startTime: { type: 'string', format: 'date-time', example: '2025-01-15T08:00:00Z' },
+        endTime: { type: 'string', format: 'date-time', example: '2025-01-15T17:00:00Z' },
+        visibility: { type: 'string', enum: ['PUBLIC', 'PRIVATE', 'INTERNAL'], example: 'PUBLIC' },
+        categoryId: { type: 'integer', example: 1, description: 'ID danh mục sự kiện' },
+        coverImage: {
+          type: 'string',
+          format: 'binary',
+          description: 'Ảnh bìa sự kiện (JPG, PNG)',
+        },
+      },
+      required: ['title', 'description', 'location', 'startTime', 'endTime'],
+    },
+  })
   @ApiResponse({ status: 201, description: 'Tạo sự kiện thành công' })
   @ApiResponse({ status: 403, description: 'Không có quyền tạo sự kiện' })
-  create(@Body() dto: CreateEventDto, @CurrentUser() user: any) {
-    return this.eventsService.create(dto, user);
+  create(
+    @Body() dto: CreateEventDto,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: any,
+  ) {
+    return this.eventsService.create(dto, user, file);
   }
 
   // Sửa sự kiện - chỉ người tạo hoặc Admin
   @Patch(':id')
   @Roles(Role.EVENT_MANAGER, Role.ADMIN)
+  @UseInterceptors(FileInterceptor('coverImage'))
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Cập nhật thông tin sự kiện' })
+  @ApiOperation({ summary: 'Cập nhật thông tin sự kiện (có thể upload ảnh bìa mới)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', example: 'Ngày hội tình nguyện 2025' },
+        description: { type: 'string', example: 'Sự kiện tình nguyện lớn nhất năm...' },
+        location: { type: 'string', example: 'Công viên Lê Văn Tám, Quận 1, TP.HCM' },
+        startTime: { type: 'string', format: 'date-time', example: '2025-01-15T08:00:00Z' },
+        endTime: { type: 'string', format: 'date-time', example: '2025-01-15T17:00:00Z' },
+        visibility: { type: 'string', enum: ['PUBLIC', 'PRIVATE', 'INTERNAL'], example: 'PUBLIC' },
+        status: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'COMPLETED'] },
+        categoryId: { type: 'integer', example: 1, description: 'ID danh mục sự kiện' },
+        coverImage: {
+          type: 'string',
+          format: 'binary',
+          description: 'Ảnh bìa sự kiện mới (JPG, PNG) - Tùy chọn',
+        },
+      },
+    },
+  })
   @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
   @ApiResponse({ status: 403, description: 'Không có quyền sửa sự kiện này' })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateEventDto,
+    @UploadedFile() file: Express.Multer.File,
     @CurrentUser() user: any,
   ) {
-    return this.eventsService.update(id, dto, user);
+    return this.eventsService.update(id, dto, user, file);
   }
 
   // Duyệt / thay đổi trạng thái sự kiện
