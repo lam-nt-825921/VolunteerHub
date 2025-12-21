@@ -21,11 +21,14 @@ export interface AuthorSummary {
   reputationScore?: number;
 }
 
+export type PostStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
 export interface Post {
   id: number;
   content: string;
   images: string[];
   type: PostType;
+  status?: PostStatus; // Only included for users with POST_APPROVE permission
   isPinned: boolean;
   createdAt: string;
   updatedAt: string;
@@ -71,6 +74,7 @@ export interface UpdatePostRequest {
 export interface FilterPostsRequest {
   type?: PostType;
   isPinned?: boolean;
+  status?: PostStatus; // Only works for users with POST_APPROVE permission
   page?: number;
   limit?: number;
 }
@@ -231,6 +235,15 @@ export class PostsApiService {
   }
 
   /**
+   * Approve or reject a post
+   * PATCH /posts/:postId/approve
+   */
+  approvePost(postId: number, status: 'APPROVED' | 'REJECTED'): Observable<Post> {
+    const url = API_CONFIG.endpoints.posts.byId.replace(':postId', postId.toString()) + '/approve';
+    return this.apiService.patch<Post>(url, { status }, true);
+  }
+
+  /**
    * Helper: Build query string from filter object
    */
   private buildQueryString(filter?: FilterPostsRequest): string {
@@ -239,6 +252,7 @@ export class PostsApiService {
     const params: string[] = [];
     if (filter.type) params.push(`type=${encodeURIComponent(filter.type)}`);
     if (filter.isPinned !== undefined) params.push(`isPinned=${filter.isPinned}`);
+    if (filter.status) params.push(`status=${encodeURIComponent(filter.status)}`);
     if (filter.page) params.push(`page=${filter.page}`);
     if (filter.limit) params.push(`limit=${filter.limit}`);
 

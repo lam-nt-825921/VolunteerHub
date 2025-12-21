@@ -205,19 +205,18 @@ export class EventManagementComponent implements OnInit {
         visibility: eventData.visibility || 'PUBLIC',
       };
 
-      // Get coverImageFile if provided, otherwise use coverImage URL
+      // Get coverImageFile if provided
       const coverImageFile = eventData.coverImageFile;
-      const coverImageUrl = (!coverImageFile && eventData.coverImage) 
-        ? eventData.coverImage 
-        : undefined;
       
-      if (coverImageUrl) {
-        updateData.coverImage = coverImageUrl;
-      } else if (!coverImageFile) {
-        // No file and no URL - set to null to remove cover image
-        updateData.coverImage = null;
+      // Only send coverImage if we want to remove it (null) and no file is provided
+      // If file is provided, it will be sent via FormData, don't set coverImage
+      if (!coverImageFile) {
+        // No file selected - don't send coverImage (keep existing) or set to null to remove
+        // For now, we don't change coverImage if no file is selected (keeps existing image)
+        // To remove image, user would need to explicitly remove it (can add that feature later)
+        // updateData.coverImage = null; // Uncomment if you want to remove image when no file selected
       }
-      // If coverImageFile is provided, don't set coverImage in updateData (file will be sent separately)
+      // If coverImageFile is provided, don't set coverImage in updateData (file will be sent via FormData)
 
       // Handle category - use categoryId from form data if available
       if (eventData.categoryId) {

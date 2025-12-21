@@ -1,8 +1,111 @@
 <div class="event-wall">
   <div class="wall-header">
-    <h2>Kênh trao đổi</h2>
-    <p>Chia sẻ và tương tác với cộng đồng</p>
+    <div class="header-content">
+      <div>
+        <h2>Kênh trao đổi</h2>
+        <p>Chia sẻ và tương tác với cộng đồng</p>
+      </div>
+      @if (canManage) {
+        <button 
+          class="btn-pending-posts" 
+          (click)="togglePendingPosts()"
+          [class.active]="showPendingPosts()"
+          type="button"
+        >
+          <mat-icon>pending_actions</mat-icon>
+          <span>Bài viết chờ duyệt</span>
+          @if (getPendingPostsCount() > 0) {
+            <span class="badge">{{ getPendingPostsCount() }}</span>
+          }
+        </button>
+      }
+    </div>
   </div>
+
+  <!-- Pending Posts Section (Only for users with POST_APPROVE permission) -->
+  @if (canManage && showPendingPosts()) {
+    <div class="pending-posts-section">
+      <div class="section-header">
+        <h3>
+          <mat-icon>pending_actions</mat-icon>
+          Bài viết chờ duyệt ({{ getPendingPostsCount() }})
+        </h3>
+      </div>
+      
+      @if (isLoadingPending()) {
+        <div class="loading-posts">
+          <mat-icon>refresh</mat-icon>
+          <p>Đang tải bài viết chờ duyệt...</p>
+        </div>
+      } @else if (pendingPosts().length === 0) {
+        <div class="empty-state">
+          <mat-icon>check_circle</mat-icon>
+          <p>Không có bài viết nào chờ duyệt</p>
+        </div>
+      } @else {
+        <div class="pending-posts-list">
+          @for (post of pendingPosts(); track post.id) {
+            <div class="post-card pending">
+              <div class="post-header">
+                <div class="author-info">
+                  <div class="author-avatar">
+                    {{ post.author.avatar ? '' : (post.author.fullName.charAt(0).toUpperCase()) }}
+                  </div>
+                  <div>
+                    <strong>{{ post.author.fullName }}</strong>
+                    <span class="post-time">{{ formatDate(post.createdAt) }}</span>
+                  </div>
+                </div>
+                <span class="status-badge pending">Chờ duyệt</span>
+              </div>
+              
+              <div class="post-content">
+                <p>{{ post.content }}</p>
+                @if (post.images && post.images.length > 0) {
+                  <div class="post-images">
+                    @for (image of post.images; track image) {
+                      <img [src]="image" alt="Post image" />
+                    }
+                  </div>
+                }
+              </div>
+              
+              <div class="post-actions-pending">
+                <button 
+                  class="btn-approve" 
+                  (click)="approvePost(post)" 
+                  type="button"
+                  [disabled]="isPostProcessing(post.id)"
+                >
+                  @if (getPostProcessingState(post.id) === 'approving') {
+                    <mat-icon class="spinning">refresh</mat-icon>
+                    <span>Đang duyệt...</span>
+                  } @else {
+                    <mat-icon>check_circle</mat-icon>
+                    <span>Duyệt</span>
+                  }
+                </button>
+                <button 
+                  class="btn-reject" 
+                  (click)="rejectPost(post)" 
+                  type="button"
+                  [disabled]="isPostProcessing(post.id)"
+                >
+                  @if (getPostProcessingState(post.id) === 'rejecting') {
+                    <mat-icon class="spinning">refresh</mat-icon>
+                    <span>Đang từ chối...</span>
+                  } @else {
+                    <mat-icon>cancel</mat-icon>
+                    <span>Từ chối</span>
+                  }
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
 
   <!-- Create Post Form -->
   <div class="create-post-card">
@@ -138,13 +241,16 @@
               <mat-icon>{{ isLiked(post) ? 'favorite' : 'favorite_border' }}</mat-icon>
               <span>{{ post.likesCount }}</span>
             </button>
-            <span class="comment-count">{{ post.commentsCount }} bình luận</span>
+            <a [routerLink]="['/posts', post.id]" class="comment-count-link">
+              <span class="comment-count">{{ post.commentsCount }} bình luận</span>
+            </a>
           </div>
 
           <!-- Comments Section -->
           <div class="comments-section">
-            @for (comment of getCommentsForPost(post.id); track comment.id) {
-              <div class="comment-item">
+            <!-- Recursive Comment Template -->
+            <ng-template #commentTemplate let-comment let-post="post" let-level="level">
+              <div class="comment-item" [id]="'comment-' + comment.id" [class.reply-item]="level > 0" [style.margin-left.px]="level * 20">
                 <div class="comment-author-avatar">
                   @if (comment.author.avatar) {
                     <img [src]="comment.author.avatar" alt="Avatar">
@@ -224,42 +330,36 @@
                     </div>
                   }
                   
-                  <!-- Render replies if any -->
+                  <!-- Show reply count and expand/collapse button -->
                   @if (comment.replies && comment.replies.length > 0) {
+                    <div class="reply-actions-header">
+                      <button
+                        class="view-replies-btn"
+                        (click)="toggleCommentExpanded(comment.id)"
+                        type="button"
+                      >
+                        <mat-icon>{{ isCommentExpanded(comment.id) ? 'expand_less' : 'expand_more' }}</mat-icon>
+                        <span>
+                          {{ isCommentExpanded(comment.id) ? 'Ẩn' : 'Xem' }} {{ countTotalReplies(comment) }} phản hồi
+                        </span>
+                      </button>
+                    </div>
+                  }
+                  
+                  <!-- Render nested replies recursively if expanded -->
+                  @if (comment.replies && comment.replies.length > 0 && isCommentExpanded(comment.id)) {
                     <div class="comment-replies">
                       @for (reply of comment.replies; track reply.id) {
-                        <div class="reply-item">
-                          <div class="reply-author-avatar">
-                            @if (reply.author.avatar) {
-                              <img [src]="reply.author.avatar" alt="Avatar">
-                            } @else {
-                              {{ reply.author.fullName.charAt(0).toUpperCase() }}
-                            }
-                          </div>
-                          <div class="reply-content">
-                            <div class="reply-header">
-                              <strong>{{ reply.author.fullName }}</strong>
-                              <span class="reply-time">{{ formatDate(reply.createdAt) }}</span>
-                            </div>
-                            <p>{{ reply.content }}</p>
-                          </div>
-                          @if (canManage || reply.author.id === authService.user()?.id) {
-                            <button
-                              class="delete-comment-btn"
-                              (click)="deleteComment(reply, post)"
-                              title="Xóa bình luận"
-                              type="button"
-                              [disabled]="isLoading()"
-                            >
-                              <mat-icon>delete</mat-icon>
-                            </button>
-                          }
-                        </div>
+                        <ng-container *ngTemplateOutlet="commentTemplate; context: { $implicit: reply, post: post, level: level + 1 }"></ng-container>
                       }
                     </div>
                   }
                 </div>
               </div>
+            </ng-template>
+
+            @for (comment of getCommentsForPost(post.id); track comment.id) {
+              <ng-container *ngTemplateOutlet="commentTemplate; context: { $implicit: comment, post: post, level: 0 }"></ng-container>
             }
 
             <!-- Add Comment Form -->

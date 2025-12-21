@@ -3,7 +3,7 @@
  * Centralized configuration for API endpoints
  */
 export const API_CONFIG = {
-  baseUrl: 'https://volunteerhub-s6tc.onrender.com',
+  baseUrl: 'http://localhost:3000',
   endpoints: {
     // Auth endpoints
     auth: {
@@ -66,7 +66,7 @@ export const API_CONFIG = {
   },
   // WebSocket configuration
   websocket: {
-    url: 'https://volunteerhub-s6tc.onrender.com',
+    url: 'http://localhost:3000',
     namespace: '/notifications'
   }
 };

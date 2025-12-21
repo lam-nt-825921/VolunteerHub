@@ -35,10 +35,14 @@ export class EventRegistrationsComponent implements OnInit {
   ) {}
 
   async ngOnInit() {
+    // Load registrations cho tất cả user tham gia sự kiện
+    // Backend sẽ tự filter dựa trên quyền REGISTRATION_APPROVE
     await this.loadRegistrations();
   }
 
   async loadRegistrations() {
+    // Load registrations cho tất cả user tham gia sự kiện
+    // Backend sẽ tự filter dựa trên quyền REGISTRATION_APPROVE
     this.isLoading.set(true);
     try {
       this.registrations = await this.eventsService.getEventRegistrations(this.eventId);
@@ -50,6 +54,7 @@ export class EventRegistrationsComponent implements OnInit {
       this.selectAllPending.set(false);
     } catch (error) {
       console.error('Error loading registrations:', error);
+      // Không throw error để không block việc render các component khác
     } finally {
       this.isLoading.set(false);
     }

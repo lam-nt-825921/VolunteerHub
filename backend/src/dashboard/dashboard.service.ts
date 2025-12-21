@@ -141,6 +141,7 @@ export class DashboardService {
         status: true,
         registeredAt: true,
         attendedAt: true,
+        permissions: true,
         event: {
           select: {
             id: true,

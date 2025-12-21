@@ -21,6 +21,7 @@ export class EventDetailComponent implements OnInit {
   event: EventResponse | null = null;
   isRegistered = false;
   registrationStatus: string | null = null;
+  registrationPermissions: number | null = null;
   canCancel = false;
   showLoginPrompt = false;
   isLoading = signal(false);
@@ -36,23 +37,60 @@ export class EventDetailComponent implements OnInit {
   async ngOnInit() {
     const eventId = Number(this.route.snapshot.paramMap.get('id'));
     await this.loadEvent(eventId);
+    
+    // Check if there's a commentId in query params (from notification click)
+    const commentId = this.route.snapshot.queryParamMap.get('commentId');
+    if (commentId) {
+      // Wait for the wall component to load posts and comments, then scroll to comment
+      // Try multiple times with increasing delays to ensure comment is loaded
+      this.scrollToCommentWithRetry(Number(commentId), 0);
+    }
+  }
+
+  /**
+   * Scroll to a specific comment with retry logic
+   */
+  private scrollToCommentWithRetry(commentId: number, attempt: number): void {
+    const maxAttempts = 5;
+    const delay = 500 * (attempt + 1); // 500ms, 1000ms, 1500ms, 2000ms, 2500ms
+    
+    setTimeout(() => {
+      const element = document.getElementById(`comment-${commentId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Highlight the comment briefly
+        element.classList.add('highlight-comment');
+        setTimeout(() => {
+          element.classList.remove('highlight-comment');
+        }, 2000);
+      } else if (attempt < maxAttempts) {
+        // Retry if element not found yet
+        this.scrollToCommentWithRetry(commentId, attempt + 1);
+      }
+    }, delay);
   }
 
   async loadEvent(eventId: number) {
     this.isLoading.set(true);
     try {
       const isAuthenticated = this.authService.isAuthenticated();
-      this.event = await this.eventsService.getEventById(eventId, isAuthenticated);
+      
+      // Load event and registration status in parallel for better UX
+      const [event] = await Promise.all([
+        this.eventsService.getEventById(eventId, isAuthenticated),
+        // Check registration status in parallel (don't block event loading)
+        isAuthenticated ? this.checkRegistrationStatus(eventId).catch(err => {
+          console.error('Error checking registration:', err);
+          // Don't throw - allow event to load even if registration check fails
+        }) : Promise.resolve()
+      ]);
 
-      if (!this.event) {
+      if (!event) {
         this.router.navigate(['/events']);
         return;
       }
 
-      // Check user's registration status
-      if (isAuthenticated) {
-        await this.checkRegistrationStatus(eventId);
-      }
+      this.event = event;
     } catch (error) {
       console.error('Error loading event:', error);
       this.router.navigate(['/events']);
@@ -70,6 +108,7 @@ export class EventDetailComponent implements OnInit {
       if (registration) {
         this.isRegistered = true;
         this.registrationStatus = registration.status;
+        this.registrationPermissions = registration.permissions;
         // Can cancel only if event hasn't started and not already left/kicked
         this.canCancel = this.event?.startTime 
           ? new Date(this.event.startTime) > new Date() && 
@@ -148,27 +187,44 @@ export class EventDetailComponent implements OnInit {
   canManageWall(): boolean {
     const user = this.authService.user();
     if (!user) return false;
-    // Managers and Admins can manage wall
-    return user.role === 'manager' || user.role === 'admin';
+    
+    // Admins can always manage
+    if (user.role === 'admin') return true;
+    
+    // Event creator can always manage
+    if (this.event && user.id === this.event.creatorId) return true;
+    
+    // Check POST_APPROVE permission (value = 4) from registration
+    if (this.registrationPermissions !== null && this.registrationPermissions !== undefined) {
+      // POST_APPROVE = 4 (1 << 2)
+      const POST_APPROVE = 4;
+      return (this.registrationPermissions & POST_APPROVE) === POST_APPROVE;
+    }
+    
+    // Fallback: Managers can manage wall (for backwards compatibility)
+    return user.role === 'manager';
   }
 
   canAccessWall(): boolean {
     const user = this.authService.user();
-    if (!user || !this.event) return false;
+    if (!user || !this.event) {
+      return false;
+    }
     
     // Managers and Admins can always access
     if (user.role === 'manager' || user.role === 'admin') {
       return true;
     }
     
-    // For PUBLIC events, all authenticated users can access
+    // For PUBLIC events, all authenticated users can access (even if not registered)
     if (this.event.visibility === 'PUBLIC') {
       return true;
     }
     
     // For INTERNAL/PRIVATE events, users need to be registered and approved
     if (this.event.visibility === 'INTERNAL' || this.event.visibility === 'PRIVATE') {
-      return this.isRegistered && (this.registrationStatus === 'APPROVED' || this.registrationStatus === 'ATTENDED');
+      const canAccess = this.isRegistered && (this.registrationStatus === 'APPROVED' || this.registrationStatus === 'ATTENDED');
+      return canAccess;
     }
     
     return false;
@@ -176,12 +232,20 @@ export class EventDetailComponent implements OnInit {
 
   canManageRegistrations(): boolean {
     const user = this.authService.user();
-    if (!user || !this.event) return false;
+    if (!user || !this.event) {
+      return false;
+    }
     // Event creator (manager) can manage registrations for events they created
     // Admins can manage registrations for all events
     const isEventCreator = user.role === 'manager' && this.event.creatorId !== undefined && this.event.creatorId === user.id;
     const isAdmin = user.role === 'admin';
     return isEventCreator || isAdmin;
+  }
+
+  canViewRegistrations(): boolean {
+    // Tất cả user tham gia sự kiện (APPROVED/ATTENDED) đều có thể xem danh sách
+    // Backend sẽ tự filter: có quyền REGISTRATION_APPROVE thì xem tất cả, không có thì chỉ xem APPROVED/ATTENDED
+    return this.isRegistered && (this.registrationStatus === 'APPROVED' || this.registrationStatus === 'ATTENDED');
   }
 
   getStatusText(status: string): string {

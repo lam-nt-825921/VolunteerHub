@@ -4,6 +4,7 @@ import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../services/auth.service';
 import { NotificationService, Notification } from '../../../services/notification.service';
+import { SocketService } from '../../../services/socket.service';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -24,7 +25,8 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   constructor(
     public authService: AuthService,
     private notificationService: NotificationService,
-    private router: Router
+    private router: Router,
+    private socketService: SocketService
   ) {
     // Update notifications and unread count when user changes
     effect(() => {
@@ -35,14 +37,40 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
           this.updateNotifications(user.id);
           this.updateUnreadCount(user.id);
           
-          // Sync periodically (every 3 seconds) as fallback to WebSocket
+          // Polling fallback: Always poll as backup, but with different intervals
+          // WebSocket is primary, but polling ensures we don't miss notifications
           if (this.syncInterval) {
             clearInterval(this.syncInterval);
           }
-          this.syncInterval = setInterval(() => {
-            this.updateNotifications(user.id);
-            this.updateUnreadCount(user.id);
-          }, 3000);
+          
+          // Check WebSocket connection status
+          const isWebSocketConnected = this.socketService.isConnected();
+          
+          if (!isWebSocketConnected) {
+            // WebSocket not connected - use aggressive polling
+            // Poll every 5 seconds to ensure notifications within 3-10s window
+            this.syncInterval = setInterval(() => {
+              const currentUser = this.authService.user();
+              if (currentUser) {
+                // Only poll if still disconnected
+                if (!this.socketService.isConnected()) {
+                  this.loadUnreadCount(currentUser.id);
+                } else {
+                  // WebSocket reconnected, switch to slower polling
+                  if (this.syncInterval) {
+                    clearInterval(this.syncInterval);
+                    this.syncInterval = null;
+                  }
+                  // Restart with slower interval
+                  this.startPollingFallback(currentUser.id);
+                }
+              }
+            }, 5000); // 5 seconds when WebSocket is down
+          } else {
+            // WebSocket connected - use slower polling as backup (every 10 seconds)
+            // This ensures we catch notifications even if WebSocket fails silently
+            this.startPollingFallback(user.id);
+          }
         }, 0);
       } else {
         // Use setTimeout to avoid writing signals inside effect
@@ -62,11 +90,9 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     // Request notification permission on init
     this.notificationService.requestPermission();
     
-    const user = this.authService.user();
-    if (user) {
-      this.loadNotifications(user.id);
-      this.loadUnreadCount(user.id);
-    }
+    // Don't call loadNotifications/loadUnreadCount here
+    // The effect() in constructor already handles loading when user changes
+    // This prevents duplicate API calls
   }
 
   ngOnDestroy() {
@@ -105,12 +131,16 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   }
 
   toggleDropdown() {
+    const wasOpen = this.showDropdown();
     this.showDropdown.update(v => !v);
     
-    // Load fresh notifications when opening dropdown
-    if (!this.showDropdown()) {
+    // Best practice: Load notifications on-demand when user opens dropdown
+    // This is how Facebook, Twitter, etc. handle it - lazy loading
+    if (!wasOpen && this.showDropdown()) {
       const user = this.authService.user();
       if (user) {
+        // Load fresh notifications when opening dropdown
+        // This ensures user sees latest notifications when they check
         this.loadNotifications(user.id);
       }
     }
@@ -160,6 +190,36 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
       this.router.navigate([notification.link]);
       this.closeDropdown();
     }
+  }
+
+  /**
+   * Start polling fallback with slower interval (when WebSocket is connected)
+   * This acts as a safety net to catch notifications even if WebSocket fails silently
+   */
+  private startPollingFallback(userId: number): void {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+    }
+    
+    // Poll every 10 seconds as backup when WebSocket is connected
+    // This ensures notifications are caught within 3-10s window even if WebSocket has issues
+    this.syncInterval = setInterval(() => {
+      const currentUser = this.authService.user();
+      if (currentUser && currentUser.id === userId) {
+        // Only poll if WebSocket is still connected (as backup)
+        // If WebSocket disconnects, the effect will restart with faster polling
+        if (this.socketService.isConnected()) {
+          this.loadUnreadCount(currentUser.id);
+        } else {
+          // WebSocket disconnected, stop this interval
+          // The effect will restart with faster polling
+          if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+            this.syncInterval = null;
+          }
+        }
+      }
+    }, 10000); // 10 seconds as backup when WebSocket is connected
   }
 
   formatDate(dateString: string): string {

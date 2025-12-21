@@ -48,6 +48,9 @@ export class ParticipationHistoryItemDto {
   attendedAt: Date | null;
 
   @Expose()
+  permissions: number;
+
+  @Expose()
   @Type(() => ParticipationEventSummaryDto)
   event: ParticipationEventSummaryDto;
 }

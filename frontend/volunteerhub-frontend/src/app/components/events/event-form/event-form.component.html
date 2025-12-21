@@ -152,21 +152,7 @@
       @if (fileSizeWarning) {
         <p class="file-size-warning">{{ fileSizeWarning }}</p>
       }
-      <p class="file-upload-hint">Hoặc nhập URL ảnh (bắt buộc nếu muốn upload ảnh):</p>
-      <input
-        type="url"
-        id="coverImage"
-        [(ngModel)]="formData.coverImage"
-        name="coverImage"
-        placeholder="https://example.com/image.jpg"
-        (input)="updatePreviewFromUrl()"
-      />
-      @if (selectedFile && !formData.coverImage?.trim()) {
-        <p class="file-upload-warning">
-          <mat-icon>info</mat-icon>
-          Bạn đã chọn ảnh nhưng cần nhập URL để lưu. Hãy upload ảnh lên dịch vụ lưu trữ và dán link vào ô trên.
-        </p>
-      }
+      <p class="file-upload-hint">Chọn ảnh từ máy tính của bạn. Ảnh sẽ được upload tự động.</p>
     </div>
 
     <div class="form-actions">

@@ -17,6 +17,10 @@ export interface Notification extends NotificationResponse {
 })
 export class NotificationService implements OnDestroy {
   private subscriptions = new Subscription();
+  
+  // Track loading state to prevent duplicate API calls
+  private loadingUnreadCount = new Map<number, boolean>();
+  private loadingNotifications = new Map<number, boolean>();
 
   // Notification state
   private notificationsMap = signal<Map<number, Notification[]>>(new Map());
@@ -46,22 +50,24 @@ export class NotificationService implements OnDestroy {
     });
     this.subscriptions.add(unreadCountSub);
 
-    // Load notifications when user changes
+    // Load unread count when user changes (lightweight, needed for badge)
+    // But DON'T load full notifications list - only load on demand (when user opens dropdown)
     effect(() => {
       const user = this.authService.user();
       if (user) {
-        // Only load if we don't have notifications yet for this user
-        const existingNotifications = this.notificationsMap().get(user.id);
-        if (!existingNotifications || existingNotifications.length === 0) {
-          // Use setTimeout to avoid writing signals inside effect
-          setTimeout(() => this.loadNotifications(user.id), 0);
+        // Only load unread count if we don't have it yet for this user
+        // This is lightweight and needed for the notification badge
+        const existingUnreadCount = this.unreadCountMap().get(user.id);
+        if (existingUnreadCount === undefined) {
+          setTimeout(() => this.loadUnreadCount(user.id), 0);
         }
-        setTimeout(() => this.loadUnreadCount(user.id), 0);
       } else {
         // Clear notifications when user logs out - use setTimeout to avoid signal writes in effect
         setTimeout(() => {
           this.notificationsMap.set(new Map());
           this.unreadCountMap.set(new Map());
+          this.loadingUnreadCount.clear();
+          this.loadingNotifications.clear();
         }, 0);
       }
     });
@@ -71,6 +77,20 @@ export class NotificationService implements OnDestroy {
    * Load notifications from API
    */
   async loadNotifications(userId: number, page: number = 1, limit: number = 50): Promise<void> {
+    // Prevent duplicate API calls
+    if (this.loadingNotifications.get(userId)) {
+      return;
+    }
+    
+    // Check if we already have notifications for this user (only for page 1)
+    if (page === 1) {
+      const existingNotifications = this.notificationsMap().get(userId);
+      if (existingNotifications && existingNotifications.length > 0) {
+        return; // Already loaded
+      }
+    }
+    
+    this.loadingNotifications.set(userId, true);
     try {
       const response = await firstValueFrom(
         this.notificationsApi.getNotifications({ page, limit })
@@ -79,10 +99,19 @@ export class NotificationService implements OnDestroy {
       const notifications = response.data.map(notif => this.mapToNotification(notif));
       
       const currentMap = new Map(this.notificationsMap());
-      currentMap.set(userId, notifications);
+      if (page === 1) {
+        // Replace for page 1
+        currentMap.set(userId, notifications);
+      } else {
+        // Append for subsequent pages
+        const existing = currentMap.get(userId) || [];
+        currentMap.set(userId, [...existing, ...notifications]);
+      }
       this.notificationsMap.set(currentMap);
     } catch (error) {
       console.error('[NotificationService] Failed to load notifications:', error);
+    } finally {
+      this.loadingNotifications.set(userId, false);
     }
   }
 
@@ -90,11 +119,25 @@ export class NotificationService implements OnDestroy {
    * Load unread count from API
    */
   async loadUnreadCount(userId: number): Promise<void> {
+    // Prevent duplicate API calls
+    if (this.loadingUnreadCount.get(userId)) {
+      return;
+    }
+    
+    // Check if we already have unread count for this user
+    const existingCount = this.unreadCountMap().get(userId);
+    if (existingCount !== undefined) {
+      return; // Already loaded
+    }
+    
+    this.loadingUnreadCount.set(userId, true);
     try {
       const count = await firstValueFrom(this.notificationsApi.getUnreadCount());
       this.updateUnreadCount(userId, count);
     } catch (error) {
       console.error('[NotificationService] Failed to load unread count:', error);
+    } finally {
+      this.loadingUnreadCount.set(userId, false);
     }
   }
 
@@ -110,18 +153,27 @@ export class NotificationService implements OnDestroy {
     // Add to the beginning of the list
     const currentMap = new Map(this.notificationsMap());
     const userNotifications = currentMap.get(user.id) || [];
-    userNotifications.unshift(mappedNotification);
     
-    // Keep only the latest 100 notifications in memory
-    if (userNotifications.length > 100) {
-      userNotifications.splice(100);
-    }
-    
-    currentMap.set(user.id, userNotifications);
-    this.notificationsMap.set(currentMap);
+    // Check if notification already exists (avoid duplicates)
+    const existingIndex = userNotifications.findIndex(n => n.id === notification.id);
+    if (existingIndex === -1) {
+      userNotifications.unshift(mappedNotification);
+      
+      // Keep only the latest 100 notifications in memory
+      if (userNotifications.length > 100) {
+        userNotifications.splice(100);
+      }
+      
+      currentMap.set(user.id, userNotifications);
+      this.notificationsMap.set(currentMap);
 
-    // Show browser notification if permission granted
-    this.showBrowserNotification(mappedNotification);
+      // Update unread count (increment by 1)
+      const currentCount = this.unreadCountMap().get(user.id) || 0;
+      this.updateUnreadCount(user.id, currentCount + 1);
+
+      // Show browser notification if permission granted
+      this.showBrowserNotification(mappedNotification);
+    }
   }
 
   /**
@@ -241,17 +293,27 @@ export class NotificationService implements OnDestroy {
 
     const { eventId, postId, commentId } = notification.data;
 
-    // Event-related notifications
-    if (eventId) {
-      if (notification.type.includes('POST') || notification.type.includes('COMMENT')) {
-        return `/events/${eventId}`; // Navigate to event detail page
-      }
-      return `/events/${eventId}`;
+    // For comment replies, navigate to post detail with comment highlight
+    if (notification.type.includes('COMMENT_REPLY') && postId && commentId) {
+      return `/posts/${postId}?commentId=${commentId}`;
     }
 
-    // Post-related notifications
-    if (postId && eventId) {
-      return `/events/${eventId}`; // Navigate to event with post
+    // For post-related notifications, navigate to post detail
+    if (notification.type.includes('POST') && postId) {
+      return `/posts/${postId}`;
+    }
+
+    // For comment notifications (new comment on post), navigate to post detail
+    if (notification.type.includes('COMMENT') && postId) {
+      if (commentId) {
+        return `/posts/${postId}?commentId=${commentId}`;
+      }
+      return `/posts/${postId}`;
+    }
+
+    // Fallback to event page if only eventId is available
+    if (eventId) {
+      return `/events/${eventId}`;
     }
 
     return undefined;

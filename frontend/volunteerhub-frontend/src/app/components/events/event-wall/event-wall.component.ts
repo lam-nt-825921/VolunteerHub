@@ -2,6 +2,7 @@ import { Component, OnInit, Input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { RouterModule } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { PostsApiService, Post, Comment } from '../../../services/posts-api.service';
@@ -11,7 +12,7 @@ import { ConfirmationService } from '../../../services/confirmation.service';
 @Component({
   selector: 'app-event-wall',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule],
+  imports: [CommonModule, FormsModule, MatIconModule, RouterModule],
   templateUrl: './event-wall.component.html',
   styleUrl: './event-wall.component.scss'
 })
@@ -20,13 +21,18 @@ export class EventWallComponent implements OnInit {
   @Input() canManage = false; // For managers/admins
 
   posts = signal<Post[]>([]);
+  pendingPosts = signal<Post[]>([]); // Posts waiting for approval
+  showPendingPosts = signal(false); // Toggle to show/hide pending posts section
   newPostContent = signal('');
   newCommentContent = signal<Map<number, string>>(new Map());
   replyingToComment = signal<Map<number, boolean>>(new Map()); // Map commentId -> isReplying
   replyContent = signal<Map<number, string>>(new Map()); // Map commentId -> replyContent
   previewUrl: string | null = null;
   isLoading = signal(false);
+  isLoadingPending = signal(false);
   commentsMap = signal<Map<number, Comment[]>>(new Map()); // Map postId -> comments
+  expandedComments = signal<Set<number>>(new Set()); // Track which comments are expanded
+  processingPosts = signal<Map<number, 'approving' | 'rejecting'>>(new Map()); // Track which posts are being processed
 
   constructor(
     public authService: AuthService,
@@ -36,31 +42,62 @@ export class EventWallComponent implements OnInit {
   ) {}
 
   async ngOnInit() {
-    await this.loadPosts();
+    await Promise.all([
+      this.loadPosts(),
+      // Load pending posts if user has manage permission
+      this.canManage ? this.loadPendingPosts() : Promise.resolve()
+    ]);
   }
 
   async loadPosts() {
     this.isLoading.set(true);
     try {
       const isAuthenticated = this.authService.isAuthenticated();
+      console.log('[EventWall] Loading posts for event:', this.eventId, 'authenticated:', isAuthenticated);
+      
       const result = await firstValueFrom(this.postsApi.getPostsForEvent(this.eventId, {}));
+      
+      console.log('[EventWall] Posts API response:', result);
       
       // Handle both array and paginated response
       const postsArray = Array.isArray(result) ? result : (result as any).data || [];
       
-    // Sort: pinned first, then by date
-      postsArray.sort((a: Post, b: Post) => {
-      if (a.isPinned && !b.isPinned) return -1;
-      if (!a.isPinned && b.isPinned) return 1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
+      console.log('[EventWall] Posts array:', postsArray.length, 'posts');
+      if (postsArray.length === 0) {
+        console.log('[EventWall] No posts found - this could be normal if no posts exist, or could indicate a permission issue');
+      }
       
-      this.posts.set(postsArray);
+      // If user has manage permission, filter out PENDING posts from main list
+      // (they will be shown in the pending posts section instead)
+      let approvedPosts = postsArray;
+      if (this.canManage) {
+        // Filter out posts with status PENDING
+        approvedPosts = postsArray.filter((post: Post) => post.status !== 'PENDING');
+        
+        // Extract pending posts
+        const pendingArray = postsArray.filter((post: Post) => post.status === 'PENDING');
+        this.pendingPosts.set(pendingArray);
+      }
+      
+      // Sort: pinned first, then by date
+      approvedPosts.sort((a: Post, b: Post) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      
+      this.posts.set(approvedPosts);
+      console.log('[EventWall] Posts set:', this.posts().length, 'posts (filtered)');
       
       // Load comments for each post
-      await this.loadAllComments(postsArray);
+      await this.loadAllComments(approvedPosts);
+      
+      // Reload pending posts count if user has manage permission (to get latest count)
+      if (this.canManage) {
+        await this.loadPendingPosts();
+      }
     } catch (error: any) {
-      console.error('Error loading posts:', error);
+      console.error('[EventWall] Error loading posts:', error);
       this.alertService.showError(error?.message || 'Không thể tải bài viết. Vui lòng thử lại!');
     } finally {
       this.isLoading.set(false);
@@ -440,6 +477,192 @@ export class EventWallComponent implements OnInit {
       hour: '2-digit',
       minute: '2-digit'
     });
+  }
+
+  /**
+   * Count total number of replies (including nested replies) recursively
+   */
+  countTotalReplies(comment: Comment): number {
+    if (!comment.replies || comment.replies.length === 0) {
+      return 0;
+    }
+    let count = comment.replies.length;
+    for (const reply of comment.replies) {
+      count += this.countTotalReplies(reply);
+    }
+    return count;
+  }
+
+  /**
+   * Toggle expand/collapse for a comment
+   */
+  toggleCommentExpanded(commentId: number) {
+    const expanded = new Set(this.expandedComments());
+    if (expanded.has(commentId)) {
+      expanded.delete(commentId);
+    } else {
+      expanded.add(commentId);
+    }
+    this.expandedComments.set(expanded);
+  }
+
+  /**
+   * Check if a comment is expanded
+   */
+  isCommentExpanded(commentId: number): boolean {
+    return this.expandedComments().has(commentId);
+  }
+
+  /**
+   * Load pending posts (only for users with POST_APPROVE permission)
+   */
+  async loadPendingPosts() {
+    if (!this.canManage) return;
+    
+    this.isLoadingPending.set(true);
+    try {
+      const result = await firstValueFrom(
+        this.postsApi.getPostsForEvent(this.eventId, { status: 'PENDING' })
+      );
+      
+      const pendingArray = Array.isArray(result) ? result : (result as any).data || [];
+      this.pendingPosts.set(pendingArray);
+    } catch (error: any) {
+      console.error('Error loading pending posts:', error);
+      // Don't show error to user - they might not have permission
+    } finally {
+      this.isLoadingPending.set(false);
+    }
+  }
+
+  /**
+   * Get count of pending posts
+   */
+  getPendingPostsCount(): number {
+    return this.pendingPosts().length;
+  }
+
+  /**
+   * Toggle show/hide pending posts section
+   */
+  togglePendingPosts() {
+    const wasOpen = this.showPendingPosts();
+    this.showPendingPosts.update(v => !v);
+    
+    // If opening and no pending posts loaded yet, load them
+    if (!wasOpen && this.showPendingPosts()) {
+      if (this.pendingPosts().length === 0) {
+        this.loadPendingPosts();
+      }
+    }
+  }
+
+  /**
+   * Approve a pending post (optimistic update)
+   */
+  async approvePost(post: Post) {
+    const confirmed = await this.confirmationService.confirm(
+      'Bạn có chắc muốn duyệt bài viết này?',
+      'Xác nhận duyệt bài viết'
+    );
+    if (!confirmed) return;
+
+    // Set loading state for this post
+    const currentProcessing = new Map(this.processingPosts());
+    currentProcessing.set(post.id, 'approving');
+    this.processingPosts.set(currentProcessing);
+
+    // Optimistic update: Remove from pending list immediately
+    const currentPending = this.pendingPosts();
+    const updatedPending = currentPending.filter(p => p.id !== post.id);
+    this.pendingPosts.set(updatedPending);
+
+    // Optimistic update: Add to approved posts list immediately
+    const currentPosts = this.posts();
+    const approvedPost: Post = { ...post, status: 'APPROVED' };
+    const updatedPosts = [approvedPost, ...currentPosts];
+    // Sort: pinned first, then by date
+    updatedPosts.sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+    this.posts.set(updatedPosts);
+
+    try {
+      // Call API in background
+      await firstValueFrom(this.postsApi.approvePost(post.id, 'APPROVED'));
+      
+      // Success: UI already updated, no need to show success message
+    } catch (error: any) {
+      console.error('Error approving post:', error);
+      
+      // Rollback: Restore pending post and remove from approved list
+      this.pendingPosts.set([...updatedPending, post]);
+      const rolledBackPosts = this.posts().filter(p => p.id !== post.id);
+      this.posts.set(rolledBackPosts);
+      
+      this.alertService.showError(error?.message || 'Duyệt bài viết thất bại. Vui lòng thử lại!');
+    } finally {
+      // Clear loading state
+      const finalProcessing = new Map(this.processingPosts());
+      finalProcessing.delete(post.id);
+      this.processingPosts.set(finalProcessing);
+    }
+  }
+
+  /**
+   * Reject a pending post (optimistic update)
+   */
+  async rejectPost(post: Post) {
+    const confirmed = await this.confirmationService.confirm(
+      'Bạn có chắc muốn từ chối bài viết này? Bài viết sẽ bị ẩn khỏi kênh trao đổi.',
+      'Xác nhận từ chối bài viết'
+    );
+    if (!confirmed) return;
+
+    // Set loading state for this post
+    const currentProcessing = new Map(this.processingPosts());
+    currentProcessing.set(post.id, 'rejecting');
+    this.processingPosts.set(currentProcessing);
+
+    // Optimistic update: Remove from pending list immediately
+    const currentPending = this.pendingPosts();
+    const updatedPending = currentPending.filter(p => p.id !== post.id);
+    this.pendingPosts.set(updatedPending);
+
+    try {
+      // Call API in background
+      await firstValueFrom(this.postsApi.approvePost(post.id, 'REJECTED'));
+      
+      // Success: UI already updated, no need to show success message
+    } catch (error: any) {
+      console.error('Error rejecting post:', error);
+      
+      // Rollback: Restore pending post
+      this.pendingPosts.set([...updatedPending, post]);
+      
+      this.alertService.showError(error?.message || 'Từ chối bài viết thất bại. Vui lòng thử lại!');
+    } finally {
+      // Clear loading state
+      const finalProcessing = new Map(this.processingPosts());
+      finalProcessing.delete(post.id);
+      this.processingPosts.set(finalProcessing);
+    }
+  }
+
+  /**
+   * Check if a post is being processed
+   */
+  isPostProcessing(postId: number): boolean {
+    return this.processingPosts().has(postId);
+  }
+
+  /**
+   * Get processing state for a post
+   */
+  getPostProcessingState(postId: number): 'approving' | 'rejecting' | null {
+    return this.processingPosts().get(postId) || null;
   }
 }
 

@@ -51,6 +51,7 @@ export interface ParticipationHistoryItem {
   status: RegistrationStatus;
   registeredAt: string;
   attendedAt: string | null;
+  permissions: number;
   event: {
     id: number;
     title: string;

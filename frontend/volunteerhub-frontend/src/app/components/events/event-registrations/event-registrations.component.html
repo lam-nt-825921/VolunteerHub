@@ -1,6 +1,6 @@
 <div class="event-registrations">
   <div class="registrations-header">
-    <h3>Quản lý người tham gia</h3>
+    <h3>{{ canManage ? 'Quản lý người tham gia' : 'Danh sách người tham gia' }}</h3>
     @if (canManage) {
       <button class="btn btn-secondary" (click)="exportToCSV()">
         <mat-icon>download</mat-icon>

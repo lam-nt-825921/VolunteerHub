@@ -51,6 +51,10 @@ export const routes: Routes = [
     }]
   },
   {
+    path: 'posts/:postId',
+    loadComponent: () => import('./components/posts/post-detail/post-detail.component').then(m => m.PostDetailComponent)
+  },
+  {
     path: 'profile',
     loadComponent: () => import('./components/profile/profile.component').then(m => m.ProfileComponent),
     canActivate: [() => {

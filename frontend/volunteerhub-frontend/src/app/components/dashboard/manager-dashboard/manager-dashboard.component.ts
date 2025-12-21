@@ -101,16 +101,9 @@ export class ManagerDashboardComponent implements OnInit {
           visibility: eventData.visibility || 'PUBLIC',
         };
         
-        // Get coverImageFile if provided, otherwise use coverImage URL
+        // Get coverImageFile if provided
         const coverImageFile = eventData.coverImageFile;
-        const coverImageUrl = (!coverImageFile && (eventData.imageUrl || eventData.coverImage)) 
-          ? (eventData.imageUrl || eventData.coverImage) 
-          : undefined;
-        
-        // Only include coverImage if it's provided (and no file)
-        if (coverImageUrl) {
-          updateData.coverImage = coverImageUrl;
-        }
+        // Don't send coverImage URL - only send file if provided
         
         // Only include categoryId if provided
         if (eventData.categoryId) {
@@ -129,11 +122,8 @@ export class ManagerDashboardComponent implements OnInit {
         // Use categoryId from form data
         const categoryId = eventData.categoryId;
         
-        // Get coverImageFile if provided, otherwise use coverImage URL
+        // Get coverImageFile if provided
         const coverImageFile = eventData.coverImageFile;
-        const coverImageUrl = (!coverImageFile && (eventData.imageUrl || eventData.coverImage)) 
-          ? (eventData.imageUrl || eventData.coverImage) 
-          : undefined;
         
         const result = await this.eventsService.createEvent({
           title: eventData.title,
@@ -141,7 +131,6 @@ export class ManagerDashboardComponent implements OnInit {
           location: eventData.location,
           startTime: eventData.startDate || eventData.startTime,
           endTime: eventData.endDate || eventData.endTime,
-          coverImage: coverImageUrl,
           visibility: eventData.visibility || 'PUBLIC',
           categoryId: categoryId
         }, coverImageFile);

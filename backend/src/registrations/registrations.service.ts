@@ -19,6 +19,7 @@ import {
 } from './dto/response/registration-response.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/types/notification-type.enum';
+import { EventPermission, buildPermissions, hasPermission } from '../common/utils/event-permissions.util';
 
 interface Actor {
   id: number;
@@ -236,12 +237,14 @@ export class RegistrationsService {
     }
 
     // Với PRIVATE event qua mã mời: tự động APPROVED (đã có mã mời hợp lệ)
+    // Set quyền cơ bản: POST_CREATE (đăng post, comment, like)
+    const defaultPermissions = buildPermissions([EventPermission.POST_CREATE]);
     const registration = await this.prisma.registration.create({
       data: {
         user: { connect: { id: actor.id } },
         event: { connect: { id: event.id } },
         status: RegistrationStatus.APPROVED,
-        permissions: 0,
+        permissions: defaultPermissions,
       },
       select: {
         id: true,
@@ -297,15 +300,40 @@ export class RegistrationsService {
     const isAdmin = actor.role === Role.ADMIN;
     const isCreator = actor.id === event.creatorId;
 
+    // Check if user has REGISTRATION_APPROVE permission
+    let hasRegistrationApprovePermission = false;
     if (!isAdmin && !isCreator) {
-      throw new ForbiddenException(
-        'Bạn không có quyền xem danh sách người tham gia sự kiện này',
+      // Check user's registration and permissions
+      const userRegistration = await this.prisma.registration.findUnique({
+        where: {
+          userId_eventId: { userId: actor.id, eventId: event.id },
+        },
+        select: { permissions: true, status: true },
+      });
+
+      if (!userRegistration) {
+        throw new ForbiddenException(
+          'Bạn chưa tham gia sự kiện này nên không thể xem danh sách người tham gia',
+        );
+      }
+
+      // Check if user has REGISTRATION_APPROVE permission
+      hasRegistrationApprovePermission = hasPermission(
+        userRegistration.permissions,
+        EventPermission.REGISTRATION_APPROVE,
       );
+    } else {
+      // Admin and creator have full access
+      hasRegistrationApprovePermission = true;
     }
 
     const where: any = { eventId: event.id };
 
-    if (status) {
+    // If user doesn't have REGISTRATION_APPROVE permission, only show APPROVED/ATTENDED
+    if (!hasRegistrationApprovePermission) {
+      where.status = { in: [RegistrationStatus.APPROVED, RegistrationStatus.ATTENDED] };
+    } else if (status) {
+      // User has permission, can filter by status
       where.status = status;
     }
 
@@ -368,6 +396,7 @@ export class RegistrationsService {
         id: true,
         status: true,
         userId: true,
+        permissions: true,
       },
     });
 
@@ -375,10 +404,23 @@ export class RegistrationsService {
       throw new NotFoundException('Đăng ký không tồn tại');
     }
 
+    // Khi approve, set permissions mặc định cho các quyền cơ bản
+    let permissions = registration.permissions || 0;
+    if (status === RegistrationStatus.APPROVED) {
+      // Set quyền cơ bản: POST_CREATE (đăng post, comment, like)
+      permissions = buildPermissions([EventPermission.POST_CREATE]);
+    } else if (status === RegistrationStatus.REJECTED || status === RegistrationStatus.KICKED) {
+      // Khi reject hoặc kick, xóa tất cả quyền
+      permissions = 0;
+    }
+
     // Có thể thêm rule chi tiết hơn về flow trạng thái nếu cần
     const updated = await this.prisma.registration.update({
       where: { id: registration.id },
-      data: { status },
+      data: { 
+        status,
+        permissions,
+      },
       select: {
         id: true,
         status: true,

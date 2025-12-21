@@ -189,15 +189,8 @@ export class EventFormComponent implements OnInit {
   removeImage() {
     this.selectedFile = null;
     this.previewUrl = null;
-    this.formData.coverImage = '';
+    this.formData.coverImage = undefined;
     this.fileSizeWarning = null;
-  }
-
-  updatePreviewFromUrl() {
-    // Update preview when URL is entered
-    if (this.formData.coverImage?.trim() && !this.formData.coverImage.startsWith('data:')) {
-      this.previewUrl = this.formData.coverImage;
-    }
   }
 
   onSubmit() {
@@ -225,21 +218,13 @@ export class EventFormComponent implements OnInit {
       }
     }
 
-    // Handle cover image: if file is selected, send file; otherwise send URL if provided
+    // Handle cover image: only send file if selected, otherwise don't send coverImage at all
     if (this.selectedFile) {
       // File selected - send file object (backend will upload to Cloudinary)
       this.formData.coverImageFile = this.selectedFile;
-      this.formData.coverImage = undefined; // Don't send URL if file is provided
-    } else if (this.formData.coverImage?.trim()) {
-      // Validate that it's a proper URL format (not base64)
-      if (this.formData.coverImage.startsWith('data:')) {
-        // Data URL from file selection - clear it since backend doesn't accept data URLs
-        this.formData.coverImage = undefined;
-      }
-      // If it's a valid URL string, keep it
-      this.formData.coverImageFile = undefined;
+      this.formData.coverImage = undefined; // Don't send URL
     } else {
-      // No cover image - that's fine, it's optional
+      // No file selected - don't send coverImage at all (it's optional)
       this.formData.coverImage = undefined;
       this.formData.coverImageFile = undefined;
     }

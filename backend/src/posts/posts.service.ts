@@ -145,23 +145,32 @@ export class PostsService {
       eventId: event.id,
     };
 
-    // Chỉ hiển thị APPROVED posts, trừ khi là người có quyền duyệt hoặc tác giả
-    if (!canViewPending) {
-      where.status = PostStatus.APPROVED;
-    } else {
+    // Logic hiển thị posts:
+    // 1. Người có quyền POST_APPROVE hoặc creator: xem tất cả posts (APPROVED, PENDING, REJECTED)
+    // 2. Người thường: chỉ xem APPROVED posts + posts của chính mình (dù ở status nào)
+    if (canViewPending) {
       // Người có quyền có thể xem tất cả posts (APPROVED, PENDING, REJECTED)
       // Nhưng có thể filter theo status nếu cần
       if (filter.status) {
         where.status = filter.status;
       }
-    }
-
-    // Nếu là tác giả, có thể xem post của mình dù ở trạng thái nào
-    if (actor && !canViewPending) {
-      where.OR = [
-        { status: PostStatus.APPROVED },
-        { authorId: actor.id }, // Tác giả có thể xem post của mình
-      ];
+    } else {
+      // Người thường: chỉ xem APPROVED posts + posts của chính mình (PENDING hoặc APPROVED, không xem REJECTED)
+      if (actor) {
+        // Tác giả có thể xem post của mình dù ở trạng thái nào (trừ REJECTED)
+        where.OR = [
+          { status: PostStatus.APPROVED }, // Tất cả posts APPROVED
+          { 
+            AND: [
+              { authorId: actor.id }, // Post của chính mình
+              { status: { in: [PostStatus.APPROVED, PostStatus.PENDING] } } // Chỉ xem APPROVED hoặc PENDING, không xem REJECTED
+            ]
+          },
+        ];
+      } else {
+        // Guest: chỉ xem APPROVED posts
+        where.status = PostStatus.APPROVED;
+      }
     }
 
     if (filter.type) {
@@ -213,6 +222,10 @@ export class PostsService {
 
     // Check likedByCurrentUser cho mỗi post
     logger.log(`[getPostsForEvent] Found ${posts.length} posts, checking likes for actor ${actor ? actor.id : 'null'}...`);
+    logger.log(`[getPostsForEvent] Where clause used:`, JSON.stringify(where, null, 2));
+    if (posts.length === 0) {
+      logger.warn(`[getPostsForEvent] No posts found with where clause:`, where);
+    }
     
     const postIds = posts.map((p) => p.id);
     const userLikes =
@@ -296,8 +309,11 @@ export class PostsService {
       throw new ForbiddenException('Bạn chưa được duyệt tham gia sự kiện hoặc chưa điểm danh');
     }
 
+    // Event creator hoặc user có status APPROVED/ATTENDED tự động có quyền POST_CREATE (quyền cơ bản)
+    // Hoặc nếu có permissions bitmask thì check
     const hasPostCreate =
       actor.id === event.creatorId ||
+      isValidStatus || // User có status APPROVED/ATTENDED tự động có quyền cơ bản
       hasPermission(registration.permissions, EventPermission.POST_CREATE);
 
     if (!hasPostCreate) {
@@ -1148,7 +1164,7 @@ export class PostsService {
           'Có phản hồi mới cho bình luận của bạn',
           'Ai đó đã trả lời bình luận của bạn trong sự kiện.',
           NotificationType.COMMENT_REPLY,
-          { postId: post.id, commentId: comment.id, parentId: parent.id },
+          { eventId: post.eventId, postId: post.id, commentId: comment.id, parentId: parent.id },
         );
       }
     }

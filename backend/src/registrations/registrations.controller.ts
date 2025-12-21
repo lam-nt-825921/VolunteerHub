@@ -73,20 +73,20 @@ export class RegistrationsController {
   }
 
   // Danh sách người tham gia 1 sự kiện
+  // Cho phép user tham gia sự kiện xem (nhưng chỉ xem APPROVED/ATTENDED nếu không có quyền REGISTRATION_APPROVE)
   @Get(':eventId')
   @Roles(Role.EVENT_MANAGER, Role.ADMIN, Role.VOLUNTEER)
-  @UseGuards(EventPermissionsGuard)
-  @EventPermissions(EventPermission.REGISTRATION_APPROVE)
+  // Không dùng EventPermissionsGuard - service sẽ tự check quyền và filter data
   @ApiQuery({
     name: 'status',
     required: false,
     enum: RegistrationStatus,
     description:
-      'Lọc theo trạng thái đăng ký. Ví dụ: status=PENDING để lấy danh sách đăng ký chờ duyệt.',
+      'Lọc theo trạng thái đăng ký. Ví dụ: status=PENDING để lấy danh sách đăng ký chờ duyệt. Chỉ có quyền REGISTRATION_APPROVE mới có thể filter PENDING/REJECTED.',
   })
   @ApiResponse({
     status: 200,
-    description: 'Danh sách đăng ký của sự kiện (có thể lọc theo trạng thái)',
+    description: 'Danh sách đăng ký của sự kiện. User không có quyền REGISTRATION_APPROVE chỉ thấy APPROVED/ATTENDED.',
     type: RegistrationResponseDto,
     isArray: true,
   })

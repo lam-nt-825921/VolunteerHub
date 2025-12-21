@@ -11,6 +11,7 @@ import {
   EventPermission,
   hasAnyPermission,
 } from '../../common/utils/event-permissions.util';
+import { RegistrationStatus, Role } from '../../generated/prisma/enums';
 
 /**
  * Guard kiểm tra quyền tham gia Event dựa trên bitmask trong bảng Registration
@@ -60,13 +61,21 @@ export class EventPermissionsGuard implements CanActivate {
         creatorId: true,
         registrations: {
           where: { userId: user.id },
-          select: { permissions: true },
+          select: { 
+            permissions: true,
+            status: true,
+          },
         },
       },
     });
 
     if (!event) {
       throw new ForbiddenException('Sự kiện không tồn tại');
+    }
+
+    // ADMIN có full quyền cho tất cả events
+    if (user.role === Role.ADMIN) {
+      return true;
     }
 
     // Nếu là creator của event → coi như có full quyền
@@ -80,6 +89,17 @@ export class EventPermissionsGuard implements CanActivate {
       throw new ForbiddenException(
         'Bạn không tham gia sự kiện này nên không có quyền thao tác',
       );
+    }
+
+    // Nếu user có status APPROVED hoặc ATTENDED và yêu cầu quyền POST_CREATE (quyền cơ bản)
+    // thì tự động cho phép mà không cần check permissions bitmask
+    const isBasicPermission = requiredPermissions.includes(EventPermission.POST_CREATE);
+    const hasValidStatus = 
+      registration.status === RegistrationStatus.APPROVED || 
+      registration.status === RegistrationStatus.ATTENDED;
+    
+    if (isBasicPermission && hasValidStatus) {
+      return true;
     }
 
     const hasPerm = hasAnyPermission(

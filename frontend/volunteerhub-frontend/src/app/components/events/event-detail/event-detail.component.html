@@ -32,10 +32,10 @@
           <p class="description">{{ event.description }}</p>
         </div>
 
-        <!-- Registration Management - Only for event creators/managers -->
-        @if (canManageRegistrations()) {
+        <!-- Registration List - All participants can view, but only managers/admins can manage -->
+        @if (canViewRegistrations() || canManageRegistrations()) {
           <div class="section">
-            <app-event-registrations [eventId]="event.id" [canManage]="true"></app-event-registrations>
+            <app-event-registrations [eventId]="event.id" [canManage]="canManageRegistrations()"></app-event-registrations>
           </div>
         }
 
