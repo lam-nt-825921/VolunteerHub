@@ -17,19 +17,24 @@ export const ROLES_KEY = 'roles';
 export class RoleGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
+  /**
+   * Kiểm tra quyền truy cập route dựa trên vai trò người dùng
+   * @param context - Execution context
+   * @returns true nếu người dùng có vai trò phù hợp
+   * @throws ForbiddenException nếu người dùng chưa đăng nhập hoặc không có vai trò phù hợp
+   */
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
-    // Nếu không định nghĩa @Roles() → tức là role GUEST, không cho truy cập
     if (!requiredRoles || requiredRoles.length === 0) {
       return false;
     }
 
     const request = context.switchToHttp().getRequest();
-    const user = request.user; // từ JwtAuthGuard
+    const user = request.user;
 
     if (!user) {
       throw new ForbiddenException('Vui lòng đăng nhập');

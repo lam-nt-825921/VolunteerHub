@@ -29,6 +29,12 @@ export class EventPermissionsGuard implements CanActivate {
     private readonly prisma: PrismaService,
   ) {}
 
+  /**
+   * Kiểm tra quyền truy cập route dựa trên quyền trong event (bitmask)
+   * @param context - Execution context
+   * @returns true nếu người dùng có quyền phù hợp
+   * @throws ForbiddenException nếu người dùng chưa đăng nhập, không tham gia event, hoặc không có quyền
+   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredPermissions = this.reflector.getAllAndOverride<
       EventPermission[]
@@ -53,7 +59,6 @@ export class EventPermissionsGuard implements CanActivate {
       );
     }
 
-    // Lấy event + registration của user trong event đó
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
       select: {
@@ -73,12 +78,10 @@ export class EventPermissionsGuard implements CanActivate {
       throw new ForbiddenException('Sự kiện không tồn tại');
     }
 
-    // ADMIN có full quyền cho tất cả events
     if (user.role === Role.ADMIN) {
       return true;
     }
 
-    // Nếu là creator của event → coi như có full quyền
     if (event.creatorId === user.id) {
       return true;
     }
@@ -91,8 +94,6 @@ export class EventPermissionsGuard implements CanActivate {
       );
     }
 
-    // Nếu user có status APPROVED hoặc ATTENDED và yêu cầu quyền POST_CREATE (quyền cơ bản)
-    // thì tự động cho phép mà không cần check permissions bitmask
     const isBasicPermission = requiredPermissions.includes(EventPermission.POST_CREATE);
     const hasValidStatus = 
       registration.status === RegistrationStatus.APPROVED || 
@@ -115,12 +116,10 @@ export class EventPermissionsGuard implements CanActivate {
   }
 
   /**
-   * Ưu tiên lấy eventId từ:
-   * - req.params.eventId
-   * - req.params.id (áp dụng cho route như /events/:id/...)
-   * - req.body.eventId
-   * - req.params.postId (lấy từ post trong DB)
-   * - req.params.commentId (lấy từ comment trong DB)
+   * Trích xuất eventId từ request
+   * Ưu tiên: params.eventId > params.id > body.eventId > postId (từ DB) > commentId (từ DB)
+   * @param request - Request object
+   * @returns Event ID hoặc null nếu không tìm thấy
    */
   private async extractEventId(request: any): Promise<number | null> {
     const { params, body } = request;
@@ -130,7 +129,6 @@ export class EventPermissionsGuard implements CanActivate {
     }
 
     if (params?.id) {
-      // Dùng cho các route dạng /events/:id/...
       return Number(params.id);
     }
 
@@ -138,7 +136,6 @@ export class EventPermissionsGuard implements CanActivate {
       return Number(body.eventId);
     }
 
-    // Nếu có postId, lấy eventId từ post
     if (params?.postId) {
       const post = await this.prisma.post.findUnique({
         where: { id: Number(params.postId) },
@@ -149,7 +146,6 @@ export class EventPermissionsGuard implements CanActivate {
       }
     }
 
-    // Nếu có commentId, lấy eventId từ comment -> post
     if (params?.commentId) {
       const comment = await this.prisma.comment.findUnique({
         where: { id: Number(params.commentId) },

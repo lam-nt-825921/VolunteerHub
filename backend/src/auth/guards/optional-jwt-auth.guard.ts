@@ -11,31 +11,33 @@ const logger = new Logger('OptionalJwtAuthGuard');
  */
 @Injectable()
 export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
+  /**
+   * Kiểm tra quyền truy cập route với authentication tùy chọn
+   * Nếu có token hợp lệ thì xác thực user, nếu không thì vẫn cho phép truy cập với user = null
+   * @param context - Execution context
+   * @returns true (luôn cho phép truy cập, nhưng user có thể là null)
+   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const authHeader = request.headers?.authorization;
-    
-    logger.log(`OptionalJwtAuthGuard: checking auth header: ${authHeader ? 'present' : 'missing'}`);
     
     try {
-      // Cố gắng xác thực token nếu có
       const result = await super.canActivate(context);
-      logger.log(`OptionalJwtAuthGuard: token validation result: ${result ? 'success' : 'failed'}`);
       return result as boolean;
     } catch (error) {
-      // Nếu không có token hoặc token không hợp lệ, vẫn cho phép truy cập
-      logger.log(`OptionalJwtAuthGuard: token validation error: ${error.message}, allowing access with user=null`);
       request.user = null;
       return true;
     }
   }
 
+  /**
+   * Xử lý kết quả xác thực từ Passport (tùy chọn)
+   * Trả về user nếu hợp lệ, hoặc null nếu không có token/token không hợp lệ
+   * @param err - Lỗi xác thực (nếu có)
+   * @param user - Thông tin người dùng (nếu xác thực thành công)
+   * @param info - Thông tin bổ sung về xác thực
+   * @returns Thông tin người dùng nếu hợp lệ, hoặc null
+   */
   handleRequest(err: any, user: any, info: any) {
-    logger.log(`OptionalJwtAuthGuard handleRequest: err=${err ? err.message : 'none'}, user=${user ? `id=${user.id}` : 'null'}, info=${info ? info.message : 'none'}`);
-    
-    // Nếu có lỗi (không token hoặc token không hợp lệ), vẫn cho qua với user = null
-    // Nếu có user hợp lệ, trả về user
-    // Controller sẽ tự kiểm tra if (user) { ... } else { ... }
     if (err || !user) {
       return null;
     }

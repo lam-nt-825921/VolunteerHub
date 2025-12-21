@@ -22,6 +22,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
+  /**
+   * Xác thực và trả về thông tin người dùng từ JWT payload
+   * @param payload - JWT payload chứa user ID
+   * @returns Thông tin người dùng (sẽ được gán vào request.user)
+   * @throws UnauthorizedException nếu người dùng không tồn tại hoặc không active
+   */
   async validate(payload: { sub: number }) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
@@ -38,6 +44,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Token không hợp lệ hoặc tài khoản bị khóa');
     }
 
-    return user; // ← cái này sẽ được gán vào request.user
+    return user;
   }
 }

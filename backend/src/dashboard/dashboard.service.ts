@@ -19,6 +19,8 @@ export class DashboardService {
 
   /**
    * Lấy thống kê dashboard của user
+   * @param userId - ID của người dùng
+   * @returns Thống kê bao gồm số lượng events, posts, comments, likes, reputation score, và events sắp tới
    */
   async getStats(userId: number): Promise<DashboardStatsResponseDto> {
     const [
@@ -32,11 +34,9 @@ export class DashboardService {
       upcomingEventsCount,
       activeEventsCount,
     ] = await Promise.all([
-      // Số events đã tạo
       this.prisma.event.count({
         where: { creatorId: userId },
       }),
-      // Số events đã đăng ký
       this.prisma.registration.count({
         where: {
           userId,
@@ -48,31 +48,25 @@ export class DashboardService {
           },
         },
       }),
-      // Số events đã tham gia (ATTENDED)
       this.prisma.registration.count({
         where: {
           userId,
           status: RegistrationStatus.ATTENDED,
         },
       }),
-      // Số posts đã tạo
       this.prisma.post.count({
         where: { authorId: userId },
       }),
-      // Số comments đã tạo
       this.prisma.comment.count({
         where: { authorId: userId },
       }),
-      // Số likes đã cho
       this.prisma.like.count({
         where: { userId },
       }),
-      // User info để lấy reputationScore
       this.prisma.user.findUnique({
         where: { id: userId },
         select: { reputationScore: true },
       }),
-      // Số events sắp diễn ra đã đăng ký
       this.prisma.registration.count({
         where: {
           userId,
@@ -85,7 +79,6 @@ export class DashboardService {
           },
         },
       }),
-      // Số events đang diễn ra đã đăng ký
       this.prisma.registration.count({
         where: {
           userId,
@@ -117,7 +110,10 @@ export class DashboardService {
   }
 
   /**
-   * Lịch sử tham gia sự kiện của user (dựa trên bảng registrations)
+   * Lấy lịch sử tham gia sự kiện của user (dựa trên bảng registrations)
+   * @param userId - ID của người dùng
+   * @param filter - Bộ lọc phân trang
+   * @returns Danh sách lịch sử tham gia sự kiện với thông tin event và trạng thái đăng ký
    */
   async getParticipationHistory(
     userId: number,
@@ -163,7 +159,8 @@ export class DashboardService {
   }
 
   /**
-   * Thống kê tổng quan cho ADMIN
+   * Lấy thống kê tổng quan cho ADMIN
+   * @returns Thống kê bao gồm tổng số events, users, registrations và các chỉ số trong tháng hiện tại
    */
   async getAdminStats(): Promise<AdminDashboardStatsResponseDto> {
     const now = new Date();
@@ -178,9 +175,7 @@ export class DashboardService {
       activeUsers,
       totalRegistrationsThisMonth,
     ] = await Promise.all([
-      // Tổng số sự kiện
       this.prisma.event.count(),
-      // Số sự kiện COMPLETED trong tháng hiện tại
       this.prisma.event.count({
         where: {
           status: EventStatus.COMPLETED,
@@ -190,21 +185,17 @@ export class DashboardService {
           },
         },
       }),
-      // Số sự kiện đang chờ duyệt
       this.prisma.event.count({
         where: {
           status: EventStatus.PENDING,
         },
       }),
-      // Tổng số user
       this.prisma.user.count(),
-      // Số user đang active
       this.prisma.user.count({
         where: {
           isActive: true,
         },
       }),
-      // Tổng số registrations trong tháng hiện tại
       this.prisma.registration.count({
         where: {
           registeredAt: {
@@ -226,19 +217,16 @@ export class DashboardService {
   }
 
   /**
-   * Lấy danh sách events được đề xuất cho user
-   * Algorithm:
-   * - Recency: Events gần đây được ưu tiên
-   * - Popularity: viewCount và số lượng đăng ký
-   * - Creator reputation: reputationScore của creator
-   * - User interaction: Categories mà user đã quan tâm
-   * - Visibility/Status: Chỉ APPROVED, PUBLIC/INTERNAL
+   * Lấy danh sách events được đề xuất cho user dựa trên thuật toán recommendation
+   * Thuật toán tính điểm dựa trên: recency, popularity, creator reputation, và categories mà user đã quan tâm
+   * @param userId - ID của người dùng
+   * @param filter - Bộ lọc phân trang
+   * @returns Danh sách events được đề xuất với điểm recommendation score, đã sắp xếp theo điểm
    */
   async getRecommendedEvents(
     userId: number,
     filter: FilterDashboardEventsDto,
   ) {
-    // 1. Lấy categories mà user đã quan tâm (từ events đã đăng ký)
     const userRegistrations = await this.prisma.registration.findMany({
       where: {
         userId,
@@ -263,16 +251,14 @@ export class DashboardService {
       ),
     ];
 
-    // 2. Query events phù hợp
     const where: any = {
       status: EventStatus.APPROVED,
       visibility: {
         in: [EventVisibility.PUBLIC, EventVisibility.INTERNAL],
       },
       startTime: {
-        gte: new Date(), // Chỉ lấy events chưa diễn ra
+        gte: new Date(),
       },
-      // Loại bỏ events mà user đã đăng ký
       registrations: {
         none: {
           userId,
@@ -290,7 +276,6 @@ export class DashboardService {
     const limit = filter.limit || 10;
     const skip = (page - 1) * limit;
 
-    // 3. Lấy events với đầy đủ thông tin
     const events = await this.prisma.event.findMany({
       where,
       skip,
@@ -343,33 +328,26 @@ export class DashboardService {
       },
     });
 
-    // 4. Tính recommendation score và map data
     const now = new Date();
     const mappedEvents = events.map((event) => {
-      // Tính điểm đề xuất
       let score = 0;
 
-      // Recency: Events gần đây hơn được ưu tiên
       const daysUntilStart =
         (event.startTime.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-      score += Math.max(0, 30 - daysUntilStart) * 2; // Max 60 points
+      score += Math.max(0, 30 - daysUntilStart) * 2;
 
-      // Popularity: viewCount và số lượng đăng ký
-      score += Math.min(event.viewCount / 10, 20); // Max 20 points
-      score += Math.min(event._count.registrations * 2, 30); // Max 30 points
+      score += Math.min(event.viewCount / 10, 20);
+      score += Math.min(event._count.registrations * 2, 30);
 
-      // Creator reputation
-      score += Math.min(event.creator.reputationScore / 10, 20); // Max 20 points
+      score += Math.min(event.creator.reputationScore / 10, 20);
 
-      // Category match: Nếu user đã quan tâm category này
       if (
         event.categoryId &&
         interestedCategoryIds.includes(event.categoryId)
       ) {
-        score += 30; // Bonus 30 points
+        score += 30;
       }
 
-      // Tìm registration của user (nếu có)
       const userRegistration = event.registrations.find(
         (r) => r.userId === userId,
       );
@@ -383,10 +361,8 @@ export class DashboardService {
       };
     });
 
-    // 5. Sắp xếp theo recommendation score
     mappedEvents.sort((a, b) => b.recommendationScore - a.recommendationScore);
 
-    // 6. Count total
     const total = await this.prisma.event.count({ where });
 
     return {
@@ -408,6 +384,10 @@ export class DashboardService {
 
   /**
    * Lấy danh sách events của user (đã tạo hoặc đã đăng ký)
+   * @param userId - ID của người dùng
+   * @param filter - Bộ lọc phân trang
+   * @param type - Loại events: 'created' (đã tạo), 'joined' (đã đăng ký), 'all' (tất cả)
+   * @returns Danh sách events với thông tin registration của user
    */
   async getMyEvents(
     userId: number,
@@ -432,7 +412,6 @@ export class DashboardService {
         },
       };
     } else {
-      // all: Events đã tạo HOẶC đã đăng ký
       where.OR = [
         { creatorId: userId },
         {
@@ -524,6 +503,9 @@ export class DashboardService {
 
   /**
    * Lấy danh sách events sắp diễn ra mà user đã đăng ký
+   * @param userId - ID của người dùng
+   * @param filter - Bộ lọc phân trang
+   * @returns Danh sách events sắp diễn ra, sắp xếp theo thời gian bắt đầu tăng dần
    */
   async getUpcomingEvents(
     userId: number,

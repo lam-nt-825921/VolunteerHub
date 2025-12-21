@@ -197,37 +197,3 @@
   }
 }
 
-.mock-accounts {
-  padding: 1.5rem 2rem 2rem;
-  background-color: var(--bg-secondary);
-  border-top: 1px solid var(--border-color);
-  border-radius: 0 0 1rem 1rem;
-
-  .mock-title {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0 0 0.75rem 0;
-  }
-
-  .mock-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .mock-item {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    padding: 0.5rem;
-    background-color: var(--bg-primary);
-    border-radius: 0.375rem;
-    border: 1px solid var(--border-color);
-
-    strong {
-      color: var(--color-primary);
-      margin-right: 0.5rem;
-    }
-  }
-}
-

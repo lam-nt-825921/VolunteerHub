@@ -13,13 +13,13 @@ import { PrismaService } from '../prisma/prisma.service';
     JwtModule.registerAsync({
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_ACCESS_SECRET'),
-        signOptions: { expiresIn: '2h' }, // Tăng từ 15m lên 2h
+        signOptions: { expiresIn: '2h' },
       }),
       inject: [ConfigService],
     }),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtRefreshStrategy, PrismaService],
-  exports: [AuthService, PrismaService], // Export PrismaService để interceptor có thể dùng
+  exports: [AuthService, PrismaService],
 })
 export class AuthModule {}

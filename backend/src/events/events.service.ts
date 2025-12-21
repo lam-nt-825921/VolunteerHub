@@ -80,17 +80,23 @@ export class EventsService {
     },
   };
 
-  // Tạo sự kiện
+  /**
+   * Tạo sự kiện mới
+   * Tự động tạo registration cho creator với quyền đầy đủ
+   * @param dto - Thông tin sự kiện cần tạo
+   * @param actor - Người tạo sự kiện
+   * @param file - File ảnh bìa (tùy chọn)
+   * @returns Sự kiện đã tạo
+   * @throws NotFoundException nếu categoryId không tồn tại
+   */
   async create(dto: CreateEventDto, actor: Actor, file?: Express.Multer.File) {
     let coverImageUrl: string | null = null;
 
-    // Upload ảnh bìa lên Cloudinary nếu có
     if (file) {
       const uploadResult = await this.cloudinary.uploadImage(file, 'volunteer-hub-events');
       coverImageUrl = uploadResult.secure_url;
     }
 
-    // Kiểm tra category có tồn tại không nếu có categoryId
     if (dto.categoryId) {
       const category = await this.prisma.category.findUnique({
         where: { id: dto.categoryId },
@@ -134,9 +140,6 @@ export class EventsService {
         select: this.defaultSelect,
       });
 
-      logger.log(`Creating registration for creator ${actor.id} in event ${newEvent.id}`);
-
-      // Tự động tạo registration cho creator với quyền đầy đủ
       try {
         await tx.registration.create({
           data: {
@@ -146,7 +149,6 @@ export class EventsService {
             permissions: creatorPermissions,
           },
         });
-        logger.log(`Successfully created registration for creator ${actor.id} in event ${newEvent.id}`);
       } catch (error) {
         logger.error(`Failed to create registration for creator ${actor.id} in event ${newEvent.id}:`, error);
         throw error;
@@ -161,6 +163,11 @@ export class EventsService {
   /**
    * Lấy mã mời cho sự kiện PRIVATE, có hạn dùng 7 ngày
    * Chỉ sự kiện đang hoạt động (APPROVED và trong khoảng thời gian diễn ra) mới được tạo mã
+   * @param eventId - ID của sự kiện
+   * @param actor - Người yêu cầu (phải là creator hoặc ADMIN)
+   * @returns Mã mời sự kiện
+   * @throws NotFoundException nếu sự kiện không tồn tại
+   * @throws ForbiddenException nếu không có quyền hoặc sự kiện không phải PRIVATE/APPROVED
    */
   async getInviteCode(eventId: number, actor: Actor) {
     const event = await this.prisma.event.findUnique({
@@ -197,25 +204,26 @@ export class EventsService {
     }
 
     const now = new Date();
-    // Sự kiện đang hoạt động: đã bắt đầu và chưa kết thúc
     if (event.startTime > now || (event.endTime && event.endTime < now)) {
       throw new ForbiddenException(
         'Chỉ sự kiện đang diễn ra mới có thể tạo mã mời',
       );
     }
 
-    // 7 ngày
     const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
     const inviteCode = generateInviteCode(event.id, ONE_WEEK_MS);
 
     return { inviteCode };
   }
 
-  // Danh sách sự kiện công khai (guest)
+  /**
+   * Lấy danh sách sự kiện công khai (dành cho guest)
+   * Chỉ trả về các sự kiện PUBLIC và APPROVED
+   * @param filter - Bộ lọc sự kiện
+   * @returns Danh sách sự kiện công khai với phân trang
+   */
   async getPublicEvents(filter: FilterEventsDto) {
-    logger.log('Filter DTO: ' + JSON.stringify(filter));
     const where = this.buildPublicWhere(filter);
-    logger.log('Public Events - Where: ' + JSON.stringify(where));
     return this.queryPaged(
       where,
       filter.page ?? 1,
@@ -224,7 +232,13 @@ export class EventsService {
     );
   }
 
-  // Danh sách sự kiện (người đăng nhập)
+  /**
+   * Lấy danh sách sự kiện (dành cho người đã đăng nhập)
+   * VOLUNTEER chỉ thấy PUBLIC và INTERNAL events, EVENT_MANAGER và ADMIN thấy tất cả
+   * @param filter - Bộ lọc sự kiện (bao gồm status để ADMIN có thể lấy sự kiện PENDING)
+   * @param actor - Người dùng hiện tại
+   * @returns Danh sách sự kiện với phân trang
+   */
   async findAll(filter: FilterEventsDto, actor: Actor) {
     if (actor.role === Role.VOLUNTEER) {
       const where = this.buildVolunteerWhere(filter);
@@ -244,43 +258,37 @@ export class EventsService {
     );
   }
 
-  // Chi tiết sự kiện
+  /**
+   * Lấy chi tiết sự kiện
+   * Guest chỉ thấy PUBLIC events, user đã đăng nhập có thể thấy thêm INTERNAL/PRIVATE nếu có quyền
+   * Tự động tạo registration cho creator nếu chưa có
+   * @param id - ID của sự kiện
+   * @param actor - Người dùng hiện tại (có thể null nếu là guest)
+   * @returns Chi tiết sự kiện với thông tin registration nếu có user
+   * @throws NotFoundException nếu sự kiện không tồn tại
+   * @throws ForbiddenException nếu guest cố truy cập INTERNAL/PRIVATE event
+   */
   async findOne(id: number, actor: Actor | null) {
-    logger.log(`[findOne] Called with eventId=${id}, actor=${actor ? `id=${actor.id}, role=${actor.role}` : 'null'}`);
-    
-    // Luôn dùng defaultSelect nếu có actor để có creatorId
     const event = await this.prisma.event.findUnique({
       where: { id },
       select: actor ? this.defaultSelect : this.publicSelect,
     });
 
     if (!event) {
-      logger.warn(`[findOne] Event ${id} not found`);
       throw new NotFoundException('Sự kiện không tồn tại');
     }
 
-    logger.log(`[findOne] Event ${id} found, visibility=${event.visibility}`);
-
-    // Kiểm tra visibility nếu là INTERNAL hoặc PRIVATE
     if (!actor) {
-      logger.log(`[findOne] No actor, checking visibility...`);
       if (
         event.visibility === EventVisibility.INTERNAL ||
         event.visibility === EventVisibility.PRIVATE
       ) {
-        logger.warn(`[findOne] Guest trying to access ${event.visibility} event ${id}`);
         throw new ForbiddenException('Sự kiện này chỉ dành cho thành viên');
       }
-      logger.log(`[findOne] Returning event for guest (no registration info)`);
       return event;
     } else {
-      // Khi có actor, event sẽ có creatorId vì dùng defaultSelect
       const eventWithCreator = event as typeof event & { creatorId: number };
       
-      logger.log(`[findOne] Actor ${actor.id} viewing event ${id}, creatorId: ${eventWithCreator.creatorId}`);
-      
-      // Kiểm tra registration của user (không chỉ creator)
-      logger.log(`[findOne] Checking registration for user ${actor.id} in event ${id}...`);
       const registration = await this.prisma.registration.findUnique({
         where: {
           userId_eventId: { userId: actor.id, eventId: id },
@@ -292,16 +300,8 @@ export class EventsService {
         },
       });
 
-      logger.log(`[findOne] Registration for user ${actor.id} in event ${id}: ${registration ? `Found (id=${registration.id}, status=${registration.status}, permissions=${registration.permissions})` : 'NOT FOUND'}`);
-
-      // Nếu là creator nhưng chưa có registration, tự động tạo
       if (eventWithCreator.creatorId === actor.id) {
-        logger.log(`[findOne] User ${actor.id} is the creator of event ${id}`);
-        
         if (!registration) {
-          logger.warn(`[findOne] Creator ${actor.id} of event ${id} has no registration! Auto-creating...`);
-          
-          // Tự động tạo registration cho creator nếu chưa có
           const creatorPermissions = buildPermissions([
             EventPermission.POST_CREATE,
             EventPermission.POST_APPROVE,
@@ -319,12 +319,10 @@ export class EventsService {
                 eventId: id,
                 status: RegistrationStatus.APPROVED,
                 permissions: creatorPermissions,
-              },
-            });
-            logger.log(`[findOne] Successfully auto-created registration ${newRegistration.id} for creator ${actor.id} in event ${id}`);
-            
-            // Thêm registration info vào response
-            return {
+            },
+          });
+          
+          return {
               ...event,
               isMember: true,
               registrationStatus: newRegistration.status,
@@ -332,7 +330,6 @@ export class EventsService {
             };
           } catch (error) {
             logger.error(`[findOne] Failed to auto-create registration for creator ${actor.id} in event ${id}:`, error);
-            // Không throw error để không làm gián đoạn việc xem event
             return {
               ...event,
               isMember: false,
@@ -341,7 +338,6 @@ export class EventsService {
             };
           }
         } else {
-          logger.log(`[findOne] Creator ${actor.id} already has registration ${registration.id} in event ${id}`);
           return {
             ...event,
             isMember: registration.status === RegistrationStatus.APPROVED || registration.status === RegistrationStatus.ATTENDED,
@@ -350,9 +346,6 @@ export class EventsService {
           };
         }
       } else {
-        logger.log(`[findOne] User ${actor.id} is NOT the creator (creatorId: ${eventWithCreator.creatorId}) of event ${id}`);
-        
-        // Thêm registration info vào response cho user thường
         return {
           ...event,
           isMember: registration ? (registration.status === RegistrationStatus.APPROVED || registration.status === RegistrationStatus.ATTENDED) : false,
@@ -363,7 +356,16 @@ export class EventsService {
     }
   }
 
-  // Cập nhật sự kiện
+  /**
+   * Cập nhật thông tin sự kiện
+   * @param id - ID của sự kiện
+   * @param dto - Thông tin cần cập nhật
+   * @param actor - Người thực hiện (phải là creator hoặc ADMIN)
+   * @param file - File ảnh bìa mới (tùy chọn, nếu có sẽ xóa ảnh cũ)
+   * @returns Sự kiện đã được cập nhật
+   * @throws NotFoundException nếu sự kiện không tồn tại
+   * @throws ForbiddenException nếu không có quyền
+   */
   async update(id: number, dto: UpdateEventDto, actor: Actor, file?: Express.Multer.File) {
     const event = await this.prisma.event.findUnique({
       where: { id },
@@ -379,9 +381,7 @@ export class EventsService {
 
     const data = this.mapUpdateData(dto);
 
-    // Upload ảnh bìa mới lên Cloudinary nếu có
     if (file) {
-      // Xóa ảnh cũ trước khi upload ảnh mới
       if (event.coverImage) {
         await this.cloudinary.deleteImage(event.coverImage);
       }
@@ -397,7 +397,18 @@ export class EventsService {
     });
   }
 
-  // Thay đổi trạng thái (duyệt, hủy, hoàn thành...)
+  /**
+   * Thay đổi trạng thái sự kiện (duyệt/từ chối/hủy/hoàn thành)
+   * ADMIN có thể duyệt/từ chối sự kiện PENDING
+   * Creator hoặc ADMIN có thể hủy/hoàn thành sự kiện APPROVED
+   * Tự động gửi notification cho creator khi trạng thái thay đổi
+   * @param id - ID của sự kiện
+   * @param dto - Trạng thái mới
+   * @param actor - Người thực hiện
+   * @returns Sự kiện đã được cập nhật trạng thái
+   * @throws NotFoundException nếu sự kiện không tồn tại
+   * @throws ForbiddenException nếu không được phép thay đổi trạng thái
+   */
   async updateStatus(id: number, dto: UpdateEventStatusDto, actor: Actor) {
     const event = await this.prisma.event.findUnique({
       where: { id },
@@ -409,11 +420,9 @@ export class EventsService {
     const currentStatus = event.status;
     const targetStatus = dto.status;
 
-    // ADMIN có thể duyệt / từ chối / hoàn thành / hủy
     const isAdmin = actor.role === Role.ADMIN;
     const isCreator = event.creatorId === actor.id;
 
-    // Helper: not allowed by default
     let allowed = false;
 
     switch (currentStatus) {
@@ -431,20 +440,16 @@ export class EventsService {
         if (targetStatus === EventStatus.CANCELLED && (isCreator || isAdmin)) {
           allowed = true;
         } else if (targetStatus === EventStatus.COMPLETED && (isCreator || isAdmin)) {
-          // Optionally: chỉ cho phép COMPLETED sau khi qua endTime
-          // if (event.endTime && event.endTime < new Date()) { allowed = true; }
           allowed = true;
         }
         break;
 
       case EventStatus.REJECTED:
-        // Không cho phép chuyển từ REJECTED sang trạng thái khác (cần route riêng nếu muốn)
         allowed = false;
         break;
 
       case EventStatus.CANCELLED:
       case EventStatus.COMPLETED:
-        // Sự kiện đã hủy hoặc hoàn thành thì không cho đổi trạng thái nữa
         allowed = false;
         break;
 
@@ -464,7 +469,6 @@ export class EventsService {
       select: this.defaultSelect,
     });
 
-    // Gửi notification cho creator khi trạng thái thay đổi (trừ khi chính creator tự thao tác)
     if (event.creatorId && event.creatorId !== actor.id) {
       let title = '';
       let message = '';
@@ -507,7 +511,11 @@ export class EventsService {
     return updated;
   }
 
-  // Helper methods
+  /**
+   * Xây dựng điều kiện where cho query sự kiện công khai
+   * @param filter - Bộ lọc
+   * @returns Điều kiện where cho Prisma
+   */
   private buildPublicWhere(filter: FilterEventsDto): Prisma.EventWhereInput {
     return {
       ...this.buildBaseWhere(filter),
@@ -516,6 +524,11 @@ export class EventsService {
     };
   }
 
+  /**
+   * Xây dựng điều kiện where cho query sự kiện của VOLUNTEER
+   * @param filter - Bộ lọc
+   * @returns Điều kiện where cho Prisma
+   */
   private buildVolunteerWhere(filter: FilterEventsDto): Prisma.EventWhereInput {
     return {
       ...this.buildBaseWhere(filter),
@@ -526,10 +539,20 @@ export class EventsService {
     };
   }
 
+  /**
+   * Xây dựng điều kiện where cho query sự kiện của EVENT_MANAGER/ADMIN
+   * @param filter - Bộ lọc
+   * @returns Điều kiện where cho Prisma
+   */
   private buildWhere(filter: FilterEventsDto): Prisma.EventWhereInput {
     return this.buildBaseWhere(filter);
   }
 
+  /**
+   * Xây dựng điều kiện where cơ bản từ filter
+   * @param filter - Bộ lọc (keyword, categoryId, status, visibility, từ ngày, đến ngày)
+   * @returns Điều kiện where cơ bản cho Prisma
+   */
   private buildBaseWhere(filter: FilterEventsDto): Prisma.EventWhereInput {
     const where: Prisma.EventWhereInput = {};
     const keyword = filter.keyword?.trim();
@@ -566,6 +589,11 @@ export class EventsService {
     return where;
   }
 
+  /**
+   * Map dữ liệu từ DTO sang Prisma EventUpdateInput
+   * @param dto - DTO cập nhật
+   * @returns Dữ liệu cập nhật cho Prisma
+   */
   private mapUpdateData(dto: UpdateEventDto): Prisma.EventUpdateInput {
     const data: Prisma.EventUpdateInput = {};
 
@@ -578,7 +606,6 @@ export class EventsService {
     if (dto.endTime !== undefined) data.endTime = new Date(dto.endTime);
     if (dto.visibility !== undefined) data.visibility = dto.visibility;
     
-    // Xử lý category relation đúng cách với Prisma
     if (dto.categoryId !== undefined) {
       if (dto.categoryId === null) {
         data.category = { disconnect: true };
@@ -590,6 +617,14 @@ export class EventsService {
     return data;
   }
 
+  /**
+   * Query sự kiện với phân trang
+   * @param where - Điều kiện where
+   * @param page - Trang hiện tại
+   * @param limit - Số lượng mỗi trang
+   * @param select - Các field cần select
+   * @returns Dữ liệu với phân trang
+   */
   private async queryPaged<T>(
     where: Prisma.EventWhereInput,
     page: number,

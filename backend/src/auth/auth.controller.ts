@@ -26,6 +26,11 @@ import { AuthResponseDto, UserProfileDto } from './dto/response/auth-response.dt
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  /**
+   * Đăng ký tài khoản mới
+   * @param dto - Thông tin đăng ký (email, password, fullName)
+   * @returns Thông tin người dùng đã đăng ký
+   */
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -34,11 +39,16 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'Đăng ký thành công', type: UserProfileDto })
   @ApiResponse({ status: 409, description: 'Email đã tồn tại' })
   async register(@Body() dto: RegisterDto) {
-    
     const response = await this.authService.register(dto);
     return plainToInstance(UserProfileDto, response);
   }
 
+  /**
+   * Đăng nhập và nhận access token
+   * @param dto - Thông tin đăng nhập (email, password)
+   * @param res - Response object để set cookie
+   * @returns Access token, expiresIn và thông tin người dùng
+   */
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -51,49 +61,59 @@ export class AuthController {
     logger.log('Login attempt');
     const tokens = await this.authService.login(dto);
     
-    // Lưu refreshToken vào httpOnly cookie
     res.cookie('refresh_token', tokens.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     return plainToInstance(AuthResponseDto, {
       accessToken: tokens.accessToken,
-      expiresIn: 2 * 60 * 60, // 2 giờ (7200 giây)
+      expiresIn: 2 * 60 * 60,
       user: plainToInstance(UserProfileDto, tokens.user),
     });
   }
 
+  /**
+   * Làm mới access token bằng refresh token từ cookie
+   * @param req - Request object chứa refresh token cookie
+   * @param res - Response object để set cookie mới
+   * @returns Access token mới và thời gian hết hạn
+   */
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Làm mới access token' })
   @ApiResponse({ status: 200, description: 'Token được làm mới thành công' })
   @ApiResponse({ status: 401, description: 'Refresh token không hợp lệ' })
   async refreshTokenWithCookie(
-  @Req() req: Request,
-  @Res({ passthrough: true }) res: Response,
-) {
-  const oldRefreshToken = req.cookies?.refresh_token;
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const oldRefreshToken = req.cookies?.refresh_token;
 
-  const tokens = await this.authService.refreshToken(oldRefreshToken);
+    const tokens = await this.authService.refreshToken(oldRefreshToken);
 
-  // Set lại cookie mới
-  res.cookie('refresh_token', tokens.refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    path: '/auth/refresh',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-  });
+    res.cookie('refresh_token', tokens.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/auth/refresh',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
-  return {
-    accessToken: tokens.accessToken,
-    expiresIn: 2 * 60 * 60, // 2 giờ (7200 giây)
-  };
-}
+    return {
+      accessToken: tokens.accessToken,
+      expiresIn: 2 * 60 * 60,
+    };
+  }
 
+  /**
+   * Đăng xuất người dùng và xóa refresh token
+   * @param userId - ID của người dùng hiện tại
+   * @param res - Response object để xóa cookie
+   * @returns Thông báo đăng xuất thành công
+   */
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Đăng xuất' })

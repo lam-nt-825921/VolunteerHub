@@ -27,7 +27,12 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {}
 
-  // ==================== ĐĂNG KÝ ====================
+  /**
+   * Đăng ký tài khoản người dùng mới
+   * @param dto - Thông tin đăng ký (email, password, fullName)
+   * @returns Thông tin người dùng đã tạo
+   * @throws ConflictException nếu email đã tồn tại
+   */
   async register(dto: RegisterDto) {
     const existed = await this.prisma.user.findUnique({
       where: { email: dto.email.toLowerCase() },
@@ -51,7 +56,12 @@ export class AuthService {
     return user;
   }
 
-  // ==================== ĐĂNG NHẬP ====================
+  /**
+   * Đăng nhập và tạo access token + refresh token
+   * @param dto - Thông tin đăng nhập (email, password)
+   * @returns Access token, refresh token và thông tin người dùng
+   * @throws UnauthorizedException nếu email/password không đúng hoặc tài khoản không active
+   */
   async login(dto: LoginDto) {
     const logger = new Logger('AuthService');
     logger.log(`Attempting login for email: ${dto.email}`);
@@ -78,13 +88,17 @@ export class AuthService {
     };
   }
 
-  // ==================== REFRESH TOKEN ====================
- async refreshToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+  /**
+   * Làm mới access token bằng refresh token
+   * @param refreshToken - Refresh token hiện tại
+   * @returns Access token và refresh token mới
+   * @throws UnauthorizedException nếu refresh token không hợp lệ, hết hạn, hoặc không khớp với DB
+   */
+  async refreshToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
   if (!refreshToken) {
     throw new UnauthorizedException('Refresh token không được cung cấp');
   }
 
-  // 1. Verify refresh token
   let payload: JwtPayload;
   try {
     payload = this.jwtService.verify<JwtPayload>(refreshToken, {
@@ -94,7 +108,6 @@ export class AuthService {
     throw new UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn');
   }
 
-  // 2. Lấy user + kiểm tra refresh token trong DB (plain text)
   const user = await this.prisma.user.findUnique({
     where: { id: payload.sub },
     select: { id: true, email: true, role: true, isActive: true, refreshToken: true },
@@ -105,7 +118,6 @@ export class AuthService {
   }
 
   if (user.refreshToken !== refreshToken) {
-    // Có thể bị đánh cắp → xóa luôn để vô hiệu hóa các token khác
     await this.prisma.user.update({
       where: { id: user.id },
       data: { refreshToken: null },
@@ -113,10 +125,8 @@ export class AuthService {
     throw new UnauthorizedException('Refresh token không hợp lệ');
   }
 
-  // 3. Tạo token mới + rotation
   const tokens = await this.generateTokens(user.id, user.role);
 
-  // 4. Lưu refresh token mới vào DB (plain text)
   await this.prisma.user.update({
     where: { id: user.id },
     data: { refreshToken: tokens.refreshToken },
@@ -125,7 +135,10 @@ export class AuthService {
   return tokens;
 }
 
-  // ==================== LOGOUT ====================
+  /**
+   * Đăng xuất người dùng bằng cách xóa refresh token
+   * @param userId - ID của người dùng cần đăng xuất
+   */
   async logout(userId: number) {
     await this.prisma.user.updateMany({
       where: { id: userId },
@@ -133,14 +146,19 @@ export class AuthService {
     });
   }
 
-  // ==================== HELPER ====================
+  /**
+   * Tạo access token và refresh token mới cho người dùng
+   * @param userId - ID của người dùng
+   * @param role - Vai trò của người dùng
+   * @returns Access token (hết hạn sau 2 giờ) và refresh token (hết hạn sau 7 ngày)
+   */
   private async generateTokens(userId: number, role: Role) {
     const payload: JwtPayload = { sub: userId, email: '', role };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: this.config.get<string>('JWT_ACCESS_SECRET'),
-        expiresIn: '2h', // Tăng từ 15m lên 2h để giảm số lần phải refresh
+        expiresIn: '2h',
       }),
       this.jwtService.signAsync(payload, {
         secret: this.config.get<string>('JWT_REFRESH_SECRET'),
@@ -151,6 +169,11 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
+  /**
+   * Cập nhật refresh token của người dùng trong database
+   * @param userId - ID của người dùng
+   * @param refreshToken - Refresh token mới (hoặc null để xóa)
+   */
   private async updateRefreshToken(userId: number, refreshToken: string | null) {
     await this.prisma.user.update({
       where: { id: userId },
@@ -158,7 +181,12 @@ export class AuthService {
     });
   }
 
-  // Dùng cho JwtStrategy
+  /**
+   * Xác thực và lấy thông tin người dùng theo ID (dùng cho JwtStrategy)
+   * @param userId - ID của người dùng
+   * @returns Thông tin người dùng nếu hợp lệ và đang active
+   * @throws UnauthorizedException nếu người dùng không tồn tại hoặc không active
+   */
   async validateUser(userId: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

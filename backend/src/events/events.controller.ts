@@ -38,7 +38,11 @@ import { EventStatus, Role } from '../generated/prisma/enums';
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
-  // PUBLIC: Ai cũng xem được (guest + user)
+  /**
+   * Lấy danh sách sự kiện công khai (không yêu cầu đăng nhập)
+   * @param filter - Bộ lọc sự kiện (keyword, categoryId, từ ngày, đến ngày)
+   * @returns Danh sách sự kiện công khai với phân trang
+   */
   @Get('public')
   @Public()
   @ApiOperation({ summary: 'Lấy danh sách sự kiện công khai' })
@@ -47,19 +51,31 @@ export class EventsController {
     return this.eventsService.getPublicEvents(filter);
   }
 
-  // PUBLIC: Xem chi tiết sự kiện (guest thấy ít hơn, user thấy đầy đủ)
+  /**
+   * Xem chi tiết sự kiện (có thể xem không cần đăng nhập, nhưng cần token để xem registration status)
+   * Guest sẽ thấy ít thông tin hơn, user đã đăng nhập sẽ thấy đầy đủ thông tin và trạng thái đăng ký
+   * @param id - ID của sự kiện
+   * @param user - Người dùng hiện tại (có thể null nếu chưa đăng nhập)
+   * @returns Chi tiết sự kiện với thông tin registration nếu có user
+   */
   @Get(':id')
-  @AuthOptional() // Cho phép xem không cần đăng nhập, nhưng nếu có token thì lấy user để check registration
-  @ApiBearerAuth('JWT-auth') // Swagger sẽ hiển thị nút Authorize (optional)
+  @AuthOptional()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Xem chi tiết sự kiện (có thể xem không cần đăng nhập, nhưng cần token để xem registration status)' })
   @ApiResponse({ status: 200, description: 'Chi tiết sự kiện' })
   @ApiResponse({ status: 404, description: 'Sự kiện không tồn tại' })
   findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
-    console.log(`[EventsController] findOne called: eventId=${id}, user=${user ? `id=${user.id}, role=${user.role}` : 'null'}`);
     return this.eventsService.findOne(id, user);
   }
 
-  // Yêu cầu đăng nhập + role phù hợp
+  /**
+   * Lấy danh sách sự kiện (yêu cầu đăng nhập)
+   * ADMIN có thể truyền status=PENDING để lấy danh sách sự kiện chờ duyệt
+   * Các role khác chỉ thấy sự kiện phù hợp với quyền của mình
+   * @param filter - Bộ lọc sự kiện (keyword, categoryId, status, visibility, từ ngày, đến ngày)
+   * @param user - Người dùng hiện tại
+   * @returns Danh sách sự kiện với phân trang
+   */
   @Get()
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
   @ApiBearerAuth('JWT-auth')
@@ -114,7 +130,13 @@ export class EventsController {
     return this.eventsService.findAll(filter, user);
   }
 
-  // Tạo sự kiện - chỉ EVENT_MANAGER & ADMIN
+  /**
+   * Tạo sự kiện mới (chỉ EVENT_MANAGER & ADMIN)
+   * @param dto - Thông tin sự kiện cần tạo
+   * @param file - File ảnh bìa (tùy chọn)
+   * @param user - Người dùng hiện tại (sẽ là creator của sự kiện)
+   * @returns Sự kiện đã tạo
+   */
   @Post()
   @Roles(Role.EVENT_MANAGER, Role.ADMIN)
   @UseInterceptors(FileInterceptor('coverImage'))
@@ -151,7 +173,14 @@ export class EventsController {
     return this.eventsService.create(dto, user, file);
   }
 
-  // Sửa sự kiện - chỉ người tạo hoặc Admin
+  /**
+   * Cập nhật thông tin sự kiện (chỉ người tạo hoặc ADMIN)
+   * @param id - ID của sự kiện cần cập nhật
+   * @param dto - Thông tin sự kiện cần cập nhật
+   * @param file - File ảnh bìa mới (tùy chọn, nếu có sẽ xóa ảnh cũ và upload ảnh mới)
+   * @param user - Người dùng hiện tại
+   * @returns Sự kiện đã được cập nhật
+   */
   @Patch(':id')
   @Roles(Role.EVENT_MANAGER, Role.ADMIN)
   @UseInterceptors(FileInterceptor('coverImage'))
@@ -188,7 +217,14 @@ export class EventsController {
     return this.eventsService.update(id, dto, user, file);
   }
 
-  // Duyệt / thay đổi trạng thái sự kiện
+  /**
+   * Thay đổi trạng thái sự kiện (duyệt/từ chối/hủy/hoàn thành)
+   * ADMIN có thể duyệt/từ chối sự kiện PENDING, creator hoặc ADMIN có thể hủy/hoàn thành sự kiện APPROVED
+   * @param id - ID của sự kiện
+   * @param dto - Trạng thái mới
+   * @param user - Người dùng hiện tại
+   * @returns Sự kiện đã được cập nhật trạng thái
+   */
   @Patch(':id/status')
   @Roles(Role.EVENT_MANAGER, Role.ADMIN)
   @ApiBearerAuth('JWT-auth')
@@ -203,7 +239,13 @@ export class EventsController {
     return this.eventsService.updateStatus(id, dto, user);
   }
 
-  // Lấy mã mời cho sự kiện PRIVATE (chỉ creator hoặc ADMIN)
+  /**
+   * Lấy mã mời cho sự kiện PRIVATE (chỉ creator hoặc ADMIN)
+   * Mã mời có hạn sử dụng 7 ngày và chỉ có thể tạo cho sự kiện đang diễn ra (APPROVED)
+   * @param id - ID của sự kiện
+   * @param user - Người dùng hiện tại
+   * @returns Mã mời sự kiện
+   */
   @Get(':id/invite-code')
   @Roles(Role.EVENT_MANAGER, Role.ADMIN)
   @ApiBearerAuth('JWT-auth')

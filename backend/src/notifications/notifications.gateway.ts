@@ -47,12 +47,13 @@ export class NotificationsGateway
   ) {}
 
   /**
-   * Xử lý khi client connect
-   * Authenticate bằng JWT token từ query hoặc auth header
+   * Xử lý khi client kết nối WebSocket
+   * Xác thực bằng JWT token từ query string, auth header hoặc handshake auth
+   * Tự động join user vào room `user:{userId}` để nhận notifications
+   * @param client - Socket client đang kết nối
    */
   async handleConnection(@ConnectedSocket() client: AuthenticatedSocket) {
     try {
-      // Lấy token từ query string hoặc auth header
       const token =
         client.handshake.auth?.token ||
         client.handshake.query?.token ||
@@ -64,7 +65,6 @@ export class NotificationsGateway
         return;
       }
 
-      // Verify JWT token
       const payload = this.jwtService.verify(token, {
         secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
       });
@@ -77,7 +77,6 @@ export class NotificationsGateway
         return;
       }
 
-      // Verify user exists and is active
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { id: true, isActive: true },
@@ -89,14 +88,11 @@ export class NotificationsGateway
         return;
       }
 
-      // Attach userId to socket
       client.userId = userId;
 
-      // Join user-specific room
       const roomName = `user:${userId}`;
       await client.join(roomName);
 
-      // Track connected user
       if (!this.connectedUsers.has(userId)) {
         this.connectedUsers.set(userId, new Set());
       }
@@ -106,7 +102,6 @@ export class NotificationsGateway
         `✅ User ${userId} connected (socket: ${client.id}). Total connections: ${this.connectedUsers.get(userId)!.size}`,
       );
 
-      // Emit connection success
       client.emit('connected', {
         userId,
         message: 'Connected to notifications',
@@ -121,7 +116,9 @@ export class NotificationsGateway
   }
 
   /**
-   * Xử lý khi client disconnect
+   * Xử lý khi client ngắt kết nối WebSocket
+   * Tự động xóa socket khỏi danh sách connected users
+   * @param client - Socket client đang ngắt kết nối
    */
   handleDisconnect(@ConnectedSocket() client: AuthenticatedSocket) {
     const userId = client.userId;
@@ -144,8 +141,10 @@ export class NotificationsGateway
   }
 
   /**
-   * Emit notification đến user cụ thể
+   * Emit notification đến user cụ thể qua Socket.IO
    * Được gọi từ NotificationsService sau khi tạo notification
+   * @param userId - ID của người dùng nhận notification
+   * @param notification - Notification object cần emit
    */
   async emitNotification(userId: number, notification: any) {
     const roomName = `user:${userId}`;
@@ -161,7 +160,9 @@ export class NotificationsGateway
   }
 
   /**
-   * Emit unread count update
+   * Emit unread count update đến user qua Socket.IO
+   * @param userId - ID của người dùng
+   * @param count - Số lượng notifications chưa đọc
    */
   async emitUnreadCount(userId: number, count: number) {
     const roomName = `user:${userId}`;
@@ -171,7 +172,10 @@ export class NotificationsGateway
   }
 
   /**
-   * Client có thể subscribe để nhận unread count updates
+   * Xử lý message từ client để lấy unread count
+   * Client có thể subscribe event này để nhận unread count updates
+   * @param client - Socket client gửi message
+   * @returns Số lượng notifications chưa đọc
    */
   @SubscribeMessage('get_unread_count')
   async handleGetUnreadCount(@ConnectedSocket() client: AuthenticatedSocket) {

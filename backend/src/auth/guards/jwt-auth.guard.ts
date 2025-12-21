@@ -24,35 +24,43 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     super();
   }
 
+  /**
+   * Kiểm tra quyền truy cập route
+   * Bỏ qua authentication cho các route được đánh dấu @Public()
+   * Để OptionalJwtAuthGuard xử lý các route được đánh dấu @AuthOptional()
+   * @param context - Execution context
+   * @returns true nếu route là public/optional, hoặc kết quả từ super.canActivate() nếu cần authentication
+   */
   canActivate(context: ExecutionContext) {
-    // Kiểm tra xem route có được đánh dấu là public không
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
-    // Kiểm tra xem route có được đánh dấu là auth optional không
     const isAuthOptional = this.reflector.getAllAndOverride<boolean>(IS_AUTH_OPTIONAL_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
-    // Nếu là public (không phải optional), cho phép truy cập luôn mà không parse token
     if (isPublic && !isAuthOptional) {
-      logger.log('[JwtAuthGuard] Route is public, skipping authentication');
       return true;
     }
 
-    // Nếu là auth optional, để OptionalJwtAuthGuard xử lý (không gọi ở đây)
     if (isAuthOptional) {
-      logger.log('[JwtAuthGuard] Route is auth optional, deferring to OptionalJwtAuthGuard');
       return true;
     }
 
-    logger.log('[JwtAuthGuard] Route requires authentication');
     return super.canActivate(context);
   }
 
+  /**
+   * Xử lý kết quả xác thực từ Passport
+   * @param err - Lỗi xác thực (nếu có)
+   * @param user - Thông tin người dùng (nếu xác thực thành công)
+   * @param info - Thông tin bổ sung về xác thực
+   * @returns Thông tin người dùng nếu hợp lệ
+   * @throws UnauthorizedException nếu xác thực thất bại
+   */
   handleRequest(
     err: any,
     user: any,

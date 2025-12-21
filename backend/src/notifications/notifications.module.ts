@@ -22,7 +22,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     NotificationsService,
     NotificationsGateway,
   ],
-  exports: [NotificationsService], // Export để các service khác có thể dùng
+  exports: [NotificationsService],
 })
 export class NotificationsModule {}
 

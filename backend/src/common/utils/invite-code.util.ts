@@ -3,6 +3,11 @@ import * as crypto from 'crypto';
 const BASE62_ALPHABET =
   '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 
+/**
+ * Encode số nguyên thành chuỗi base62
+ * @param num - Số cần encode
+ * @returns Chuỗi base62
+ */
 function base62Encode(num: number): string {
   if (num === 0) return '0';
   let result = '';
@@ -15,6 +20,12 @@ function base62Encode(num: number): string {
   return result;
 }
 
+/**
+ * Decode chuỗi base62 thành số nguyên
+ * @param str - Chuỗi base62 cần decode
+ * @returns Số nguyên
+ * @throws Error nếu chuỗi chứa ký tự không hợp lệ
+ */
 function base62Decode(str: string): number {
   let result = 0;
   for (const ch of str) {
@@ -27,6 +38,11 @@ function base62Decode(str: string): number {
   return result;
 }
 
+/**
+ * Lấy secret key từ environment variable để tạo/verify invite code
+ * @returns Secret key
+ * @throws Error nếu INVITE_CODE_SECRET không được set
+ */
 function getInviteSecret(): string {
   const secret = process.env.INVITE_CODE_SECRET;
   if (!secret) {
@@ -55,7 +71,6 @@ export function generateInviteCode(
     .update(payload)
     .digest();
 
-  // Lấy 6 bytes đầu tiên rồi encode base62 -> checksum ngắn nhưng đủ an toàn cho MVP
   const checksumNum = hmac.readUIntBE(0, 6);
   const checksum = base62Encode(checksumNum);
 

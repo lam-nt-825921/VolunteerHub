@@ -36,19 +36,25 @@ export class RefreshTokenInterceptor implements NestInterceptor {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {
-    // Khởi tạo JwtService để verify token
     this.jwtService = new JwtService({
       secret: this.config.get<string>('JWT_ACCESS_SECRET'),
     });
   }
 
+  /**
+   * Intercept request và tự động refresh token nếu access token hết hạn
+   * Bắt lỗi 401 từ JwtAuthGuard, kiểm tra refresh token trong cookie,
+   * gọi refresh token service và set access token mới vào response header
+   * @param context - Execution context
+   * @param next - Call handler để tiếp tục xử lý request
+   * @returns Observable với response hoặc error
+   */
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
 
     return next.handle().pipe(
       catchError((error) => {
-        // Chỉ xử lý lỗi 401 (Unauthorized) liên quan đến token
         if (
           error instanceof UnauthorizedException &&
           (error.message.includes('Token') ||
@@ -64,26 +70,22 @@ export class RefreshTokenInterceptor implements NestInterceptor {
             return throwError(() => error);
           }
 
-          // Gọi refresh token service và retry request
           return new Observable((observer) => {
             this.authService
               .refreshToken(refreshToken)
               .then(async (tokens) => {
                 logger.log('Token refreshed successfully, retrying request...');
 
-                // Set access token mới vào response header
                 response.setHeader('X-New-Access-Token', tokens.accessToken);
-                response.setHeader('X-Token-Expires-In', '7200'); // 2 giờ
+                response.setHeader('X-Token-Expires-In', '7200');
 
-                // Cập nhật refresh token cookie
                 response.cookie('refresh_token', tokens.refreshToken, {
                   httpOnly: true,
                   secure: process.env.NODE_ENV === 'production',
                   sameSite: 'strict',
-                  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
+                  maxAge: 7 * 24 * 60 * 60 * 1000,
                 });
 
-                // Verify và lấy user từ access token mới
                 try {
                   const payload = this.jwtService.verify(tokens.accessToken);
                   const user = await this.prisma.user.findUnique({
@@ -98,13 +100,9 @@ export class RefreshTokenInterceptor implements NestInterceptor {
                   });
 
                   if (user && user.isActive) {
-                    // Set user vào request để tiếp tục xử lý
                     request.user = user;
                     logger.log(`Auto-refresh successful, user ${user.id} authenticated, retrying request`);
                     
-                    // Retry request với access token mới
-                    // Lưu ý: Không thể retry trực tiếp trong interceptor
-                    // Frontend cần đọc header X-New-Access-Token và retry request
                     observer.error(
                       new UnauthorizedException({
                         message: 'Token đã được làm mới. Vui lòng thử lại với token mới.',
@@ -122,14 +120,12 @@ export class RefreshTokenInterceptor implements NestInterceptor {
               })
               .catch((refreshError) => {
                 logger.error('Failed to refresh token:', refreshError);
-                // Xóa refresh token cookie nếu refresh thất bại
                 response.clearCookie('refresh_token');
                 observer.error(error);
               });
           });
         }
 
-        // Không phải lỗi 401 hoặc không liên quan đến token, throw error như bình thường
         return throwError(() => error);
       }),
     );

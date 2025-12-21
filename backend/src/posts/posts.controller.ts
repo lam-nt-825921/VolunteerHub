@@ -45,7 +45,6 @@ interface Actor {
   role: Role;
 }
 
-const logger = new Logger('PostsController');
 
 @ApiTags('posts')
 @Controller()
@@ -56,9 +55,16 @@ export class PostsController {
    * Danh sách posts trong event (có pagination)
    * GET /events/:eventId/posts
    */
+  /**
+   * Lấy danh sách posts của một sự kiện (có thể xem không cần đăng nhập, nhưng cần token để xem likedByCurrentUser)
+   * @param eventId - ID của sự kiện
+   * @param filter - Bộ lọc posts (type, isPinned, page, limit)
+   * @param user - Người dùng hiện tại (có thể null nếu chưa đăng nhập)
+   * @returns Danh sách posts với phân trang
+   */
   @Get('events/:eventId/posts')
-  @AuthOptional() // Cho phép xem không cần đăng nhập, nhưng nếu có token thì lấy user để check likedByCurrentUser
-  @ApiBearerAuth('JWT-auth') // Swagger sẽ hiển thị nút Authorize (optional)
+  @AuthOptional()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Lấy danh sách posts của một sự kiện (có phân trang, có thể xem không cần đăng nhập, nhưng cần token để xem likedByCurrentUser)' })
   @ApiResponse({
     status: 200,
@@ -72,13 +78,16 @@ export class PostsController {
     @Query() filter: FilterPostsDto,
     @CurrentUser() user: Actor | null,
   ) {
-    logger.log(`[PostsController] getPostsForEvent called: eventId=${eventId}, user=${user ? `id=${user.id}, role=${user.role}` : 'null'}`);
     return this.postsService.getPostsForEvent(eventId, filter, user);
   }
 
   /**
-   * Tạo post mới trong event
-   * POST /events/:eventId/posts
+   * Tạo post mới trong event (có thể upload nhiều ảnh, tối đa 10 ảnh)
+   * @param eventId - ID của sự kiện
+   * @param dto - Thông tin post cần tạo
+   * @param files - Mảng file ảnh (tối đa 10 ảnh)
+   * @param user - Người dùng hiện tại
+   * @returns Post đã tạo
    */
   @Post('events/:eventId/posts')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
@@ -130,12 +139,14 @@ export class PostsController {
   }
 
   /**
-   * Chi tiết 1 post
-   * GET /posts/:postId
+   * Lấy chi tiết một post (có thể xem không cần đăng nhập, nhưng cần token để xem likedByCurrentUser)
+   * @param postId - ID của post
+   * @param user - Người dùng hiện tại (có thể null nếu chưa đăng nhập)
+   * @returns Chi tiết post
    */
   @Get('posts/:postId')
-  @AuthOptional() // Cho phép xem không cần đăng nhập, nhưng nếu có token thì lấy user để check likedByCurrentUser
-  @ApiBearerAuth('JWT-auth') // Swagger sẽ hiển thị nút Authorize (optional)
+  @AuthOptional()
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Lấy chi tiết một post (có thể xem không cần đăng nhập, nhưng cần token để xem likedByCurrentUser)' })
   @ApiResponse({
     status: 200,
@@ -150,12 +161,17 @@ export class PostsController {
   }
 
   /**
-   * Sửa post
-   * PATCH /posts/:postId
+   * Cập nhật post (có thể upload ảnh mới - tối đa 10 ảnh, tùy chọn)
+   * Nếu có ảnh mới sẽ thay thế ảnh cũ, nếu không thì giữ nguyên ảnh cũ
+   * @param postId - ID của post cần cập nhật
+   * @param dto - Thông tin cần cập nhật
+   * @param files - Mảng file ảnh mới (tối đa 10 ảnh, tùy chọn)
+   * @param user - Người dùng hiện tại
+   * @returns Post đã được cập nhật
    */
   @Patch('posts/:postId')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
-  @UseInterceptors(FilesInterceptor('images', 10)) // Tối đa 10 ảnh - optional
+  @UseInterceptors(FilesInterceptor('images', 10))
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Cập nhật post (có thể upload ảnh mới - tùy chọn)' })
   @ApiConsumes('multipart/form-data')
@@ -205,8 +221,10 @@ export class PostsController {
   }
 
   /**
-   * Xóa post
-   * DELETE /posts/:postId
+   * Xóa post (chỉ author hoặc có quyền POST_REMOVE_OTHERS)
+   * @param postId - ID của post cần xóa
+   * @param user - Người dùng hiện tại
+   * @returns Thông báo xóa thành công
    */
   @Delete('posts/:postId')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
@@ -221,9 +239,11 @@ export class PostsController {
   }
 
   /**
-   * Pin/Unpin post (toggle tự động)
-   * PATCH /posts/:postId/pin
-   * Tự động toggle: nếu đang true → false, nếu đang false → true
+   * Toggle pin/unpin post (tự động đảo ngược trạng thái pin)
+   * Chỉ người có quyền POST_APPROVE mới được phép
+   * @param postId - ID của post
+   * @param user - Người dùng hiện tại
+   * @returns Post đã được toggle pin
    */
   @Patch('posts/:postId/pin')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
@@ -240,13 +260,15 @@ export class PostsController {
     @Param('postId', ParseIntPipe) postId: number,
     @CurrentUser() user: Actor,
   ) {
-    logger.log(`[PostsController] pinPost called: postId=${postId}, userId=${user.id}`);
     return this.postsService.pinPost(postId, user);
   }
 
   /**
-   * Duyệt hoặc từ chối post
-   * PATCH /posts/:postId/approve
+   * Duyệt hoặc từ chối post (chỉ người có quyền POST_APPROVE)
+   * @param postId - ID của post
+   * @param status - Trạng thái mới: 'APPROVED' hoặc 'REJECTED'
+   * @param user - Người dùng hiện tại
+   * @returns Post đã được duyệt/từ chối
    */
   @Patch('posts/:postId/approve')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
@@ -268,8 +290,10 @@ export class PostsController {
   }
 
   /**
-   * Like post
-   * POST /posts/:postId/like
+   * Like một post
+   * @param postId - ID của post
+   * @param user - Người dùng hiện tại
+   * @returns Thông báo like thành công
    */
   @Post('posts/:postId/like')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
@@ -288,8 +312,10 @@ export class PostsController {
   }
 
   /**
-   * Unlike post
-   * DELETE /posts/:postId/like
+   * Unlike một post
+   * @param postId - ID của post
+   * @param user - Người dùng hiện tại
+   * @returns Thông báo unlike thành công
    */
   @Delete('posts/:postId/like')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
@@ -308,9 +334,11 @@ export class PostsController {
   }
 
   /**
-   * Danh sách comments của 1 post
-   * GET /posts/:postId/comments
-   * Yêu cầu đăng nhập
+   * Lấy danh sách comments của một post (yêu cầu đăng nhập)
+   * Trả về nested replies (comments có parentId sẽ được nhóm vào parent comment)
+   * @param postId - ID của post
+   * @param user - Người dùng hiện tại
+   * @returns Danh sách comments với nested replies
    */
   @Get('posts/:postId/comments')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
@@ -330,8 +358,11 @@ export class PostsController {
   }
 
   /**
-   * Tạo comment/reply
-   * POST /posts/:postId/comments
+   * Tạo comment hoặc reply (nếu có parentId)
+   * @param postId - ID của post
+   * @param dto - Thông tin comment (content, parentId nếu là reply)
+   * @param user - Người dùng hiện tại
+   * @returns Comment đã tạo
    */
   @Post('posts/:postId/comments')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
@@ -351,8 +382,11 @@ export class PostsController {
   }
 
   /**
-   * Sửa comment
-   * PATCH /comments/:commentId
+   * Cập nhật comment (chỉ author)
+   * @param commentId - ID của comment
+   * @param dto - Nội dung comment mới
+   * @param user - Người dùng hiện tại
+   * @returns Comment đã được cập nhật
    */
   @Patch('comments/:commentId')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
@@ -372,8 +406,10 @@ export class PostsController {
   }
 
   /**
-   * Xóa comment
-   * DELETE /comments/:commentId
+   * Xóa comment (author hoặc có quyền COMMENT_DELETE_OTHERS)
+   * @param commentId - ID của comment
+   * @param user - Người dùng hiện tại
+   * @returns Thông báo xóa thành công
    */
   @Delete('comments/:commentId')
   @Roles(Role.VOLUNTEER, Role.EVENT_MANAGER, Role.ADMIN)
